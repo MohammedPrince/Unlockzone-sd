@@ -73,18 +73,9 @@ for example `/usr/local/bin/php`, if plain `php` is not found.)
 3. Server Tools: **Composer install** (only if composer.json / composer.lock changed),
    **Clear caches**, **Run migrations**, **Optimize**.
 
-## If the host will not let you change the Document Root
+## If the host will not serve `public/` as the Document Root
 
-Upload the project into the subdomain's folder and add this `.htaccess` **in the project root**
-(next to `artisan`). It sends every request into `public/` and blocks everything else:
-
-```
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteRule ^(\.env|\.git|composer\.(json|lock)|artisan) - [F,L]
-    RewriteCond %{REQUEST_URI} !^/public/
-    RewriteRule ^(.*)$ public/$1 [L]
-</IfModule>
-```
-
-Pointing the Document Root at `public/` is safer; use this only when that is impossible.
+Some hosts (this one included: `unlock.sunxfinder.com`) only work with the **project folder** as the
+Document Root, e.g. `public_html/Repository/unlockSD`. That is supported: the project ships a
+`.htaccess` next to `artisan` that passes every request into `public/`, so `.env`, `storage/`,
+`vendor/` and the rest are never served. Nothing else to configure.
