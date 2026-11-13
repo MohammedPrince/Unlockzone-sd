@@ -1,0 +1,2 @@
+- [DHRU Server project](dhru-server-project.md) — Laravel prepaid-credit platform at C:\wamp64\www\GitRepo\dhru-server: logins, design decisions, open items
+- [WAMP environment](wamp-environment.md) — MySQL defaults to MyISAM (force InnoDB), root/no password, PHP 8.2 CLI, SunXFinder conventions
