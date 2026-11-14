@@ -1026,3 +1026,38 @@ input[type=datetime-local] { width: 100%; padding: 9px 12px; min-height: 38px; b
     .home-nav .btn { padding-inline: 11px; }
 }
 @media (prefers-reduced-motion: reduce) { .home-pill.online i { animation: none; } }
+
+/* ---------- Small phones (360px and narrower): the top bar must fit the screen ---------- */
+@media (max-width: 960px) {
+    /* Nothing may push the page wider than the screen. */
+    html { overflow-x: hidden; }
+    .main, .content { max-width: 100%; }
+}
+@media (max-width: 680px) {
+    .topbar { gap: 8px; padding-inline: 10px; }
+    /* The logo gives way first, so the buttons beside it always stay on screen. */
+    .topbar-brand { flex: 0 1 auto; min-width: 0; }
+    .topbar-brand .brand-wide img { height: 30px; }
+    .topbar .lang-switch a { padding-inline: 8px; }
+    .topbar .user-menu { flex: none; }
+    .statement-tools { padding-inline: 14px; }
+    .statement-tools select { min-width: 0; }
+    .statement-tools .btn { padding-inline: 16px; flex: none; }
+    .orders-tools { padding-inline: 14px; }
+    /* Room at the end of the page so the chat button never covers the last line. */
+    .portal-customer .content { padding-bottom: 96px; }
+}
+@media (max-width: 340px) {
+    .topbar { gap: 6px; padding-inline: 8px; }
+    .topbar .lang-switch a { padding-inline: 6px; }
+}
+
+/* Chat button: larger, and lifted clear of the bottom edge. */
+.chat-float { bottom: 32px; }
+.chat-btn { width: 60px; height: 60px; }
+.chat-btn svg { width: 34px; height: 34px; }
+@media (max-width: 680px) {
+    .chat-float { bottom: calc(40px + env(safe-area-inset-bottom, 0px)); inset-inline-end: 14px; }
+    .chat-btn { width: 58px; height: 58px; }
+    .chat-btn svg { width: 32px; height: 32px; }
+}
