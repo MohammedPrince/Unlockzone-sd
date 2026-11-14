@@ -29,7 +29,7 @@ class AuthController extends Controller
         $result = $this->auth->login($request->input('login'), $request->input('password'), 'customer', $request->boolean('remember'));
 
         if (!$result['ok']) {
-            return back()->withErrors(['login' => $result['message']])->onlyInput('login');
+            return back()->withErrors(['login' => $result['message']])->onlyInput('login', 'remember');
         }
 
         $request->session()->regenerate();
