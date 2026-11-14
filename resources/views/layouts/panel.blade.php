@@ -81,6 +81,13 @@
                     </a>
                 @endforeach
             @endforeach
+            <form method="post" action="{{ route('logout') }}" class="nav-logout">
+                @csrf
+                <button type="submit">
+                    @include('partials.icon', ['name' => 'logout'])
+                    <span>{{ __('Logout') }}</span>
+                </button>
+            </form>
         </nav>
 
         <div class="sidebar-foot">{{ __('Signed in as') }} {{ $me->username }}</div>
@@ -148,10 +155,6 @@
                 </summary>
                 <div class="dropdown">
                     <a href="{{ route($isAdmin ? 'admin.profile' : 'customer.profile') }}">@include('partials.icon', ['name' => 'user']) {{ __('My profile') }}</a>
-                    <form method="post" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit">@include('partials.icon', ['name' => 'logout']) {{ __('Sign out') }}</button>
-                    </form>
                 </div>
             </details>
         </header>
