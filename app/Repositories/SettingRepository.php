@@ -27,6 +27,9 @@ class SettingRepository
         'ticker_speed' => 'normal',
         // Customers must tick "Agree with terms of services" before ordering.
         'require_terms' => '1',
+        // Terms of Service / Privacy Policy links in the signed-in customer menu and page footer.
+        'show_terms_link' => '1',
+        'show_privacy_link' => '1',
         'terms_text' => '',
         // Branding: an uploaded logo replaces the letter badge everywhere (path under public/).
         'site_logo' => '',

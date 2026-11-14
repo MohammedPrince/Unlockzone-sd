@@ -135,6 +135,8 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     // Server Tools: only the fixed tool keys exist; anything else is a 404.
     Route::get('tools', [Admin\ServerToolController::class, 'index'])->name('tools.index');
     Route::post('tools/{tool}', [Admin\ServerToolController::class, 'run'])->where('tool', '[a-z\-]+')->middleware('throttle:20,1')->name('tools.run');
+    Route::get('tools/log/download', [Admin\ServerToolController::class, 'downloadLog'])->name('tools.log.download');
+    Route::delete('tools/log', [Admin\ServerToolController::class, 'clearLog'])->name('tools.log.clear');
     Route::get('tools/backups/{file}', [Admin\ServerToolController::class, 'download'])->where('file', 'backup-[0-9\-]+\.sql')->name('tools.backups.download');
     Route::delete('tools/backups/{file}', [Admin\ServerToolController::class, 'destroy'])->where('file', 'backup-[0-9\-]+\.sql')->name('tools.backups.destroy');
 

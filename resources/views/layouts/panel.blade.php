@@ -155,6 +155,10 @@
                 </summary>
                 <div class="dropdown">
                     <a href="{{ route($isAdmin ? 'admin.profile' : 'customer.profile') }}">@include('partials.icon', ['name' => 'user']) {{ __('My profile') }}</a>
+                    <form method="post" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit">@include('partials.icon', ['name' => 'logout']) {{ __('Logout') }}</button>
+                    </form>
                 </div>
             </details>
         </header>
@@ -187,8 +191,12 @@
 
             <p class="footer">
                 {{ $site }} · {{ now()->year }}
-                · <a href="{{ route('legal.terms') }}">{{ __('Terms of Service') }}</a>
-                · <a href="{{ route('legal.privacy') }}">{{ __('Privacy Policy') }}</a>
+                @if ($isAdmin || setting('show_terms_link') !== '0')
+                    · <a href="{{ route('legal.terms') }}">{{ __('Terms of Service') }}</a>
+                @endif
+                @if ($isAdmin || setting('show_privacy_link') !== '0')
+                    · <a href="{{ route('legal.privacy') }}">{{ __('Privacy Policy') }}</a>
+                @endif
             </p>
         </main>
     </div>

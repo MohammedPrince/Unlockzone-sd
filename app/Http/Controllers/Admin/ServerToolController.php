@@ -16,8 +16,14 @@ class ServerToolController extends Controller
     {
         return view('admin.tools', [
             'tools' => $this->tools->tools(),
+            'enabled' => $this->tools->enabled(),
+            'summary' => $this->tools->summary(),
+            'details' => $this->tools->details(),
             'info' => $this->tools->info(),
             'backups' => $this->tools->backups(),
+            'logInfo' => $this->tools->logInfo(),
+            'logEntries' => $this->tools->logEntries(),
+            'logLines' => (int) config('server_tools.log_lines', 300),
         ]);
     }
 
@@ -25,6 +31,7 @@ class ServerToolController extends Controller
     public function run(Request $request, string $tool)
     {
         abort_unless(array_key_exists($tool, $this->tools->tools()), 404);
+        abort_unless($this->tools->enabled(), 403, 'Server Tools are switched off.');
 
         [$ok, $output, $seconds] = $this->tools->run($tool, $request->user()->id);
 
@@ -50,5 +57,19 @@ class ServerToolController extends Controller
         abort_unless($this->tools->deleteBackup($file, $request->user()->id), 404);
 
         return back()->with('success', __('Backup deleted.'));
+    }
+
+    public function downloadLog()
+    {
+        abort_unless($this->tools->logInfo(), 404);
+
+        return response()->download($this->tools->logPath(), 'laravel-' . now()->format('Y-m-d-His') . '.log', ['Content-Type' => 'text/plain']);
+    }
+
+    public function clearLog(Request $request)
+    {
+        $this->tools->clearLog($request->user()->id);
+
+        return redirect()->to(route('admin.tools.index') . '#log')->with('success', __('laravel.log was cleared.'));
     }
 }

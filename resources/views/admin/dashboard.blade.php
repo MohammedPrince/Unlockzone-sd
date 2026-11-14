@@ -47,7 +47,7 @@
                 <div class="hint">{{ __('Total of all wallet balances') }}</div>
             </div>
             <div class="stat">
-                <div class="label">@include('partials.icon', ['name' => 'users']) {{ __('Customers') }}</div>
+                <div class="label">@include('partials.icon', ['name' => 'users']) {{ __('Registered customers') }}</div>
                 <div class="value">{{ number_format($customers['all']) }}</div>
                 <div class="hint">{{ __(':active active · :pending awaiting approval · :suspended suspended', ['active' => $customers['active'], 'pending' => $customers['pending'], 'suspended' => $customers['suspended']]) }}</div>
             </div>
@@ -55,6 +55,73 @@
                 <div class="label">@include('partials.icon', ['name' => 'box']) {{ __('Services') }}</div>
                 <div class="value">{{ number_format($services['active']) }} <small>{{ __('of :total active', ['total' => $services['all']]) }}</small></div>
                 <div class="hint">{{ __(':count requests all time', ['count' => number_format($requests['all'])]) }}</div>
+            </div>
+        </div>
+
+        {{-- Visitors and where they came from --}}
+        <div class="card" id="traffic">
+            <div class="card-head">
+                <div>
+                    <h2>{{ __('Visitors and where they come from') }}</h2>
+                    <p>{{ __('Visits to the customer site, grouped by source. Admins and bots are not counted.') }}</p>
+                </div>
+                <div class="tabs">
+                    @foreach ($trafficRanges as $key => $label)
+                        <a href="{{ route('admin.dashboard', ['traffic' => $key]) }}#traffic" @class(['active' => $traffic['range'] === $key])>{{ __($label) }}</a>
+                    @endforeach
+                </div>
+            </div>
+            <div class="card-body stack">
+                <div class="stats traffic-stats">
+                    <div class="stat">
+                        <div class="label">@include('partials.icon', ['name' => 'users']) {{ __('Unique visitors') }}</div>
+                        <div class="value">{{ number_format($traffic['visitors']) }}</div>
+                        <div class="hint">{{ __(':count visits', ['count' => number_format($traffic['visits'])]) }}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="label">@include('partials.icon', ['name' => 'user']) {{ __('New customers') }}</div>
+                        <div class="value">{{ number_format($traffic['newCustomers']) }}</div>
+                        <div class="hint">{{ __(':count signed up themselves', ['count' => number_format($traffic['signups'])]) }}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="label">@include('partials.icon', ['name' => 'chart']) {{ __('Sign-up rate') }}</div>
+                        <div class="value">{{ $traffic['visitors'] > 0 ? round($traffic['signups'] / $traffic['visitors'] * 100, 1) . '%' : '—' }}</div>
+                        <div class="hint">{{ __('Visitors who created an account') }}</div>
+                    </div>
+                </div>
+
+                @if (empty($traffic['rows']))
+                    <div class="empty"><strong>{{ __('No visits yet') }}</strong>{{ __('Share the tracked links below; every visit appears here with its source.') }}</div>
+                @else
+                    <div class="table-wrap">
+                        <table class="cards traffic-table">
+                            <thead><tr><th>{{ __('Source') }}</th><th class="right">{{ __('Visitors') }}</th><th class="right">{{ __('Visits') }}</th><th class="right">{{ __('Sign-ups') }}</th><th class="hide-sm">{{ __('Share') }}</th></tr></thead>
+                            <tbody>
+                                @foreach ($traffic['rows'] as $row)
+                                    <tr>
+                                        <td class="primary"><span class="src-dot src-{{ $row['source'] }}"></span>{{ $row['label'] }} <span class="sub muted">{{ $row['share'] }}%</span></td>
+                                        <td data-label="{{ __('Visitors') }}" class="right num">{{ number_format($row['visitors']) }}</td>
+                                        <td data-label="{{ __('Visits') }}" class="right num">{{ number_format($row['visits']) }}</td>
+                                        <td data-label="{{ __('Sign-ups') }}" class="right num">{{ number_format($row['signups']) }}</td>
+                                        <td class="hide-sm"><div class="meter"><i class="src-bg-{{ $row['source'] }}" style="width: {{ $row['share'] }}%"></i></div></td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+
+                <details class="track-links">
+                    <summary>{{ __('Tracked links to share') }}</summary>
+                    <p class="muted">{{ __('WhatsApp and Telegram usually hide where a visitor came from. Post these links instead of the plain address so each visit is counted under the right source.') }}</p>
+                    @foreach ($trackingLinks as $source => $link)
+                        <div class="track-link">
+                            <span><span class="src-dot src-{{ $source }}"></span>{{ $link['label'] }}</span>
+                            <input type="text" readonly value="{{ $link['url'] }}" dir="ltr" aria-label="{{ $link['label'] }}" onfocus="this.select()">
+                            <button type="button" class="btn btn-sm" data-copy="{{ $link['url'] }}">{{ __('Copy') }}</button>
+                        </div>
+                    @endforeach
+                </details>
             </div>
         </div>
 
@@ -132,3 +199,17 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-copy]');
+        if (!btn || !navigator.clipboard) { return; }
+        var label = btn.textContent;
+        navigator.clipboard.writeText(btn.getAttribute('data-copy')).then(function () {
+            btn.textContent = @json(__('Copied'));
+            setTimeout(function () { btn.textContent = label; }, 1500);
+        });
+    });
+</script>
+@endpush

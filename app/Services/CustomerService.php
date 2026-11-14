@@ -48,7 +48,7 @@ class CustomerService
     }
 
     /** Public sign-up. The starting status comes from Settings (active, or pending admin approval). */
-    public function register(array $data): User
+    public function register(array $data, ?string $source = null): User
     {
         if (setting('allow_registration') !== '1') {
             throw new WorkflowException('Registration is currently closed.');
@@ -56,6 +56,9 @@ class CustomerService
 
         $status = setting('new_account_status') === 'pending' ? 'pending' : 'active';
         $customer = $this->store($data, $status);
+
+        // Where they came from (Facebook, WhatsApp...), as detected on their first page of this visit.
+        $customer->forceFill(['signup_source' => $source ? mb_substr($source, 0, 30) : 'direct'])->save();
 
         $this->logs->log('customer_registered', "New customer registered: {$customer->username}", $customer, [], $customer->id);
 

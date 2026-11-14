@@ -28,6 +28,8 @@ class SettingsRequest extends FormRequest
             'ticker_enabled' => ['nullable', 'boolean'],
             'ticker_new_services' => ['nullable', 'boolean'],
             'require_terms' => ['nullable', 'boolean'],
+            'show_terms_link' => ['nullable', 'boolean'],
+            'show_privacy_link' => ['nullable', 'boolean'],
             'terms_text' => ['nullable', 'string', 'max:5000'],
             // SVG is left out on purpose: it can carry scripts.
             'site_logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:1024'],

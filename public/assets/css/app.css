@@ -1064,3 +1064,69 @@ input[type=datetime-local] { width: 100%; padding: 9px 12px; min-height: 38px; b
     .chat-btn { width: 58px; height: 58px; }
     .chat-btn svg { width: 32px; height: 32px; }
 }
+
+/* ---------- Admin dashboard: visitors by source ---------- */
+.traffic-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.traffic-stats .stat { background: var(--sunken); }
+.traffic-table td.primary { white-space: nowrap; }
+.traffic-table .meter { min-width: 120px; }
+.src-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-inline-end: 8px; vertical-align: middle; background: var(--muted); }
+.src-facebook, .src-bg-facebook { background: #1877f2 !important; }
+.src-whatsapp, .src-bg-whatsapp { background: #25d366 !important; }
+.src-telegram, .src-bg-telegram { background: #229ed9 !important; }
+.src-instagram, .src-bg-instagram { background: #e1306c !important; }
+.src-tiktok, .src-bg-tiktok { background: #fe2c55 !important; }
+.src-youtube, .src-bg-youtube { background: #ff0000 !important; }
+.src-twitter, .src-bg-twitter { background: #8899a6 !important; }
+.src-snapchat, .src-bg-snapchat { background: #fffc00 !important; }
+.src-google, .src-bg-google { background: #fbbc05 !important; }
+.src-bing, .src-bg-bing { background: #00a4ef !important; }
+.src-other, .src-bg-other { background: #a78bfa !important; }
+.src-direct, .src-bg-direct { background: #64748b !important; }
+.track-links summary { cursor: pointer; font-weight: 600; color: var(--accent-ink); }
+.track-links > p { margin: 8px 0 12px; font-size: 13px; }
+.track-link { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: 8px; }
+.track-link input { width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--input-bg); color: var(--text); font: 13px Consolas, "SFMono-Regular", Menlo, monospace; text-align: left; }
+@media (max-width: 680px) {
+    .traffic-stats { grid-template-columns: 1fr 1fr; }
+    .track-link { grid-template-columns: minmax(0, 1fr) auto; }
+    .track-link > span { grid-column: 1 / -1; }
+}
+
+/* ---------- Admin: Server Tools summary, paths and log viewer ---------- */
+.tool-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 18px; }
+.tool-summary > div { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px 18px; min-width: 0; border-inline-start: 1px solid var(--line-soft); }
+.tool-summary > div:first-child { border-inline-start: 0; }
+.tool-summary small { color: var(--muted); font-size: 12px; }
+.tool-summary b { font-size: 15px; overflow-wrap: anywhere; }
+.tool-summary b.big { font-size: 22px; line-height: 1.1; }
+.stage-badge { padding: 3px 10px; border-radius: 7px; font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--blue); background: rgba(76, 154, 255, .12); border: 1px solid rgba(76, 154, 255, .35); }
+.stage-badge.prod { color: var(--red); background: rgba(242, 96, 106, .12); border-color: rgba(242, 96, 106, .4); }
+.tool-card.is-off { opacity: .6; }
+.tool-card .tool-off { color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.tool-card .btn:disabled { cursor: not-allowed; }
+.server-paths { margin-top: 18px; padding-top: 6px; border-top: 1px solid var(--line-soft); grid-template-columns: 170px minmax(0, 1fr); gap: 0 14px; }
+.server-paths dt, .server-paths dd { padding-block: 9px; border-bottom: 1px solid var(--line-soft); }
+.server-paths dt { font-weight: 700; color: var(--text); }
+.server-paths dd { color: var(--text-2); font-size: 12.5px; text-align: left; }
+.log-view {
+    max-height: 560px; overflow: auto; padding: 12px 14px; border-radius: 10px; background: #0b1324; color: #cfd8e6;
+    font: 12px/1.6 Consolas, "SFMono-Regular", Menlo, monospace; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.log-view > div { padding: 1px 0; }
+.log-view .log-error, .log-view .log-critical, .log-view .log-alert, .log-view .log-emergency { color: #ff7b86; }
+.log-view .log-warning { color: #f5c561; }
+.log-view .log-debug, .log-view .log-trace { color: #8193ad; }
+@media (max-width: 960px) {
+    .tool-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tool-summary > div:nth-child(3) { border-inline-start: 0; }
+    .tool-summary > div:nth-child(n+3) { border-top: 1px solid var(--line-soft); }
+}
+@media (max-width: 680px) {
+    .server-paths { grid-template-columns: 1fr; }
+    .server-paths dt { border-bottom: 0; padding-bottom: 0; }
+    .log-view { max-height: 420px; font-size: 11px; }
+}
+
+/* "Last Login" is information only: no chevron, since nothing opens. */
+.cnav-static::after { content: none; }

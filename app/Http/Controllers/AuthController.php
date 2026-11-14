@@ -47,7 +47,7 @@ class AuthController extends Controller
     public function register(RegisterRequest $request)
     {
         try {
-            $customer = $this->customers->register($request->validated());
+            $customer = $this->customers->register($request->validated(), $request->session()->get('visit_source'));
         } catch (WorkflowException $e) {
             return back()->withErrors(['username' => $e->getMessage()])->withInput($request->except('password', 'password_confirmation'));
         }

@@ -35,6 +35,8 @@ class SettingService
             'ticker_enabled' => !empty($data['ticker_enabled']) ? '1' : '0',
             'ticker_new_services' => !empty($data['ticker_new_services']) ? '1' : '0',
             'require_terms' => !empty($data['require_terms']) ? '1' : '0',
+            'show_terms_link' => !empty($data['show_terms_link']) ? '1' : '0',
+            'show_privacy_link' => !empty($data['show_privacy_link']) ? '1' : '0',
             'terms_text' => $data['terms_text'] ?? '',
             'contact_phone' => trim((string) ($data['contact_phone'] ?? '')),
             'contact_email' => trim((string) ($data['contact_email'] ?? '')),

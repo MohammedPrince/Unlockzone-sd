@@ -47,8 +47,12 @@
     <a class="cnav-item" href="{{ $fundsLink }}" @if ($fundsExternal) target="_blank" rel="noopener noreferrer" @endif><span>{{ __('+ Add Funds') }}</span></a>
     <a class="{{ $item(request()->routeIs('customer.credits')) }}" href="{{ route('customer.credits') }}"><span>{{ __('My Statement') }}</span></a>
     <a class="{{ $item(request()->routeIs('customer.guide')) }}" href="{{ route('customer.guide') }}"><span>{{ __('User Guide') }}</span></a>
-    <a class="{{ $item(request()->routeIs('legal.terms')) }}" href="{{ route('legal.terms') }}"><span>{{ __('Terms of Service') }}</span></a>
-    <a class="{{ $item(request()->routeIs('legal.privacy')) }}" href="{{ route('legal.privacy') }}"><span>{{ __('Privacy Policy') }}</span></a>
+    @if (setting('show_terms_link') !== '0')
+        <a class="{{ $item(request()->routeIs('legal.terms')) }}" href="{{ route('legal.terms') }}"><span>{{ __('Terms of Service') }}</span></a>
+    @endif
+    @if (setting('show_privacy_link') !== '0')
+        <a class="{{ $item(request()->routeIs('legal.privacy')) }}" href="{{ route('legal.privacy') }}"><span>{{ __('Privacy Policy') }}</span></a>
+    @endif
     <div class="cnav-item cnav-static">
         <span>{{ __('Last Login') }}
             <small>

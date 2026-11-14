@@ -3,7 +3,7 @@
 @section('title', $customer->name)
 @section('eyebrow', $customer->customer_tag ? __('Customer profile') . ' · ' . $customer->customer_tag : __('Customer profile'))
 @section('page-title', $customer->name)
-@section('page-description', '@' . $customer->username . ' · ' . __('registered :date', ['date' => $customer->created_at->translatedFormat('M j, Y')]))
+@section('page-description', '@' . $customer->username . ' · ' . __('registered :date', ['date' => $customer->created_at->translatedFormat('M j, Y')]) . ($customer->signup_source ? ' · ' . __('Signed up from') . ' ' . app(\App\Services\VisitSourceService::class)->label($customer->signup_source) : ''))
 
 @section('page-actions')
     <a class="btn" href="{{ route('admin.customers.index') }}">@include('partials.icon', ['name' => 'back']) {{ __('Customers') }}</a>

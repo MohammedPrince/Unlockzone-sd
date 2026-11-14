@@ -200,6 +200,18 @@
                     </label>
                 </div>
                 <div class="full">
+                    <input type="hidden" name="show_terms_link" value="0">
+                    <label class="check" style="margin-bottom: 8px">
+                        <input type="checkbox" name="show_terms_link" value="1" @checked(old('show_terms_link', $settings['show_terms_link']) == '1')>
+                        <span>{{ __('Show "Terms of Service" in the customer menu and page footer') }}</span>
+                    </label>
+                    <input type="hidden" name="show_privacy_link" value="0">
+                    <label class="check">
+                        <input type="checkbox" name="show_privacy_link" value="1" @checked(old('show_privacy_link', $settings['show_privacy_link']) == '1')>
+                        <span>{{ __('Show "Privacy Policy" in the customer menu and page footer') }}</span>
+                    </label>
+                </div>
+                <div class="full">
                     <label for="terms_text">{{ __('Terms of services') }} <span class="muted">({{ __('optional') }})</span></label>
                     <textarea id="terms_text" name="terms_text" maxlength="5000" rows="5" placeholder="{{ __('Your own extra rules, e.g. about a specific service.') }}">{{ old('terms_text', $settings['terms_text']) }}</textarea>
                     <p class="help">{{ __('The full Terms of Service and Privacy Policy pages are already written (Arabic and English). Text here is added at the end of the Terms page as "Additional terms".') }}
