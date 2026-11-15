@@ -8,6 +8,13 @@
         'failed' => 'This request could not be completed. Your credit was refunded.',
         'cancelled' => 'This request was cancelled. Your credit was refunded.',
     ];
+
+    // The first thing the customer entered (usually the IMEI or serial number), shown large like the code.
+    $mainField = collect($req->request_data ?? [])->first(fn ($i) => ($i['value'] ?? '') !== '');
+
+    // When the order got its answer: completed, or failed / cancelled (refunded). Open orders have none yet.
+    $repliedAt = $req->status === 'completed' ? ($req->completed_at ?? $req->updated_at)
+        : (in_array($req->status, ['failed', 'cancelled'], true) ? $req->updated_at : null);
 @endphp
 
 @section('title', __('Request') . ' ' . $req->reference)
@@ -31,10 +38,26 @@
                 <div class="card-body stack">
                     <p>{{ __($messages[$req->status] ?? '') }}</p>
 
+                    @if ($mainField)
+                        <div class="req-main-field">
+                            <span class="label">{{ $mainField['label'] ?? __('Field') }}</span>
+                            <div class="req-main-value">
+                                <b class="mono" dir="ltr">{{ $mainField['value'] }}</b>
+                                <button type="button" class="btn btn-sm btn-copy" data-copy="{{ $mainField['value'] }}" data-copied="{{ __('Copied') }}" title="{{ __('Copy') }}">@include('partials.icon', ['name' => 'copy'])<span data-copy-label>{{ __('Copy') }}</span></button>
+                            </div>
+                        </div>
+                    @endif
+
                     @if ($req->status === 'completed')
+                        @php $code = (string) ($req->response_data['result'] ?? ''); @endphp
                         <div>
-                            <span class="label">{{ __('Result') }}</span>
-                            <div class="result-box mono">{{ $req->response_data['result'] ?? '' }}</div>
+                            <div class="code-head">
+                                <span class="label">{{ __('Code') }}</span>
+                                @if ($code !== '')
+                                    <button type="button" class="btn btn-sm btn-copy" data-copy="{{ $code }}" data-copied="{{ __('Copied') }}">@include('partials.icon', ['name' => 'copy'])<span data-copy-label>{{ __('Copy') }}</span></button>
+                                @endif
+                            </div>
+                            <div class="result-box mono" dir="auto">{{ $code }}</div>
                         </div>
                     @elseif (in_array($req->status, ['failed', 'cancelled'], true) && $req->error_message)
                         <div>
@@ -42,6 +65,22 @@
                             <div class="result-box bad">{{ __($req->error_message) }}</div>
                         </div>
                     @endif
+
+                    {{-- When it was ordered, when it was answered and how long that took. --}}
+                    <dl class="req-times">
+                        <div>
+                            <dt>{{ __('Submitted on') }}</dt>
+                            <dd class="num" dir="ltr">{{ $req->created_at->format('Y/m/d H:i:s') }}</dd>
+                        </div>
+                        <div>
+                            <dt>{{ __('Replied on') }}</dt>
+                            <dd class="num" dir="ltr">{{ $repliedAt?->format('Y/m/d H:i:s') ?? '—' }}</dd>
+                        </div>
+                        <div>
+                            <dt>{{ $repliedAt ? __('Replied in') : __('Waiting for') }}</dt>
+                            <dd>{{ $req->created_at->diffForHumans($repliedAt ?? now(), ['syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE, 'parts' => 2]) }}</dd>
+                        </div>
+                    </dl>
 
                 </div>
             </div>
@@ -71,9 +110,7 @@
                         <dt>{{ __('Reference') }}</dt><dd class="mono">{{ $req->reference }}</dd>
                         <dt>{{ __('Category') }}</dt><dd>{{ $req->service->category->name ?? '—' }}</dd>
                         <dt>{{ __('Amount') }}</dt><dd class="num">{{ money($req->amount) }}</dd>
-                        <dt>{{ __('Ordered') }}</dt><dd>{{ $req->created_at->translatedFormat('M j, Y H:i') }}</dd>
-                        <dt>{{ __('Completed') }}</dt><dd>{{ $req->completed_at?->translatedFormat('M j, Y H:i') ?? '—' }}</dd>
-                    </dl>
+                        <dt>{{ __('Ordered') }}</dt><dd>{{ $req->created_at->translatedFormat('M j, Y H:i') }}</dd>                    </dl>
                 </div>
             </div>
 

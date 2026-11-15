@@ -24,6 +24,7 @@ class CustomerService
         private CreditRepository $credits,
         private ServiceRequestRepository $requests,
         private ActivityLogRepository $logs,
+        private EmailNotifier $mail,
     ) {
     }
 
@@ -61,6 +62,7 @@ class CustomerService
         $customer->forceFill(['signup_source' => $source ? mb_substr($source, 0, 30) : 'direct'])->save();
 
         $this->logs->log('customer_registered', "New customer registered: {$customer->username}", $customer, [], $customer->id);
+        $this->mail->customerRegistered($customer);
 
         return $customer;
     }

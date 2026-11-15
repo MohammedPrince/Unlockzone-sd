@@ -40,6 +40,7 @@
             '<b>Copy public folders</b> (only when the site is served from another folder): when CSS, JS or images changed.',
             'Something went wrong? Check <b>laravel.log</b> at the bottom of this page.',
             '<b>Run waiting jobs</b>: only if emails or orders are stuck in the queue.',
+            '<b>Email settings</b>: enter the admin email and the hosting email account, save, then send a test email.',
         ],
         'note' => 'One tool runs at a time. Every run is saved in the Activity log with its result.',
     ])
@@ -82,6 +83,84 @@
                 </form>
             @endforeach
         </div>
+    </div>
+
+    {{-- Email: who gets the notices, and the hosting email account that sends them. Saved to .env. --}}
+    @php $m = $mailSettings; @endphp
+    <div class="card" id="mail">
+        <div class="card-head">
+            <div>
+                <h2>{{ __('Email settings') }}</h2>
+                <p>{{ __('The admin gets an email for every new customer and every new order. Customers get an email when their order is completed, failed or cancelled. Saved in .env (MAIL_* keys).') }}</p>
+            </div>
+            <span @class(['stage-badge', 'prod' => $m['mailer'] !== 'log'])>{{ $m['mailer'] === 'log' ? __('Off') : __('On') }}</span>
+        </div>
+        <form method="post" action="{{ route('admin.tools.mail.save') }}" data-once>
+            @csrf @method('put')
+            <div class="card-body form-grid">
+                <div class="full">
+                    <label for="admin_address">{{ __('Admin email') }}</label>
+                    <input type="text" id="admin_address" name="admin_address" dir="ltr" value="{{ old('admin_address', $m['admin_address']) }}" maxlength="500" placeholder="admin@unlock-sd.com">
+                    <p class="help">{{ __('Where new customer and new order notices are sent. Several addresses: separate them with commas. Empty = no admin emails.') }}</p>
+                </div>
+                <div>
+                    <label for="mailer">{{ __('Send emails with') }}</label>
+                    <select id="mailer" name="mailer" required>
+                        @foreach ($mailers as $key => $label)
+                            <option value="{{ $key }}" @selected(old('mailer', $m['mailer']) === $key)>{{ __($label) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="from_address">{{ __('Sender email') }}</label>
+                    <input type="email" id="from_address" name="from_address" dir="ltr" value="{{ old('from_address', $m['from_address']) }}" required maxlength="191" placeholder="support@unlock-sd.com">
+                    <p class="help">{{ __('The hosting email account the site sends from. Usually the same as the SMTP username.') }}</p>
+                </div>
+                <div>
+                    <label for="from_name">{{ __('Sender name') }} <span class="muted">({{ __('optional') }})</span></label>
+                    <input type="text" id="from_name" name="from_name" value="{{ old('from_name', $m['from_name']) }}" maxlength="100" placeholder="{{ setting('site_name') ?: config('app.name') }}">
+                </div>
+                <div>
+                    <label for="host">{{ __('SMTP server') }}</label>
+                    <input type="text" id="host" name="host" dir="ltr" value="{{ old('host', $m['host']) }}" maxlength="191" placeholder="mail.unlock-sd.com">
+                    <p class="help">{{ __('From cPanel > Email Accounts > Connect Devices (Outgoing Server).') }}</p>
+                </div>
+                <div>
+                    <label for="encryption">{{ __('Encryption') }}</label>
+                    <select id="encryption" name="encryption" required>
+                        @foreach ($encryptions as $key => $label)
+                            <option value="{{ $key }}" @selected(old('encryption', $m['encryption']) === $key)>{{ __($label) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="port">{{ __('Port') }}</label>
+                    <input type="number" id="port" name="port" dir="ltr" value="{{ old('port', $m['port']) }}" min="1" max="65535" placeholder="465">
+                </div>
+                <div>
+                    <label for="username">{{ __('SMTP username') }}</label>
+                    <input type="text" id="username" name="username" dir="ltr" value="{{ old('username', $m['username']) }}" maxlength="191" autocomplete="off" placeholder="support@unlock-sd.com">
+                </div>
+                <div>
+                    <label for="password">{{ __('Email password') }}</label>
+                    <input type="password" id="password" name="password" dir="ltr" maxlength="191" autocomplete="new-password"
+                           placeholder="{{ $m['has_password'] ? __('Saved. Leave empty to keep it') : __('The email account password') }}">
+                    <p class="help">{{ __('Stored in .env only and never shown again.') }}</p>
+                </div>
+            </div>
+            <div class="card-body">
+                <button type="submit" class="btn btn-primary">{{ __('Save email settings') }}</button>
+            </div>
+        </form>
+        <form method="post" action="{{ route('admin.tools.mail.test') }}" class="card-body mail-test" data-once>
+            @csrf
+            <label for="test_to">{{ __('Send a test email') }}</label>
+            <div class="logo-row">
+                <input type="email" id="test_to" name="to" dir="ltr" required maxlength="191" value="{{ old('to', explode(',', $m['admin_address'])[0] ?: auth()->user()->email) }}">
+                <button type="submit" class="btn">{{ __('Send test') }}</button>
+            </div>
+            <p class="help">{{ __('Save first, then send a test. If it fails, the mail server\'s answer is shown here and in laravel.log.') }}</p>
+        </form>
     </div>
 
     <div class="card tool-info">

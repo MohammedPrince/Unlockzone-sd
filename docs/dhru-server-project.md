@@ -33,6 +33,6 @@ DHRU Server is a Laravel 12 customer platform with prepaid credits and admin-man
 - Unlinked services are still manual: an admin marks requests processing / completed / failed / cancelled.
 - "EMI" was implemented as IMEI (15 digits); the user has not confirmed this reading.
 - State and City are text boxes, not dropdowns (no dataset).
-- Password-reset mail goes to the log until real mail settings are added to `.env`.
+- Email (added 2026-11-14): Admin > Server Tools > Email settings writes the `MAIL_*` keys (admin address, SMTP account) straight into `.env` (`app/Support/EnvFile.php`) and re-caches config if it was cached; the password is never shown back. `app/Services/EmailNotifier.php` sends: admin ← new self-registered customer, new order; customer ← order completed (with the result code) / failed / cancelled, whether an admin or a provider closed it. Emails go out after the response (`defer`) and a mail error only reaches laravel.log. Email text is English only. Until `MAIL_MAILER=smtp` is saved, all mail (including password reset) is written to the log.
 - Running under WAMP Apache at `/GitRepo/dhru-server/public` is untested.
 - "DHRU Server" is a temporary project name.

@@ -4,6 +4,7 @@
     $name = (string) ($name ?? '');
     $class = (string) ($class ?? '');
     $paths = [
+        'copy' => '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 012-2h9"/>',
         'home' => '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
         'users' => '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.900 6.500 5.500"/><path d="M16 4.800a3.500 3.500 0 010 6.400"/><path d="M18.500 14.900c1.700.800 2.700 2.500 3 5.100"/>',
         'wallet' => '<rect x="3" y="6" width="18" height="13" rx="2.500"/><path d="M3 10h18"/><circle cx="16.500" cy="14.500" r="1"/>',

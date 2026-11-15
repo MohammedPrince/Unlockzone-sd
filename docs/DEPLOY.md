@@ -55,6 +55,11 @@ php artisan optimize
 Folders the app writes to must be writable (755 / 775): `storage/` and `bootstrap/cache/`,
 and `public/uploads/` for logos and description images.
 
+**Email:** create the sending account in cPanel (e.g. `support@unlock-sd.com`), then in
+Admin > Server Tools > Email settings enter the admin email, the SMTP server (`mail.unlock-sd.com`),
+SSL / port 465, the account and its password, save, and press **Send test**. The form writes the
+`MAIL_*` keys into `.env`, so `.env` must be writable by the web server (permission 600 or 644 owned by your cPanel user is fine).
+
 ## 6. Cron (provider orders)
 
 cPanel > **Cron Jobs**, every minute:

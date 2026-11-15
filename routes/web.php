@@ -134,6 +134,9 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
 
     // Server Tools: only the fixed tool keys exist; anything else is a 404.
     Route::get('tools', [Admin\ServerToolController::class, 'index'])->name('tools.index');
+    // Registered before tools/{tool} so "mail" is never taken for a tool key.
+    Route::put('tools/mail', [Admin\ServerToolController::class, 'saveMail'])->name('tools.mail.save');
+    Route::post('tools/mail/test', [Admin\ServerToolController::class, 'testMail'])->middleware('throttle:5,1')->name('tools.mail.test');
     Route::post('tools/{tool}', [Admin\ServerToolController::class, 'run'])->where('tool', '[a-z\-]+')->middleware('throttle:20,1')->name('tools.run');
     Route::get('tools/log/download', [Admin\ServerToolController::class, 'downloadLog'])->name('tools.log.download');
     Route::delete('tools/log', [Admin\ServerToolController::class, 'clearLog'])->name('tools.log.clear');

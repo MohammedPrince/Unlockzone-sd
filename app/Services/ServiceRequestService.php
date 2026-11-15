@@ -21,6 +21,7 @@ class ServiceRequestService
         private ServiceRepository $services,
         private CreditService $credits,
         private ActivityLogRepository $logs,
+        private EmailNotifier $mail,
     ) {
     }
 
@@ -112,6 +113,7 @@ class ServiceRequestService
         $this->logs->log('request_submitted', "Ordered {$service->name} ({$request->reference})", $request, [
             'amount' => $request->amount,
         ], $customer->id);
+        $this->mail->requestSubmitted($request);
 
         return $request;
     }
@@ -174,6 +176,7 @@ class ServiceRequestService
         });
 
         $this->logs->log('request_' . $status, "Marked {$request->reference} as {$status}", $request, $admin ? [] : ['by' => 'provider'], $admin?->id);
+        $this->mail->requestUpdated($request);
 
         return $request;
     }

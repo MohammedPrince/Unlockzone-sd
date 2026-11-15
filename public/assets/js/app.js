@@ -659,3 +659,48 @@
         show(current);
     }
 })();
+
+/*
+ * Copy buttons: <button data-copy="text" data-copied="Copied"><span data-copy-label>Copy</span></button>.
+ * Works without HTTPS too (falls back to a hidden text box), since navigator.clipboard needs a secure page.
+ */
+(function () {
+    function fallbackCopy(text) {
+        var box = document.createElement('textarea');
+        box.value = text;
+        box.setAttribute('readonly', '');
+        box.style.position = 'fixed';
+        box.style.opacity = '0';
+        document.body.appendChild(box);
+        box.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+        document.body.removeChild(box);
+        return ok;
+    }
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-copy]');
+        if (!btn) { return; }
+        e.preventDefault();
+
+        var text = btn.getAttribute('data-copy');
+        var label = btn.querySelector('[data-copy-label]') || btn;
+        var done = function () {
+            if (!label.hasAttribute('data-original')) { label.setAttribute('data-original', label.textContent); }
+            label.textContent = btn.getAttribute('data-copied') || 'Copied';
+            btn.classList.add('is-copied');
+            clearTimeout(btn._copyTimer);
+            btn._copyTimer = setTimeout(function () {
+                label.textContent = label.getAttribute('data-original');
+                btn.classList.remove('is-copied');
+            }, 1500);
+        };
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(done, function () { if (fallbackCopy(text)) { done(); } });
+        } else if (fallbackCopy(text)) {
+            done();
+        }
+    });
+})();

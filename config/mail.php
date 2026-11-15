@@ -113,4 +113,11 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    | Who gets the site's notices (new customer, new order). Several addresses
+    | can be separated by commas. Empty = no admin emails are sent.
+    | Set from Admin > Server Tools > Email settings.
+    */
+    'admin_address' => env('MAIL_ADMIN_ADDRESS', ''),
+
 ];

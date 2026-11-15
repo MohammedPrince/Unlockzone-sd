@@ -118,7 +118,7 @@
                         <div class="track-link">
                             <span><span class="src-dot src-{{ $source }}"></span>{{ $link['label'] }}</span>
                             <input type="text" readonly value="{{ $link['url'] }}" dir="ltr" aria-label="{{ $link['label'] }}" onfocus="this.select()">
-                            <button type="button" class="btn btn-sm" data-copy="{{ $link['url'] }}">{{ __('Copy') }}</button>
+                            <button type="button" class="btn btn-sm" data-copy="{{ $link['url'] }}" data-copied="{{ __('Copied') }}"><span data-copy-label>{{ __('Copy') }}</span></button>
                         </div>
                     @endforeach
                 </details>
@@ -200,16 +200,3 @@
     </div>
 @endsection
 
-@push('scripts')
-<script>
-    document.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-copy]');
-        if (!btn || !navigator.clipboard) { return; }
-        var label = btn.textContent;
-        navigator.clipboard.writeText(btn.getAttribute('data-copy')).then(function () {
-            btn.textContent = @json(__('Copied'));
-            setTimeout(function () { btn.textContent = label; }, 1500);
-        });
-    });
-</script>
-@endpush
