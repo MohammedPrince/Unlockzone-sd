@@ -244,4 +244,34 @@
             <button type="submit" class="btn btn-primary">{{ __('Save settings') }}</button>
         </div>
     </form>
+
+    <form method="post" action="{{ route('admin.settings.import.upload') }}" class="stack" id="import-services" data-once enctype="multipart/form-data" style="margin-top: 24px">
+        @csrf
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <h2>{{ __('Import services from a text file') }}</h2>
+                    <p>{{ __('Upload a supplier price list saved as .txt. You will see every service found before anything is imported.') }}</p>
+                </div>
+            </div>
+            <div class="card-body form-grid">
+                <div>
+                    <label for="import_file">{{ __('Text file') }} (.txt)</label>
+                    <input type="file" id="import_file" name="import_file" accept=".txt,text/plain" required>
+                    <p class="help">{{ __('Up to 1 MB and 500 services.') }}</p>
+                    @error('import_file') <p class="error-text">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <span class="label">{{ __('Each service is three lines') }}</span>
+<pre class="mono" dir="ltr" style="margin: 0; white-space: pre-wrap; font-size: .85rem">Honor Frp Key by Sn Only Instant
+Honor Frp - Direct Source Services
+$42.5 Instant</pre>
+                    <p class="help">{{ __('Name, then category (the part after " - " is ignored), then price and delivery time.') }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ __('Read the file') }}</button>
+        </div>
+    </form>
 @endsection
