@@ -36,6 +36,10 @@ Route::middleware('guest')->group(function () {
     Route::post('admin/login', [Admin\AuthController::class, 'login'])->middleware('throttle:8,1')->name('admin.login.submit');
 });
 
+// The link emailed after registration (signed, works for a few minutes).
+Route::get('email/confirm/{id}/{hash}', [AuthController::class, 'confirmEmail'])
+    ->whereNumber('id')->middleware('throttle:10,1')->name('verification.verify');
+
 Route::post('logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
 /* ---------- Customer portal ---------- */

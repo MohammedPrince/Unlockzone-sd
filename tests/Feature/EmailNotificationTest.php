@@ -88,6 +88,86 @@ class EmailNotificationTest extends TestCase
             && str_contains($m->mailSubject, 'newuser') && $m->details['Email'] === 'new@example.com');
     }
 
+    private function registerNewUser(): User
+    {
+        $this->post('/register', [
+            'username' => 'newuser', 'email' => 'new@example.com', 'password' => 'secret-pass-1', 'password_confirmation' => 'secret-pass-1',
+            'first_name' => 'New', 'last_name' => 'User', 'address1' => '1 Main St', 'country' => 'Sudan', 'state' => 'Khartoum',
+            'city' => 'Khartoum', 'zip_code' => '11111', 'phone' => '+249912345678', 'terms' => '1',
+        ])->assertRedirect(route('login'));
+
+        return User::where('username', 'newuser')->firstOrFail();
+    }
+
+    private function confirmLink(): string
+    {
+        $url = null;
+        Mail::assertSent(SiteMail::class, function (SiteMail $m) use (&$url) {
+            if ($m->hasTo('new@example.com') && str_contains($m->mailSubject, 'Confirm your email')) {
+                $url = $m->buttonUrl;
+            }
+
+            return $url !== null;
+        });
+
+        return $url;
+    }
+
+    public function test_confirming_the_email_activates_the_account(): void
+    {
+        $customer = $this->registerNewUser();
+        $this->assertSame('pending', $customer->status);
+
+        // Not confirmed yet: sign in is refused with a hint.
+        $this->post('/login', ['login' => 'newuser', 'password' => 'secret-pass-1'])->assertSessionHasErrors('login');
+        $this->assertGuest();
+
+        $this->get($this->confirmLink())->assertRedirect(route('login'))
+            ->assertSessionHas('success', 'Your email is confirmed. Now you can sign in.');
+
+        $customer->refresh();
+        $this->assertSame('active', $customer->status);
+        $this->assertNotNull($customer->email_verified_at);
+
+        $this->post('/login', ['login' => 'newuser', 'password' => 'secret-pass-1'])->assertRedirect(route('customer.dashboard'));
+    }
+
+    public function test_confirmation_link_expires_after_five_minutes_and_admin_must_activate(): void
+    {
+        $customer = $this->registerNewUser();
+        $link = $this->confirmLink();
+
+        $this->travel(6)->minutes();
+
+        $this->get($link)->assertRedirect(route('login'))->assertSessionHasErrors('login');
+        $this->assertSame('pending', $customer->fresh()->status);
+        $this->assertNull($customer->fresh()->email_verified_at);
+    }
+
+    public function test_tampered_link_is_refused_and_suspended_account_stays_suspended(): void
+    {
+        $customer = $this->registerNewUser();
+        $link = $this->confirmLink();
+
+        $this->get(str_replace('/' . $customer->id . '/', '/' . $this->admin()->id . '/', $link))->assertSessionHasErrors('login');
+        $this->assertSame('pending', $customer->fresh()->status);
+
+        $customer->forceFill(['status' => 'suspended'])->save();
+        $this->get($link)->assertRedirect(route('login'));
+        $this->assertSame('suspended', $customer->fresh()->status);
+    }
+
+    public function test_confirmed_email_still_waits_for_admin_when_settings_say_pending(): void
+    {
+        app(\App\Repositories\SettingRepository::class)->setMany(['new_account_status' => 'pending']);
+
+        $customer = $this->registerNewUser();
+        $this->get($this->confirmLink())->assertSessionHas('success', 'Your email is confirmed. Your account is waiting for administrator activation.');
+
+        $this->assertSame('pending', $customer->fresh()->status);
+        $this->assertNotNull($customer->fresh()->email_verified_at);
+    }
+
     public function test_no_admin_email_when_no_admin_address_is_set(): void
     {
         config(['mail.admin_address' => '']);

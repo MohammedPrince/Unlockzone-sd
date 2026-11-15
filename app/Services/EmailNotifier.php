@@ -6,6 +6,7 @@ use App\Mail\SiteMail;
 use App\Models\ServiceRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Throwable;
 
 /**
@@ -30,16 +31,45 @@ class EmailNotifier
         return (string) (setting('site_name') ?: config('app.name'));
     }
 
+    /** How long the email confirmation link works. */
+    public const EMAIL_LINK_MINUTES = 5;
+
+    /** Sends the new customer a link that confirms their email address. */
+    public function confirmEmail(User $customer): void
+    {
+        if (!filter_var($customer->email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes(self::EMAIL_LINK_MINUTES), [
+            'id' => $customer->id,
+            'hash' => sha1($customer->email),
+        ]);
+
+        $this->send($customer->email, new SiteMail(
+            mailSubject: 'Confirm your email for ' . $this->siteName(),
+            heading: 'Confirm your email address',
+            lines: [
+                "Hello {$customer->first_name}, thank you for creating an account. Press the button below to confirm your email address.",
+                'The link works for ' . self::EMAIL_LINK_MINUTES . ' minutes. If it expires, an administrator will activate your account instead.',
+                'If you did not create this account, you can ignore this email.',
+            ],
+            details: ['Username' => $customer->username],
+            buttonText: 'Confirm my email',
+            buttonUrl: $url,
+        ));
+    }
+
     public function customerRegistered(User $customer): void
     {
-        $pending = $customer->status === 'pending';
+        $autoActivate = setting('new_account_status') !== 'pending';
 
         $this->toAdmins(new SiteMail(
-            mailSubject: "New customer: {$customer->username}" . ($pending ? ' (waiting for activation)' : ''),
+            mailSubject: "New customer: {$customer->username}" . ($autoActivate ? '' : ' (waiting for activation)'),
             heading: 'A new customer created an account',
-            lines: [$pending
-                ? 'The account is waiting for your activation. Open the customer and set the status to Active to let them sign in.'
-                : 'The account is active and the customer can sign in now.'],
+            lines: [$autoActivate
+                ? 'A confirmation link was emailed to the customer. When they open it (within ' . self::EMAIL_LINK_MINUTES . ' minutes) the account becomes active by itself. If they do not, open the customer and set the status to Active.'
+                : 'The account is waiting for your activation. Open the customer and set the status to Active to let them sign in.'],
             details: array_filter([
                 'Name' => trim("{$customer->first_name} {$customer->last_name}"),
                 'Username' => $customer->username,

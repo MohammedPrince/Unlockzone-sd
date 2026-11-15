@@ -27,6 +27,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'notifications_seen_at' => 'datetime',
             'services_suspended' => 'boolean',
@@ -75,6 +76,11 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function hasConfirmedEmail(): bool
+    {
+        return $this->email_verified_at !== null;
     }
 
     public function initials(): string

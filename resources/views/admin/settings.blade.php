@@ -233,7 +233,7 @@
                 <div>
                     <label for="new_account_status">{{ __('New accounts start as') }}</label>
                     <select id="new_account_status" name="new_account_status" required>
-                        <option value="active" @selected(old('new_account_status', $settings['new_account_status']) === 'active')>{{ __('Active (can sign in immediately)') }}</option>
+                        <option value="active" @selected(old('new_account_status', $settings['new_account_status']) === 'active')>{{ __('Active once the email is confirmed (otherwise you approve)') }}</option>
                         <option value="pending" @selected(old('new_account_status', $settings['new_account_status']) === 'pending')>{{ __('Pending (you approve each one)') }}</option>
                     </select>
                 </div>

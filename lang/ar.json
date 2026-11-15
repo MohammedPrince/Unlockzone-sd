@@ -1090,5 +1090,13 @@
     "Submitted on": "تاريخ الإرسال",
     "Replied on": "تاريخ الرد",
     "Replied in": "مدة الرد",
-    "Waiting for": "في الانتظار منذ"
+    "Waiting for": "في الانتظار منذ",
+    "Active once the email is confirmed (otherwise you approve)": "نشط بعد تأكيد البريد الإلكتروني (وإلا توافق عليه أنت)",
+    "Your account was created. Please confirm your email using the link we sent you; your account is then waiting for administrator activation.": "تم إنشاء حسابك. يرجى تأكيد بريدك الإلكتروني عبر الرابط الذي أرسلناه إليك، وبعدها سيكون حسابك بانتظار تفعيل الإدارة.",
+    "Your account was created. Please open the link we sent to your email within 5 minutes to confirm it, then you can sign in.": "تم إنشاء حسابك. يرجى فتح الرابط المرسل إلى بريدك الإلكتروني خلال 5 دقائق لتأكيده، وبعدها يمكنك تسجيل الدخول.",
+    "Your email is confirmed. Now you can sign in.": "تم تأكيد بريدك الإلكتروني. يمكنك الآن تسجيل الدخول.",
+    "Your email is confirmed. Your account is waiting for administrator activation.": "تم تأكيد بريدك الإلكتروني. حسابك بانتظار تفعيل الإدارة.",
+    "Your email is already confirmed.": "بريدك الإلكتروني مؤكد مسبقًا.",
+    "This confirmation link has expired or is not valid. Your account is waiting for administrator activation.": "رابط التأكيد منتهي الصلاحية أو غير صالح. حسابك بانتظار تفعيل الإدارة.",
+    "Please confirm your email using the link we sent you, or wait for administrator activation.": "يرجى تأكيد بريدك الإلكتروني عبر الرابط الذي أرسلناه إليك، أو انتظار تفعيل الإدارة."
 }
