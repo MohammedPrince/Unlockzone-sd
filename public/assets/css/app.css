@@ -835,6 +835,9 @@ body.modal-open { overflow: hidden; }
 .home-footer { border-top: 1px solid var(--line); padding: 20px 0 90px; text-align: center; font-size: 12px; color: var(--text-2); letter-spacing: .06em; }
 .home-footer p + p { margin-top: 4px; }
 [lang=ar] .home-footer { letter-spacing: 0; }
+.visitor-counter { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 8px; margin-bottom: 10px; padding: 5px 14px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; letter-spacing: 0; }
+.visitor-counter svg { color: var(--accent-ink); flex: none; }
+.visitor-counter strong { color: var(--text); font-weight: 700; }
 
 /* Notice-board popup */
 .home-modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 14px; background: rgba(3, 8, 16, .72); overflow-y: auto; }

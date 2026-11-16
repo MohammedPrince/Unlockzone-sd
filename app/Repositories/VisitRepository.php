@@ -46,6 +46,18 @@ class VisitRepository
             ->count('visitor_id');
     }
 
+    /**
+     * Unique visitors today and all time, for the public footer counter.
+     * Cached for 5 minutes so the footer does not query the visits table on every page.
+     */
+    public function footerCounts(): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember('footer_visitor_counts', 300, fn () => [
+            'today' => $this->uniqueVisitors(now()->startOfDay(), now()),
+            'total' => $this->uniqueVisitors(null, now()),
+        ]);
+    }
+
     public function newCustomers(?CarbonInterface $from, CarbonInterface $to): int
     {
         return User::where('role', User::ROLE_CUSTOMER)
