@@ -15,7 +15,7 @@
             <div class="card">
                 <div class="card-head">
                     <h2>{{ __('Submitted details') }}</h2>
-                    <span class="badge badge-{{ $req->status }}">{{ __(ucfirst($req->status)) }}</span>
+                    <span class="badge badge-{{ $req->status }}" @if ($req->isOpen()) data-live-order="{{ $req->id }}" data-live-status="{{ $req->status }}" @endif>{{ __(ucfirst($req->status)) }}</span>
                 </div>
                 <div class="card-body">
                     @if (empty($req->request_data))
@@ -121,7 +121,7 @@
                                 @else {{ __('Not sent') }}
                                 @endif
                             </dd>
-                            <dt>{{ __('Last check') }}</dt><dd>{{ $req->provider_checked_at?->diffForHumans() ?? '—' }}</dd>
+                            <dt>{{ __('Last check') }}</dt><dd data-live-checked="{{ $req->id }}">{{ $req->provider_checked_at?->diffForHumans() ?? '—' }}</dd>
                         </dl>
                         @if ($req->provider_message)
                             <div class="result-box bad">{{ $req->provider_message }}</div>

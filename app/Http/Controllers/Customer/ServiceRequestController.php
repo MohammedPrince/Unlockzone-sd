@@ -66,6 +66,16 @@ class ServiceRequestController extends Controller
             ->with('success', __('Request submitted. :amount was deducted from your balance.', ['amount' => money($created->amount)]));
     }
 
+    /** Status of the customer's own orders shown on the page; app.js polls this while some are still open. */
+    public function live(Request $request)
+    {
+        $this->providerOrders->syncSoon();
+
+        return response()->json([
+            'orders' => $this->providerOrders->liveStatuses((array) $request->input('ids', []), $request->user()->id),
+        ]);
+    }
+
     public function show(Request $request, int $id)
     {
         // Ownership is checked first; then the provider is asked for news (at most every 20 seconds).

@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias(['role' => EnsureRole::class]);
         $middleware->web(append: [\App\Http\Middleware\SetLocale::class, \App\Http\Middleware\TrackVisit::class]);
 
+        // Providers post order updates here from their own servers (no session, no CSRF token).
+        $middleware->validateCsrfTokens(except: ['provider-callback/*']);
+
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('admin', 'admin/*') ? route('admin.login') : route('login'));
 
         // Already signed in and opening a login/register page: go to your own dashboard.

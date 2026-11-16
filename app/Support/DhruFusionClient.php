@@ -15,13 +15,8 @@ use Illuminate\Support\Facades\Http;
  * an action name and the parameters as a small XML document. The answer is JSON with either
  * a SUCCESS or an ERROR list.
  */
-class DhruFusionClient
+class DhruFusionClient implements ProviderClient
 {
-    /** Order states the API reports in getimeiorder. */
-    public const ORDER_PENDING = 'pending';
-    public const ORDER_DONE = 'done';
-    public const ORDER_REJECTED = 'rejected';
-
     public function __construct(private ApiProvider $provider)
     {
     }
@@ -85,7 +80,7 @@ class DhruFusionClient
      * Places an order. $imei may be empty for server services; $custom is [field name => value].
      * Returns the provider's order id.
      */
-    public function placeOrder(string $remoteServiceId, ?string $imei, array $custom = [], bool $serverService = false): string
+    public function placeOrder(string $remoteServiceId, ?string $imei, array $custom = [], bool $serverService = false, int $quantity = 1, ?string $reference = null, array $remoteFields = []): string
     {
         $params = ['ID' => $remoteServiceId];
 
@@ -97,8 +92,9 @@ class DhruFusionClient
             $params['CUSTOMFIELD'] = base64_encode(json_encode($custom, JSON_UNESCAPED_UNICODE));
         }
 
-        if ($serverService) {
-            $params['QNT'] = 1;
+        // QNT: how many units (server services always send it; others only when more than one).
+        if ($serverService || $quantity > 1) {
+            $params['QNT'] = max(1, $quantity);
         }
 
         $data = $this->call('placeimeiorder', $params);

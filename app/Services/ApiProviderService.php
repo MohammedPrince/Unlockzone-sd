@@ -11,7 +11,6 @@ use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Repositories\ActivityLogRepository;
 use App\Repositories\ServiceRepository;
-use App\Support\DhruFusionClient;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -45,8 +44,10 @@ class ApiProviderService
         $provider ??= new ApiProvider(['type' => 'dhru']);
         $provider->fill([
             'name' => $data['name'],
+            'type' => $data['type'] ?? $provider->type ?? 'dhru',
             'url' => rtrim(trim($data['url']), '/'),
-            'username' => trim($data['username']),
+            // The Reseller API signs in with the token alone.
+            'username' => trim((string) ($data['username'] ?? '')),
             'status' => $data['status'],
         ]);
 
@@ -73,7 +74,7 @@ class ApiProviderService
     public function test(ApiProvider $provider): array
     {
         try {
-            $info = (new DhruFusionClient($provider))->accountInfo();
+            $info = $provider->client()->accountInfo();
         } catch (ProviderException $e) {
             $provider->forceFill(['last_checked_at' => now(), 'last_error' => mb_substr($e->getMessage(), 0, 1000)])->save();
 
@@ -94,7 +95,7 @@ class ApiProviderService
     public function syncServices(ApiProvider $provider, int $adminId): int
     {
         try {
-            $list = (new DhruFusionClient($provider))->serviceList();
+            $list = $provider->client()->serviceList();
         } catch (ProviderException $e) {
             $provider->forceFill(['last_checked_at' => now(), 'last_error' => mb_substr($e->getMessage(), 0, 1000)])->save();
 
@@ -124,13 +125,23 @@ class ApiProviderService
 
     public function remoteServices(ApiProvider $provider, array $filters, int $perPage = 50): LengthAwarePaginator
     {
+        return $this->remoteQuery($provider, $filters)->paginate($perPage)->withQueryString();
+    }
+
+    /** The provider's price list with the page's search and type filter. */
+    private function remoteQuery(ApiProvider $provider, array $filters)
+    {
         return $provider->remoteServices()
             ->when($filters['q'] ?? null, fn ($q, $v) => $q->where(fn ($w) => $w->where('name', 'like', "%{$v}%")->orWhere('group_name', 'like', "%{$v}%")->orWhere('remote_id', $v)))
             ->when($filters['type'] ?? null, fn ($q, $v) => $q->where('type', $v))
             ->orderBy('group_name')
-            ->orderBy('name')
-            ->paginate($perPage)
-            ->withQueryString();
+            ->orderBy('name');
+    }
+
+    /** Remote ids of every service matching the filters (for "import all"). */
+    public function matchingRemoteIds(ApiProvider $provider, array $filters, int $limit): array
+    {
+        return $this->remoteQuery($provider, $filters)->limit($limit)->pluck('remote_id')->all();
     }
 
     /** Remote ids that already have a local service, so the list can mark them. */
@@ -140,47 +151,121 @@ class ApiProviderService
     }
 
     /**
-     * Creates local services from chosen lines of the provider's list.
-     * The selling price is the provider's price plus $margin percent. Returns how many were created.
+     * Brings chosen lines of the provider's price list into the shop. Price = provider price + $margin percent.
+     *
+     * - $categoryId null: each service goes into a category named after the provider's group,
+     *   created (active) when this site has none with that name.
+     * - A service already linked to that provider line is skipped.
+     * - A service with the same name already on the site (typed in by hand, imported from a text file or
+     *   from another provider) is not duplicated: it is switched to this API service. It keeps its id,
+     *   category, status, description and order history; its price, delivery time and inputs come from the API.
+     *
+     * Returns ['created' => int, 'linked' => int, 'skipped' => int, 'categories' => int].
      */
-    public function import(ApiProvider $provider, array $remoteIds, int $categoryId, float $margin, string $status, int $adminId): int
+    public function import(ApiProvider $provider, array $remoteIds, ?int $categoryId, float $margin, string $status, int $adminId): array
     {
-        $category = ServiceCategory::with('fields')->findOrFail($categoryId);
-        $existing = $this->importedIds($provider);
-        $created = 0;
-
-        $rows = $provider->remoteServices()->whereIn('remote_id', array_map('strval', $remoteIds))->get();
+        $target = $categoryId ? ServiceCategory::with('fields')->findOrFail($categoryId) : null;
+        $rows = $provider->remoteServices()->whereIn('remote_id', array_map('strval', $remoteIds))->orderBy('group_name')->orderBy('name')->get();
 
         if ($rows->isEmpty()) {
             throw new WorkflowException('Choose at least one service to import.');
         }
 
-        foreach ($rows as $row) {
-            if (isset($existing[$row->remote_id])) {
-                continue;
-            }
+        return DB::transaction(function () use ($provider, $rows, $target, $margin, $status, $adminId) {
+            $linked = $this->importedIds($provider);
+            // Every service on the site by name (archived ones excluded), to avoid duplicates.
+            $byName = Service::get(['id', 'name', 'service_category_id', 'api_provider_id', 'remote_service_id', 'configuration'])
+                ->keyBy(fn ($s) => ServiceImportService::key($s->name));
+            $categories = [];
+            $result = ['created' => 0, 'linked' => 0, 'skipped' => 0, 'categories' => 0];
 
-            DB::transaction(function () use ($provider, $row, $category, $margin, $status) {
-                $this->services->create([
+            foreach ($rows as $row) {
+                $key = ServiceImportService::key($row->name);
+                $price = number_format(round((float) $row->price * (1 + $margin / 100), 2), 2, '.', '');
+                $delivery = $row->delivery_time ? mb_substr($row->delivery_time, 0, 60) : null;
+
+                if (isset($linked[$row->remote_id])) {
+                    $result['skipped']++;
+                    continue;
+                }
+
+                if ($same = $byName->get($key)) {
+                    // The provider lists the same name twice: the first one was taken in this import.
+                    if ((int) $same->api_provider_id === (int) $provider->id && isset($linked[(string) $same->remote_service_id])) {
+                        $result['skipped']++;
+                        continue;
+                    }
+
+                    $category = ServiceCategory::with('fields')->findOrFail($same->service_category_id);
+                    $same->update([
+                        'price' => $price,
+                        'delivery_time' => $delivery,
+                        'configuration' => array_merge($same->configuration ?? [], [
+                            'field_ids' => $this->fieldIdsFor($category, $row),
+                            'execution' => 'api',
+                        ]),
+                        'api_provider_id' => $provider->id,
+                        'remote_service_id' => $row->remote_id,
+                    ]);
+                    $linked[$row->remote_id] = $same->id;
+                    $result['linked']++;
+                    continue;
+                }
+
+                $category = $target ?? ($categories[ServiceImportService::key($this->groupName($row, $provider))]
+                    ??= $this->findOrCreateCategory($this->groupName($row, $provider), $result['categories']));
+
+                $service = $this->services->create([
                     'service_category_id' => $category->id,
                     'name' => mb_substr($row->name, 0, 150),
                     'slug' => $this->services->uniqueSlug($row->name),
                     'description' => null,
-                    'price' => number_format(round((float) $row->price * (1 + $margin / 100), 2), 2, '.', ''),
+                    'price' => $price,
                     'status' => $status,
-                    'delivery_time' => $row->delivery_time ? mb_substr($row->delivery_time, 0, 60) : null,
+                    'delivery_time' => $delivery,
                     'configuration' => ['field_ids' => $this->fieldIdsFor($category, $row), 'execution' => 'api'],
                     'api_provider_id' => $provider->id,
                     'remote_service_id' => $row->remote_id,
                 ]);
-            });
+                $linked[$row->remote_id] = $service->id;
+                $byName->put($key, $service);
+                $result['created']++;
+            }
 
-            $created++;
+            $this->logs->log('provider_import', "Imported from {$provider->name}: {$result['created']} new, {$result['linked']} existing switched to the API, {$result['categories']} new categories", $provider, [
+                'margin' => $margin, 'skipped' => $result['skipped'], 'category' => $target?->name ?? 'provider groups',
+            ], $adminId);
+
+            return $result;
+        });
+    }
+
+    private function groupName(ProviderService $row, ApiProvider $provider): string
+    {
+        $name = trim((string) $row->group_name);
+
+        return mb_substr($name !== '' ? $name : $provider->name, 0, 150);
+    }
+
+    /** The site's category with this name (ignoring case and spaces), or a new active one. */
+    private function findOrCreateCategory(string $name, int &$created): ServiceCategory
+    {
+        $category = ServiceCategory::with('fields')->get()->first(fn ($c) => ServiceImportService::key($c->name) === ServiceImportService::key($name));
+
+        if ($category) {
+            return $category;
         }
 
-        $this->logs->log('provider_import', "Imported {$created} services from {$provider->name} into {$category->name}", $provider, ['margin' => $margin], $adminId);
+        $created++;
+        $repo = app(\App\Repositories\ServiceCategoryRepository::class);
 
-        return $created;
+        return $repo->create([
+            'name' => $name,
+            'slug' => $repo->uniqueSlug($name),
+            'description' => null,
+            'status' => 'active',
+            'sort_order' => 0,
+        ])->load('fields');
     }
 
     /** Finds (or adds to the category) the input fields a provider service needs. */
@@ -198,14 +283,19 @@ class ApiProviderService
         foreach ($row->fields ?? [] as $custom) {
             $name = (string) ($custom['name'] ?? '');
 
-            if ($name === '') {
+            // The provider's IMEI / serial field is the IMEI box above, not an extra one.
+            if ($name === '' || (!empty($custom['imei']) && $row->needs_imei)) {
                 continue;
             }
 
             $field = $category->fields->first(fn (CategoryField $f) => mb_strtolower($f->label) === mb_strtolower($name))
                 ?? $category->fields()->create([
                     'label' => $name,
-                    'input_type' => str_contains(mb_strtolower($name), 'mail') ? 'email' : 'text',
+                    'input_type' => match (true) {
+                        str_contains(mb_strtolower($name), 'mail') => 'email',
+                        Service::isQuantityLabel($name) => 'number', // price x quantity on the order form
+                        default => 'text',
+                    },
                     'placeholder' => null,
                     'is_required' => (bool) ($custom['required'] ?? true),
                     'sort_order' => $category->fields->count() + count($ids),

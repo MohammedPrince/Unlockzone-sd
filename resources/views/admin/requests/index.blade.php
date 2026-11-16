@@ -69,7 +69,7 @@
                                     <td data-label="{{ __('Customer') }}"><a href="{{ route('admin.customers.show', $r->user_id) }}">{{ $r->user->name ?? '—' }}</a><span class="sub">{{ '@' . ($r->user->username ?? '') }}</span></td>
                                     <td data-label="{{ __('Submitted') }}" class="nowrap">{{ $r->created_at->translatedFormat('M j, Y H:i') }}<span class="sub">{{ $r->created_at->diffForHumans() }}</span></td>
                                     <td data-label="{{ __('Amount') }}" class="right num">{{ money($r->amount, false) }}@if ($r->refunded_at)<span class="sub">{{ __('refunded') }}</span>@endif</td>
-                                    <td data-label="{{ __('Status') }}"><span class="badge badge-{{ $r->status }}">{{ __(ucfirst($r->status)) }}</span></td>
+                                    <td data-label="{{ __('Status') }}"><span class="badge badge-{{ $r->status }}" @if ($r->isOpen()) data-live-order="{{ $r->id }}" data-live-status="{{ $r->status }}" @endif>{{ __(ucfirst($r->status)) }}</span></td>
                                     <td><div class="row-actions"><a class="btn btn-sm {{ $r->isOpen() ? 'btn-primary' : '' }}" href="{{ route('admin.requests.show', $r->id) }}">{{ $r->isOpen() ? __('Process') : __('View') }}</a></div></td>
                                 </tr>
                             @endforeach

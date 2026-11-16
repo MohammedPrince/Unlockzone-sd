@@ -91,7 +91,8 @@ class ServiceRequestService
                     'service_id' => $service->id,
                     'reference' => $this->requests->newReference(),
                     'idempotency_key' => $idempotencyKey,
-                    'amount' => $service->price,
+                    // Price x quantity when the service has a QTY field; always computed here, never sent by the browser.
+                    'amount' => $service->totalFor(self::quantityOf($requestData)),
                     // Orders go straight to processing: work starts at once, so the customer cannot cancel for a refund.
                     // Credit still comes back automatically if the order fails or an administrator cancels it.
                     'status' => 'processing',
@@ -110,9 +111,10 @@ class ServiceRequestService
                 ?? throw new WorkflowException('This request could not be submitted. Please try again.');
         }
 
-        $this->logs->log('request_submitted', "Ordered {$service->name} ({$request->reference})", $request, [
+        $this->logs->log('request_submitted', "Ordered {$service->name} ({$request->reference})", $request, array_filter([
             'amount' => $request->amount,
-        ], $customer->id);
+            'quantity' => ($q = self::quantityOf($requestData)) > 1 ? $q : null,
+        ]), $customer->id);
         $this->mail->requestSubmitted($request);
 
         return $request;
@@ -125,11 +127,15 @@ class ServiceRequestService
     private function validateInputs(Service $service, array $inputs): array
     {
         $fields = $service->inputFields();
+        $quantityField = $service->quantityField($fields);
         $rules = [];
         $names = [];
 
         foreach ($fields as $field) {
-            $rules["fields.{$field->id}"] = $field->rules();
+            $rules["fields.{$field->id}"] = $field->is($quantityField)
+                // A quantity is a whole number of units; left empty it means 1.
+                ? [$field->is_required ? 'required' : 'nullable', 'integer', 'min:1', 'max:' . Service::MAX_QUANTITY]
+                : $field->rules();
             $names["fields.{$field->id}"] = $field->label;
         }
 
@@ -138,8 +144,22 @@ class ServiceRequestService
         return $fields->map(fn ($field) => [
             'label' => $field->label,
             'type' => $field->input_type,
-            'value' => trim((string) ($clean['fields'][$field->id] ?? '')),
-        ])->all();
+            'value' => $field->is($quantityField)
+                ? (string) max(1, (int) ($clean['fields'][$field->id] ?? 1))
+                : trim((string) ($clean['fields'][$field->id] ?? '')),
+        ] + ($field->is($quantityField) ? ['quantity' => true] : []))->all();
+    }
+
+    /** How many units the stored answers ask for (1 when the service has no quantity field). */
+    public static function quantityOf(array $requestData): int
+    {
+        foreach ($requestData as $item) {
+            if (!empty($item['quantity'])) {
+                return max(1, (int) ($item['value'] ?? 1));
+            }
+        }
+
+        return 1;
     }
 
     /**

@@ -33,7 +33,7 @@
             <div class="card">
                 <div class="card-head">
                     <h2>{{ __('Status') }}</h2>
-                    <span class="badge badge-{{ $req->status }}">{{ __(ucfirst($req->status)) }}</span>
+                    <span class="badge badge-{{ $req->status }}" @if ($req->isOpen()) data-live-order="{{ $req->id }}" data-live-status="{{ $req->status }}" @endif>{{ __(ucfirst($req->status)) }}</span>
                 </div>
                 <div class="card-body stack">
                     <p>{{ __($messages[$req->status] ?? '') }}</p>

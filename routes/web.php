@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
 /* ---------- Public legal pages (Arabic or English, following the chosen language) ---------- */
+// DHRU Fusion Pro Reseller providers announce finished orders here; the result is then read from their API.
+Route::post('provider-callback/{provider}', \App\Http\Controllers\ProviderCallbackController::class)
+    ->whereNumber('provider')->middleware('throttle:120,1')->name('providers.callback');
+
 Route::view('terms', 'legal.terms')->name('legal.terms');
 Route::view('privacy', 'legal.privacy')->name('legal.privacy');
 
@@ -53,6 +57,7 @@ Route::middleware('role:customer')->name('customer.')->group(function () {
 
     Route::get('requests', [Customer\ServiceRequestController::class, 'index'])->name('requests.index');
     Route::get('requests/export', [Customer\ServiceRequestController::class, 'export'])->name('requests.export');
+    Route::get('requests/live', [Customer\ServiceRequestController::class, 'live'])->name('requests.live');
     Route::get('requests/{id}', [Customer\ServiceRequestController::class, 'show'])->whereNumber('id')->name('requests.show');
 
     Route::get('credits', [Customer\CreditController::class, 'index'])->name('credits');
@@ -107,6 +112,7 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
 
     Route::get('requests', [Admin\ServiceRequestController::class, 'index'])->name('requests.index');
     Route::get('requests/export', [Admin\ServiceRequestController::class, 'export'])->name('requests.export');
+    Route::get('requests/live', [Admin\ServiceRequestController::class, 'live'])->name('requests.live');
     Route::get('requests/{id}', [Admin\ServiceRequestController::class, 'show'])->whereNumber('id')->name('requests.show');
     Route::put('requests/{id}', [Admin\ServiceRequestController::class, 'update'])->whereNumber('id')->name('requests.update');
     Route::post('requests/{id}/provider/send', [Admin\ServiceRequestController::class, 'sendToProvider'])->whereNumber('id')->name('requests.provider.send');

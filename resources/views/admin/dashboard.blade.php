@@ -159,7 +159,7 @@
                                         </td>
                                         <td data-label="{{ __('Customer') }}">{{ $r->user->username ?? '—' }}</td>
                                         <td data-label="{{ __('Amount') }}" class="right num">{{ money($r->amount, false) }}</td>
-                                        <td data-label="{{ __('Status') }}"><span class="badge badge-{{ $r->status }}">{{ __(ucfirst($r->status)) }}</span></td>
+                                        <td data-label="{{ __('Status') }}"><span class="badge badge-{{ $r->status }}" @if ($r->isOpen()) data-live-order="{{ $r->id }}" data-live-status="{{ $r->status }}" @endif>{{ __(ucfirst($r->status)) }}</span></td>
                                     </tr>
                                 @endforeach
                             </tbody>

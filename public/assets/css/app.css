@@ -203,6 +203,9 @@ img, svg { max-width: 100%; }
 .filters .field { flex: 1 1 150px; min-width: 0; }
 .filters .field.grow { flex: 3 1 220px; }
 .filters .btns { display: flex; gap: 8px; }
+/* Live search: the results block dims while the next results load. */
+[data-live-results] { transition: opacity .15s; }
+[data-live-results].is-loading { opacity: .55; }
 /* Bulk actions above a list: "3 selected · Move selected to [category] [Move]" */
 .bulk-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 10px 18px; border-bottom: 1px solid var(--line-soft); }
 .bulk-bar select { width: auto; min-width: 220px; max-width: 100%; flex: 0 1 320px; }

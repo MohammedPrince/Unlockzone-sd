@@ -34,10 +34,10 @@
         </div>
 
         <div class="card">
-            <form class="filters" method="get" action="{{ route('admin.providers.services', $provider->id) }}">
+            <form class="filters" method="get" action="{{ route('admin.providers.services', $provider->id) }}" data-live-search="#provider-results">
                 <div class="field grow">
                     <label for="q">{{ __('Search') }}</label>
-                    <input type="search" id="q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="{{ __('Service name, group or ID') }}">
+                    <input type="search" id="q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="{{ __('Service name, group or ID') }}" autocomplete="off">
                 </div>
                 <div class="field">
                     <label for="type">{{ __('Type') }}</label>
@@ -54,16 +54,27 @@
                 </div>
             </form>
 
+            <div id="provider-results" data-live-results>
             @if ($remote->isEmpty())
                 <div class="empty"><strong>{{ __('No services here') }}</strong>{{ __('Press "Sync services" to download the provider\'s price list, or change the search.') }}</div>
-            @elseif ($categories->isEmpty())
-                <div class="empty"><strong>{{ __('Create a category first') }}</strong>{{ __('Services live inside categories.') }} <a href="{{ route('admin.categories.create') }}">{{ __('New category') }}</a></div>
             @else
-                <form method="post" action="{{ route('admin.providers.import', $provider->id) }}" data-once>
+                <form method="post" action="{{ route('admin.providers.import', $provider->id) }}" id="provider-import" data-once data-bulk>
                     @csrf
+                    {{-- The page's search, so "Import all" takes exactly the services listed. --}}
+                    <input type="hidden" name="q" value="{{ $filters['q'] ?? '' }}">
+                    <input type="hidden" name="type" value="{{ $filters['type'] ?? '' }}">
+
+                    <div class="bulk-bar">
+                        <label style="display: inline-flex; align-items: center; gap: 8px; margin: 0; cursor: pointer">
+                            <input type="checkbox" data-check-all> {{ __('Select all on this page') }}
+                        </label>
+                        <span class="bulk-count" data-bulk-count data-template="{{ __(':count selected') }}">{{ __(':count selected', ['count' => 0]) }}</span>
+                        <span class="muted" style="font-size: 13px">{{ trans_choice('{1} :count service matches|[2,*] :count services match', $remote->total(), ['count' => number_format($remote->total())]) }}</span>
+                    </div>
+
                     <div class="table-wrap">
                         <table class="cards">
-                            <thead><tr><th style="width: 40px"><span class="sr-only">{{ __('Select') }}</span></th><th>{{ __('Service') }}</th><th>{{ __('Type') }}</th><th>{{ __('Needs') }}</th><th>{{ __('Delivery') }}</th><th class="right">{{ __('Provider price') }}</th></tr></thead>
+                            <thead><tr><th style="width: 40px"><input type="checkbox" data-check-all aria-label="{{ __('Select all on this page') }}"></th><th>{{ __('Service') }}</th><th>{{ __('Type') }}</th><th>{{ __('Needs') }}</th><th>{{ __('Delivery') }}</th><th class="right">{{ __('Provider price') }}</th></tr></thead>
                             <tbody>
                                 @foreach ($remote as $row)
                                     @php $localId = $imported[$row->remote_id] ?? null; @endphp
@@ -72,7 +83,7 @@
                                             @if ($localId)
                                                 <span class="pos" title="{{ __('Already imported') }}">✓</span>
                                             @else
-                                                <input type="checkbox" name="remote_ids[]" value="{{ $row->remote_id }}" id="remote-{{ $row->id }}" @checked(in_array($row->remote_id, old('remote_ids', []), true))>
+                                                <input type="checkbox" name="remote_ids[]" value="{{ $row->remote_id }}" id="remote-{{ $row->id }}" data-check-item @checked(in_array($row->remote_id, old('remote_ids', []), true))>
                                             @endif
                                         </td>
                                         <td class="primary">
@@ -98,7 +109,8 @@
                         <div class="inline-form">
                             <div class="field">
                                 <label for="service_category_id">{{ __('Import into category') }}</label>
-                                <select id="service_category_id" name="service_category_id" required>
+                                <select id="service_category_id" name="service_category_id">
+                                    <option value="">{{ __('Provider\'s group (category created if missing)') }}</option>
                                     @foreach ($categories as $category)
                                         <option value="{{ $category->id }}" @selected((string) old('service_category_id') === (string) $category->id)>{{ $category->name }}</option>
                                     @endforeach
@@ -115,12 +127,18 @@
                                     <option value="inactive" @selected(old('status') === 'inactive')>{{ __('Inactive (hidden)') }}</option>
                                 </select>
                             </div>
-                            <button type="submit" class="btn btn-primary">{{ __('Import selected services') }}</button>
+                            <button type="submit" class="btn btn-primary" name="scope" value="selected" data-bulk-submit>{{ __('Import selected services') }}</button>
+                            <button type="submit" class="btn" name="scope" value="all" formnovalidate
+                                    onclick="return confirm(this.getAttribute('data-ask'))"
+                                    data-ask="{{ __('Import all :count services that match this search (up to 1000)?', ['count' => number_format($remote->total())]) }}">
+                                {{ __('Import all :count', ['count' => number_format(min($remote->total(), 1000))]) }}
+                            </button>
                         </div>
-                        <p class="help">{{ __('Your price = provider price + margin. Missing input fields are added to the category automatically. A free provider service (price 0) is imported with price 0; edit it to set your own price.') }}</p>
+                        <p class="help">{{ __('Your price = provider price + margin. With "Provider\'s group" each service goes into a category named like the provider\'s group, created when missing. A service whose name already exists on your site is not duplicated: the existing one is switched to this API (it keeps its category, status and order history). Missing input fields are added to the category automatically. A free provider service (price 0) is imported with price 0; edit it to set your own price.') }}</p>
                     </div>
                 </form>
             @endif
+            </div>
         </div>
     </div>
 @endsection

@@ -91,24 +91,47 @@ class ApiProviderController extends Controller
 
     public function import(Request $request, int $id)
     {
+        $all = $request->input('scope') === 'all';
+
         $data = $request->validate([
-            'remote_ids' => ['required', 'array', 'min:1', 'max:200'],
+            'scope' => ['nullable', Rule::in(['selected', 'all'])],
+            // "Import all" takes every service matching the page's search instead of the ticked ones.
+            'remote_ids' => [$all ? 'nullable' : 'required', 'array', 'max:1000'],
             'remote_ids.*' => ['string', 'max:40'],
-            'service_category_id' => ['required', 'integer', 'exists:service_categories,id'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'type' => ['nullable', 'string', 'max:20'],
+            // Empty: each service goes into a category named after the provider's group (created if missing).
+            'service_category_id' => ['nullable', 'integer', 'exists:service_categories,id'],
             'margin' => ['required', 'numeric', 'min:0', 'max:1000'],
             'status' => ['required', Rule::in(['active', 'inactive'])],
-        ], [], ['remote_ids' => __('services'), 'service_category_id' => __('category'), 'margin' => __('profit margin')]);
+        ], ['remote_ids.required' => __('Tick at least one service, or use "Import all".')], ['remote_ids' => __('services'), 'service_category_id' => __('category'), 'margin' => __('profit margin')]);
+
+        $provider = $this->providers->find($id);
+        $ids = $all
+            ? $this->providers->matchingRemoteIds($provider, array_filter(['q' => $data['q'] ?? null, 'type' => $data['type'] ?? null]), 1000)
+            : $data['remote_ids'];
 
         try {
-            $created = $this->providers->import(
-                $this->providers->find($id), $data['remote_ids'], (int) $data['service_category_id'],
+            $result = $this->providers->import(
+                $provider, $ids, isset($data['service_category_id']) ? (int) $data['service_category_id'] : null,
                 (float) $data['margin'], $data['status'], $request->user()->id
             );
         } catch (WorkflowException $e) {
             return back()->withErrors(['import' => __($e->getMessage())]);
         }
 
-        return back()->with('success', __(':count services imported.', ['count' => $created]));
+        $message = __(':count services imported.', ['count' => $result['created']]);
+        if ($result['linked']) {
+            $message .= ' ' . __(':count existing services with the same name were switched to this API instead of being duplicated.', ['count' => $result['linked']]);
+        }
+        if ($result['categories']) {
+            $message .= ' ' . __(':count new categories created.', ['count' => $result['categories']]);
+        }
+        if ($result['skipped']) {
+            $message .= ' ' . __(':count were already imported.', ['count' => $result['skipped']]);
+        }
+
+        return back()->with('success', $message);
     }
 
     /** Asks the providers about every open order right now (the scheduler does the same every minute). */
@@ -142,10 +165,13 @@ class ApiProviderController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:100'],
+            'type' => ['nullable', Rule::in(array_keys(\App\Models\ApiProvider::TYPES))],
             'url' => ['required', 'string', 'max:255', 'url:http,https'],
-            'username' => ['required', 'string', 'max:150'],
-            'api_key' => [$creating ? 'required' : 'nullable', 'string', 'max:255'],
+            // The classic DHRU API signs in with username + key; the Reseller API with a token only.
+            'username' => ['required_unless:type,dhru_reseller', 'nullable', 'string', 'max:150'],
+            // Reseller API tokens can be long.
+            'api_key' => [$creating ? 'required' : 'nullable', 'string', 'max:2000'],
             'status' => ['required', Rule::in(['active', 'inactive'])],
-        ], [], ['url' => __('server address'), 'api_key' => __('API key')]);
+        ], [], ['url' => __('server address'), 'api_key' => __('API key / token'), 'type' => __('API type')]);
     }
 }

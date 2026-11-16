@@ -79,6 +79,29 @@ class Service extends Model
             ->get();
     }
 
+    /** Field labels that mean "how many": the order total is the price times this number. */
+    public const QUANTITY_LABEL = '/^\s*(qty|qnt|quantity|quantities|count|pcs|pieces|credits?|units?|الكمية|كمية|العدد)\b/iu';
+
+    public const MAX_QUANTITY = 1000;
+
+    public static function isQuantityLabel(string $label): bool
+    {
+        return (bool) preg_match(self::QUANTITY_LABEL, $label);
+    }
+
+    /** The number field (e.g. "QTY") whose value multiplies the price, if the service has one. */
+    public function quantityField(?Collection $fields = null): ?CategoryField
+    {
+        return ($fields ?? $this->inputFields())
+            ->first(fn (CategoryField $f) => in_array($f->input_type, ['number', 'text'], true) && self::isQuantityLabel($f->label));
+    }
+
+    /** What an order costs for $quantity units, in the database's decimal format. */
+    public function totalFor(int $quantity): string
+    {
+        return number_format(round((float) $this->price * max(1, $quantity), 2), 2, '.', '');
+    }
+
     /** A customer can order it only when both the service and its category are active. */
     public function isAvailable(): bool
     {

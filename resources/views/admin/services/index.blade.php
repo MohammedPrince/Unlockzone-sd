@@ -23,10 +23,11 @@
     ])
 
     <div class="card">
-        <form class="filters" method="get" action="{{ route('admin.services.index') }}">
+        {{-- Results update while typing (data-live-search); Enter / Filter still work without JavaScript. --}}
+        <form class="filters" method="get" action="{{ route('admin.services.index') }}" data-live-search="#services-results">
             <div class="field grow">
                 <label for="q">{{ __('Search') }}</label>
-                <input type="search" id="q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="{{ __('Service name') }}">
+                <input type="search" id="q" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="{{ __('Service name') }}" autocomplete="off">
             </div>
             <div class="field">
                 <label for="category">{{ __('Category') }}</label>
@@ -51,6 +52,7 @@
             </div>
         </form>
 
+        <div id="services-results" data-live-results>
         @if ($services->isEmpty())
             <div class="empty"><strong>{{ __('No services found') }}</strong>{{ __('Create a service, or change the filters.') }}</div>
         @else
@@ -116,5 +118,6 @@
             </div>
             {{ $services->links() }}
         @endif
+        </div>
     </div>
 @endsection

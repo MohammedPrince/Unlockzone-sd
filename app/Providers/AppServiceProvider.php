@@ -26,6 +26,11 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\View::composer('layouts.panel', function ($view) {
             $user = auth()->user();
 
+            // Built-in "cron": any signed-in page view checks open provider orders in the background, at most once a minute.
+            if ($user) {
+                app(\App\Services\ProviderOrderService::class)->syncSoon();
+            }
+
             if ($user?->isAdmin()) {
                 // Orders waiting for the admin: new orders start as "processing", so count both open statuses.
                 $openCounts = app(\App\Repositories\ServiceRequestRepository::class)->statusCounts();

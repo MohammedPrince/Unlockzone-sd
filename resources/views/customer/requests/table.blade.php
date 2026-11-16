@@ -23,7 +23,7 @@
                 @php $archived = (bool) $r->service?->isArchived(); @endphp
                 <tr @class(['is-archived' => $archived])>
                     <td class="num"><a href="{{ route('customer.requests.show', $r->id) }}">{{ $r->id }}</a></td>
-                    <td><span class="badge badge-{{ $r->status }}">{{ __(ucfirst($r->status)) }}</span></td>
+                    <td><span class="badge badge-{{ $r->status }}" @if ($r->isOpen()) data-live-order="{{ $r->id }}" data-live-status="{{ $r->status }}" @endif>{{ __(ucfirst($r->status)) }}</span></td>
                     <td class="o-service"><a href="{{ route('customer.requests.show', $r->id) }}">{{ $r->service->name ?? __('Service') }}</a>@if ($archived) <span class="tag tag-archived">{{ __('Archived') }}</span>@endif</td>
                     <td class="right num">{{ amount($r->amount) }}@if ($r->refunded_at)<span class="sub">{{ __('refunded') }}</span>@endif</td>
                     {{-- One line on purpose: this cell keeps line breaks (white-space: pre-line). --}}

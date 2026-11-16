@@ -49,6 +49,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    {{-- app.js polls this for open orders on the page ([data-live-order]) and refreshes when one changes. --}}
+    <meta name="live-orders-url" content="{{ $isAdmin ? route('admin.requests.live') : route('customer.requests.live') }}">
     @include('partials.favicon')
     <title>@yield('title', __('Dashboard')) · {{ $site }}</title>
     @include('partials.head-theme')

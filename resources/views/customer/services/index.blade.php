@@ -7,10 +7,11 @@
 
 @section('content')
     <div class="card">
-        <form class="filters" method="get" action="{{ route('customer.services.index') }}" style="border-bottom: 0">
+        <form class="filters" method="get" action="{{ route('customer.services.index') }}" style="border-bottom: 0" data-live-search="#catalog-results">
+            @if (request()->filled('category')) <input type="hidden" name="category" value="{{ request()->integer('category') }}"> @endif
             <div class="field grow">
                 <label for="q">{{ __('Search services') }}</label>
-                <input type="search" id="q" name="q" value="{{ $q }}" placeholder="{{ __('Service name') }}">
+                <input type="search" id="q" name="q" value="{{ $q }}" placeholder="{{ __('Service name') }}" autocomplete="off">
             </div>
             <div class="btns">
                 <button class="btn btn-primary" type="submit">{{ __('Search') }}</button>
@@ -19,6 +20,7 @@
         </form>
     </div>
 
+    <div id="catalog-results" data-live-results>
     @if ($catalog->isEmpty())
         <div class="card" style="margin-top: 18px">
             <div class="empty"><strong>{{ $q ? __('No services match your search') : __('No services available yet') }}</strong>{{ $q ? __('Try a different name.') : __('Please check back soon.') }}</div>
@@ -70,4 +72,5 @@
             @endforeach
         </div>
     @endforeach
+    </div>
 @endsection

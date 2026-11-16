@@ -7,7 +7,7 @@ use App\Exceptions\WorkflowException;
 use App\Models\ProviderService;
 use App\Models\ServiceRequest;
 use App\Repositories\ActivityLogRepository;
-use App\Support\DhruFusionClient;
+use App\Support\ProviderClient;
 use Throwable;
 
 /**
@@ -47,12 +47,14 @@ class ProviderOrderService
             return false;
         }
 
-        [$imei, $custom] = $this->orderInputs($request, $service->api_provider_id, $service->remote_service_id);
+        [$imei, $custom, $quantity] = $this->orderInputs($request, $service->api_provider_id, $service->remote_service_id);
         $remote = ProviderService::where('api_provider_id', $service->api_provider_id)->where('remote_id', $service->remote_service_id)->first();
 
         try {
-            $orderId = (new DhruFusionClient($service->provider))
-                ->placeOrder($service->remote_service_id, $imei, $custom, $remote?->type === 'SERVER');
+            $orderId = $service->provider->client()->placeOrder(
+                $service->remote_service_id, $imei, $custom, $remote?->type === 'SERVER',
+                $quantity, $request->reference, $remote?->fields ?? []
+            );
         } catch (ProviderException $e) {
             $note = $e->unreachable
                 ? $e->getMessage() . ' — check the provider\'s order list before sending again.'
@@ -103,7 +105,7 @@ class ProviderOrderService
         }
 
         try {
-            $state = (new DhruFusionClient($request->provider))->orderStatus($request->remote_order_id);
+            $state = $request->provider->client()->orderStatus($request->remote_order_id);
         } catch (ProviderException $e) {
             ServiceRequest::whereKey($request->id)->update(['provider_checked_at' => now(), 'provider_message' => mb_substr($e->getMessage(), 0, 1000)]);
 
@@ -113,10 +115,10 @@ class ProviderOrderService
         ServiceRequest::whereKey($request->id)->update(['provider_checked_at' => now(), 'provider_message' => null]);
 
         try {
-            if ($state['state'] === DhruFusionClient::ORDER_DONE) {
+            if ($state['state'] === ProviderClient::ORDER_DONE) {
                 $this->requests->updateStatus($request->id, 'completed', $state['result'] !== '' ? $state['result'] : 'Done.', null, null);
                 ServiceRequest::whereKey($request->id)->update(['provider_status' => 'done']);
-            } elseif ($state['state'] === DhruFusionClient::ORDER_REJECTED) {
+            } elseif ($state['state'] === ProviderClient::ORDER_REJECTED) {
                 $this->requests->updateStatus($request->id, 'failed', null, $state['result'] !== '' ? $state['result'] : null, null);
                 ServiceRequest::whereKey($request->id)->update(['provider_status' => 'done']);
             }
@@ -134,6 +136,65 @@ class ProviderOrderService
             && ($request->provider_checked_at === null || $request->provider_checked_at->lt(now()->subSeconds($seconds)))) {
             $this->refresh($request);
         }
+    }
+
+    /**
+     * A built-in "cron" for servers where `schedule:run` is not set up (e.g. WAMP on Windows):
+     * at most once every $everySeconds, the open provider orders are checked after the current
+     * page has been sent to the browser, so nobody waits for the providers.
+     */
+    public static bool $backgroundSyncInTests = false;
+
+    public function syncSoon(int $everySeconds = 55): void
+    {
+        if (app()->runningUnitTests() && !self::$backgroundSyncInTests) {
+            return;
+        }
+
+        if (!ServiceRequest::whereNotNull('remote_order_id')->whereIn('status', ['pending', 'processing'])->exists()) {
+            return;
+        }
+
+        if (!\Illuminate\Support\Facades\Cache::add('providers:sync-tick', now()->timestamp, $everySeconds)) {
+            return;
+        }
+
+        app()->terminating(function () {
+            $lock = \Illuminate\Support\Facades\Cache::lock('providers:sync-running', 300);
+
+            if (!$lock->get()) {
+                return; // the scheduler or another page is already checking
+            }
+
+            try {
+                ignore_user_abort(true);
+                @set_time_limit(280);
+                $this->syncOpen(25);
+            } catch (Throwable $e) {
+                report($e);
+            } finally {
+                $lock->release();
+            }
+        });
+    }
+
+    /**
+     * Current state of these requests for the live pages: [id => [status, label, checked]].
+     * $userId limits the answer to one customer's own orders.
+     */
+    public function liveStatuses(array $ids, ?int $userId = null): array
+    {
+        $ids = array_slice(array_values(array_unique(array_filter(array_map('intval', $ids)))), 0, 100);
+
+        return ServiceRequest::whereIn('id', $ids ?: [0])
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
+            ->get(['id', 'status', 'provider_checked_at'])
+            ->mapWithKeys(fn ($r) => [$r->id => [
+                'status' => $r->status,
+                'label' => __(ucfirst($r->status)),
+                'checked' => $r->provider_checked_at?->diffForHumans(),
+            ]])
+            ->all();
     }
 
     /** Checks the open provider orders, oldest check first. Returns how many were looked at. */
@@ -156,6 +217,7 @@ class ProviderOrderService
     /**
      * Splits what the customer typed into the IMEI / serial and the provider's custom fields.
      * A custom field is matched to the provider's field name without caring about letter case.
+     * Returns [imei, custom fields, quantity]; the quantity is sent as the API's own quantity parameter.
      */
     private function orderInputs(ServiceRequest $request, int $providerId, string $remoteId): array
     {
@@ -164,11 +226,21 @@ class ProviderOrderService
 
         $imei = null;
         $custom = [];
+        $quantity = ServiceRequestService::quantityOf($request->request_data ?? []);
 
         foreach ($request->request_data ?? [] as $item) {
             $value = (string) ($item['value'] ?? '');
 
             if ($value === '') {
+                continue;
+            }
+
+            if (!empty($item['quantity'])) {
+                // Also passed as a custom field only when the provider's form asks for it by that name.
+                $label = mb_strtolower((string) ($item['label'] ?? ''));
+                if (isset($names[$label])) {
+                    $custom[$names[$label]] = $value;
+                }
                 continue;
             }
 
@@ -181,6 +253,6 @@ class ProviderOrderService
             $custom[$names[mb_strtolower($label)] ?? $label] = $value;
         }
 
-        return [$imei, $custom];
+        return [$imei, $custom, $quantity];
     }
 }
