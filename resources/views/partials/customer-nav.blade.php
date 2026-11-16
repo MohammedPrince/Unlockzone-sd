@@ -1,7 +1,7 @@
 {{--
     The customer's menu, laid out like a Dhru Fusion client area:
     profile head, Client Area, Place an order (by category), Order history (by category), My account, Logout.
-    Expects $me; uses $navCategories, $navBalance and $navLastLogin from the panel view composer.
+    Expects $me; uses $navCategories, $navOrderCategories, $navBalance and $navLastLogin from the panel view composer.
 --}}
 @php
     $categories = $navCategories ?? collect();
@@ -37,10 +37,10 @@
     @endforeach
 
     <p class="cnav-label">{{ __('Order history') }}</p>
-    @foreach ($categories as $category)
-        <a class="{{ $item(request()->routeIs('customer.requests.index') && $currentCategory === $category->id) }}" href="{{ route('customer.requests.index', ['category' => $category->id]) }}"><span dir="auto">{{ $category->name }}</span></a>
+    {{-- One entry per category: "IMEI Services" -> "IMEI Orders". Archived (deleted) categories are greyed out. --}}
+    @foreach ($navOrderCategories ?? collect() as $category)
+        <a class="{{ $item(request()->routeIs('customer.requests.index') && $currentCategory === $category->id) }}{{ $category->trashed() ? ' cnav-archived' : '' }}" href="{{ route('customer.requests.index', ['category' => $category->id]) }}" @if ($category->trashed()) title="{{ __('Archived: this category was removed') }}" @endif><span dir="auto">{{ $category->ordersLabel() }}</span></a>
     @endforeach
-    <a class="{{ $item(request()->routeIs('customer.requests.*') && !$currentCategory) }}" href="{{ route('customer.requests.index') }}"><span>{{ __('Server Orders') }}</span></a>
 
     <p class="cnav-label">{{ __('My account') }}</p>
     <a class="{{ $item(request()->routeIs('customer.profile')) }}" href="{{ route('customer.profile') }}"><span>{{ __('My Profile') }}</span></a>

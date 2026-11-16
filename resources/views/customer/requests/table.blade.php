@@ -20,10 +20,11 @@
                 @php
                     $code = $r->status === 'completed' ? ($r->response_data['result'] ?? '') : ($r->status === 'failed' ? ($r->error_message ?? '') : '');
                 @endphp
-                <tr>
+                @php $archived = (bool) $r->service?->isArchived(); @endphp
+                <tr @class(['is-archived' => $archived])>
                     <td class="num"><a href="{{ route('customer.requests.show', $r->id) }}">{{ $r->id }}</a></td>
                     <td><span class="badge badge-{{ $r->status }}">{{ __(ucfirst($r->status)) }}</span></td>
-                    <td class="o-service"><a href="{{ route('customer.requests.show', $r->id) }}">{{ $r->service->name ?? __('Service') }}</a></td>
+                    <td class="o-service"><a href="{{ route('customer.requests.show', $r->id) }}">{{ $r->service->name ?? __('Service') }}</a>@if ($archived) <span class="tag tag-archived">{{ __('Archived') }}</span>@endif</td>
                     <td class="right num">{{ amount($r->amount) }}@if ($r->refunded_at)<span class="sub">{{ __('refunded') }}</span>@endif</td>
                     {{-- One line on purpose: this cell keeps line breaks (white-space: pre-line). --}}
                     <td class="o-code" dir="auto"><span>{{ $code !== '' ? $code : '-' }}</span>@if ($r->status === 'completed' && $code !== '')<button type="button" class="btn-copy-mini" data-copy="{{ $code }}" data-copied="{{ __('Copied') }}" title="{{ __('Copy') }}" aria-label="{{ __('Copy') }}">@include('partials.icon', ['name' => 'copy'])<span data-copy-label class="sr-only">{{ __('Copy') }}</span></button>@endif</td>

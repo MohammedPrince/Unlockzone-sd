@@ -1139,5 +1139,13 @@
     "Select :name": "تحديد :name",
     "Move the ticked services to the chosen category?": "نقل الخدمات المحددة إلى القسم المختار؟",
     "Tick at least one service to move.": "حدد خدمة واحدة على الأقل لنقلها.",
-    ":count services moved to :category.": "تم نقل :count خدمة إلى :category."
+    ":count services moved to :category.": "تم نقل :count خدمة إلى :category.",
+    "All orders": "كل الطلبات",
+    "<b>Deleting a category</b> deletes its services too. It is refused while a customer order in it is pending or processing. Services with finished orders are archived, and customers still see those orders, greyed out, in their order history.": "<b>حذف القسم</b> يحذف خدماته أيضًا. يُرفض الحذف إذا كان فيه طلب عميل قيد الانتظار أو التنفيذ. الخدمات التي لها طلبات منتهية تُؤرشف، ويظل العملاء يرون تلك الطلبات باللون الرمادي في سجل طلباتهم.",
+    "Archived": "مؤرشف",
+    "Archived: this category was removed": "مؤرشف: تم حذف هذا القسم",
+    "This category was removed. Its orders are kept here for your records; its services can no longer be ordered.": "تم حذف هذا القسم. طلباته محفوظة هنا للرجوع إليها، ولا يمكن طلب خدماته بعد الآن.",
+    "This category has :count unfinished customer orders. Complete or cancel them first, then delete the category.": "يحتوي هذا القسم على :count طلبات غير مكتملة للعملاء. أكملها أو ألغها أولًا، ثم احذف القسم.",
+    "Delete the category \":name\" and its services? Services with past orders are archived so customers keep their order history. This cannot be undone.": "حذف القسم \":name\" وخدماته؟ الخدمات التي لها طلبات سابقة تُؤرشف ليحتفظ العملاء بسجل طلباتهم. لا يمكن التراجع عن ذلك.",
+    "Under <b>Order history</b>, open a category (for example <b>IMEI Orders</b>) to see its orders. Orders of a category that was removed stay there, greyed out.": "من <b>سجل الطلبات</b> افتح قسمًا (مثل <b>طلبات IMEI</b>) لرؤية طلباته. طلبات القسم المحذوف تبقى هناك باللون الرمادي."
 }

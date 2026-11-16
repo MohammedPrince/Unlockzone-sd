@@ -29,6 +29,10 @@ class ServiceRequestController extends Controller
             'counts' => $this->requests->statusCounts($request->user()->id),
             'filters' => $filters,
             'statuses' => ServiceRequest::STATUSES,
+            // Opened from "Order history": the category for the heading, archived (deleted) ones included.
+            'category' => $request->integer('category')
+                ? \App\Models\ServiceCategory::withTrashed()->find($request->integer('category'), ['id', 'name', 'deleted_at'])
+                : null,
         ]);
     }
 

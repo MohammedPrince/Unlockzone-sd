@@ -43,6 +43,17 @@ class AppServiceProvider extends ServiceProvider
                     ->orderBy('sort_order')->orderBy('name')
                     ->get(['id', 'name']));
 
+                // "Order history": the same categories, plus any category the customer has orders in,
+                // including archived (deleted) ones, which the menu shows greyed out at the end.
+                $view->with('navOrderCategories', \App\Models\ServiceCategory::withTrashed()
+                    ->where(fn ($q) => $q
+                        ->where(fn ($on) => $on->whereNull('deleted_at')->where('status', 'active')
+                            ->whereHas('services', fn ($s) => $s->where('status', 'active')))
+                        ->orWhereHas('services', fn ($s) => $s->withTrashed()
+                            ->whereHas('requests', fn ($r) => $r->where('user_id', $user->id))))
+                    ->orderByRaw('deleted_at is not null')->orderBy('sort_order')->orderBy('name')
+                    ->get(['id', 'name', 'deleted_at']));
+
                 // "Last login": the sign-in before this one (the newest row is the current session).
                 $view->with('navLastLogin', \App\Models\ActivityLog::where('user_id', $user->id)->where('action', 'login')
                     ->orderByDesc('id')->skip(1)->first(['created_at', 'ip_address']));

@@ -5,10 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 
 class Service extends Model
 {
+    // Archived with its deleted category when it has orders; never shown for sale again.
+    use SoftDeletes;
+
     protected $fillable = [
         'service_category_id', 'name', 'slug', 'description', 'price', 'status', 'delivery_time', 'is_instant', 'configuration',
         'api_provider_id', 'remote_service_id',
@@ -21,7 +25,13 @@ class Service extends Model
 
     public function category(): BelongsTo
     {
-        return $this->belongsTo(ServiceCategory::class, 'service_category_id');
+        return $this->belongsTo(ServiceCategory::class, 'service_category_id')->withTrashed();
+    }
+
+    /** The service, or its category, was deleted by the admin: its orders show greyed out. */
+    public function isArchived(): bool
+    {
+        return $this->trashed() || (bool) $this->category?->trashed();
     }
 
     public function provider(): BelongsTo

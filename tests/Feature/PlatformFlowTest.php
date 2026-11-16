@@ -285,9 +285,7 @@ class PlatformFlowTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertSame([], $service->fresh()->fieldIds());
 
-        // A category with services cannot be deleted.
-        $this->actingAs($admin)->delete(route('admin.categories.destroy', $category->id))->assertSessionHasErrors('category');
-
+        // (Deleting a category with services is covered in CategoryArchiveTest.)
         $this->actingAs($admin)->post(route('admin.services.toggle', $service->id));
         $this->assertSame('inactive', $service->fresh()->status);
 

@@ -25,7 +25,7 @@ class ServiceCategoryRepository
         $slug = $base;
         $i = 1;
 
-        while (ServiceCategory::where('slug', $slug)->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->exists()) {
+        while (ServiceCategory::withTrashed()->where('slug', $slug)->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->exists()) {
             $slug = $base . '-' . $i++;
         }
 
@@ -46,7 +46,8 @@ class ServiceCategoryRepository
 
     public function delete(ServiceCategory $category): void
     {
-        $category->delete();
+        // Used only when nothing in the category has orders; archiving is done with ->delete() on the model.
+        $category->forceDelete();
     }
 
     /**

@@ -35,7 +35,7 @@
             'My account' => [
                 ['customer.dashboard', 'Dashboard', 'home', 'customer.dashboard'],
                 ['customer.services.index', 'Services', 'cart', 'customer.services.*'],
-                ['customer.requests.index', 'Server Orders', 'list', 'customer.requests.*'],
+                ['customer.requests.index', 'Order history', 'list', 'customer.requests.*'],
                 ['customer.credits', 'Credit history', 'wallet', 'customer.credits'],
                 ['customer.profile', 'Profile', 'user', 'customer.profile'],
             ],

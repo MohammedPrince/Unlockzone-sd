@@ -43,7 +43,8 @@ class ServiceRequest extends Model
 
     public function service(): BelongsTo
     {
-        return $this->belongsTo(Service::class);
+        // Archived services stay attached to their orders.
+        return $this->belongsTo(Service::class)->withTrashed();
     }
 
     public function provider(): BelongsTo

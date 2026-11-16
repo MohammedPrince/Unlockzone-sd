@@ -3,8 +3,8 @@
 @php
     $searching = !empty($filters['q']) || !empty($filters['status']);
     // Opened from "Order history" in the menu: only that category's orders.
-    $category = !empty($filters['category']) ? ($navCategories ?? collect())->firstWhere('id', (int) $filters['category']) : null;
-    $heading = $category ? __(':category Orders', ['category' => $category->name]) : __('Server Orders');
+    // $category comes from the controller (the layout's menu data is not loaded yet at this point).
+    $heading = $category ? $category->ordersLabel() : __('All orders');
     $keep = array_filter(['q' => $filters['q'] ?? null, 'status' => $filters['status'] ?? null, 'category' => $category?->id]);
 @endphp
 
@@ -45,6 +45,10 @@
                 @if ($searching) <a class="btn" href="{{ route('customer.requests.index') }}">{{ __('Clear') }}</a> @endif
             </div>
         </form>
+
+        @if ($category?->trashed())
+            <p class="orders-archived-note">{{ __('This category was removed. Its orders are kept here for your records; its services can no longer be ordered.') }}</p>
+        @endif
 
         @if ($requests->isEmpty())
             <div class="empty"><strong>{{ __('No orders here') }}</strong>{{ $searching ? __('Nothing matches this status or search.') : __('Browse the services and place your first order.') }}</div>
