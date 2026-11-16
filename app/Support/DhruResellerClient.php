@@ -163,7 +163,12 @@ class DhruResellerClient implements ProviderClient
         }
 
         if (!is_array($json)) {
-            throw new ProviderException('The provider did not return a valid API answer. Check the workspace address.');
+            // Usually a normal website (e.g. www.dhru.com itself) instead of a supplier's Fusion Pro workspace.
+            $looksLikePage = str_contains(strtolower(substr((string) $response->body(), 0, 500)), '<html');
+            throw new ProviderException(sprintf(
+                'No API answer at %s (HTTP %d%s). Use the address of your supplier\'s DHRU Fusion Pro workspace (the site where you have your reseller account and created the API token), not www.dhru.com.',
+                $this->base() . $path, $response->status(), $looksLikePage ? ', a web page was returned' : ''
+            ));
         }
 
         $code = (int) ($json['code'] ?? $response->status());
