@@ -94,6 +94,60 @@ class ServiceManagementService
         return $service;
     }
 
+    /**
+     * Moves the services into another category. Each service keeps asking for the same inputs: its fields are
+     * matched in the new category by input type and label, and copied there when the category has no such field.
+     * Returns how many services were moved (ones already in that category are left alone).
+     */
+    public function moveToCategory(array $serviceIds, int $categoryId, int $adminId): int
+    {
+        $target = $this->categories->findOrFail($categoryId);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($serviceIds, $target, $adminId) {
+            $services = Service::whereIn('id', array_map('intval', $serviceIds))
+                ->where('service_category_id', '!=', $target->id)
+                ->lockForUpdate()
+                ->get();
+
+            $targetFields = $target->fields()->get();
+            $moved = [];
+
+            foreach ($services as $service) {
+                $fieldIds = $service->inputFields()->map(function ($field) use ($target, &$targetFields) {
+                    $match = $targetFields->first(fn ($f) => $f->input_type === $field->input_type
+                        && mb_strtolower(trim($f->label)) === mb_strtolower(trim($field->label)));
+
+                    if (!$match) {
+                        $match = $target->fields()->create([
+                            'label' => $field->label,
+                            'input_type' => $field->input_type,
+                            'placeholder' => $field->placeholder,
+                            'is_required' => $field->is_required,
+                            'sort_order' => $targetFields->count(),
+                        ]);
+                        $targetFields->push($match);
+                    }
+
+                    return $match->id;
+                })->unique()->values()->all();
+
+                $this->services->update($service, [
+                    'service_category_id' => $target->id,
+                    'configuration' => array_merge($service->configuration ?? [], ['field_ids' => $fieldIds]),
+                ]);
+                $moved[] = $service->name;
+            }
+
+            if ($moved) {
+                $this->logs->log('services_moved', 'Moved ' . count($moved) . " services to category {$target->name}", $target, [
+                    'services' => array_slice($moved, 0, 50),
+                ], $adminId);
+            }
+
+            return count($moved);
+        });
+    }
+
     public function delete(Service $service, int $adminId): void
     {
         if ($this->services->hasRequests($service)) {

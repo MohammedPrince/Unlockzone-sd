@@ -46,7 +46,7 @@
                 <div class="field grow">
                     <label for="category">{{ __('Import into category') }}</label>
                     <select id="category" name="category" data-autosubmit>
-                        <option value="">{{ __('Category written in the file (created if missing)') }}</option>
+                        <option value="">{{ __('Category from the first line of the file (created if missing)') }}</option>
                         @foreach ($categories as $category)
                             <option value="{{ $category->id }}" @selected($categoryId === $category->id)>{{ $category->name }}</option>
                         @endforeach

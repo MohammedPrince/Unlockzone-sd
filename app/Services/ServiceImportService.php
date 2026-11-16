@@ -15,11 +15,14 @@ use Illuminate\Support\Facades\DB;
 /**
  * Admin > Settings > Import services from a text file.
  *
- * The file is a supplier's price list copied as plain text, three lines per service:
+ * The file starts with the category name, then lists the services, three lines each:
+ *     IMEI Services                             <- category (every service below goes in it)
  *     Honor Frp Key by Sn Only Instant          <- service name
- *     Honor Frp - Direct Source Services        <- category (text after " - " is the source and is dropped)
+ *     Honor Frp - Direct Source Services        <- supplier group / source: ignored
  *     $42.5 Instant                             <- price, then delivery time
- * Empty lines are ignored. A price line with only one line above it uses that line as the name, with no category.
+ * Empty lines are ignored. Another category line can appear before any later service to start a new category.
+ * A service with only its name above the price line also works. A file without a category line is imported
+ * into the category chosen on the preview page.
  */
 class ServiceImportService
 {
@@ -62,6 +65,7 @@ class ServiceImportService
         $rows = [];
         $skipped = [];
         $buffer = [];
+        $category = null;
 
         foreach ($lines as $line) {
             if (!preg_match('/^\$\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(.*)$/u', $line, $m)) {
@@ -74,22 +78,22 @@ class ServiceImportService
                 continue;
             }
 
-            $name = array_pop($buffer);
-            $category = null;
-
-            if ($buffer) {
-                // The line above the price was the category; the one above it is the name.
-                $category = $name;
-                $name = array_pop($buffer);
+            if (count($buffer) >= 3) {
+                // Category line, name, source line: the line before the name starts a new category.
+                $category = mb_substr($buffer[count($buffer) - 3], 0, 150);
+                array_push($skipped, ...array_slice($buffer, 0, -3));
+                $name = $buffer[count($buffer) - 2];
+            } else {
+                // Name and source line (source is dropped), or just the name.
+                $name = $buffer[0];
             }
 
-            array_push($skipped, ...$buffer);
             $buffer = [];
 
             $delivery = trim($m[2]);
             $rows[] = [
                 'name' => mb_substr($name, 0, 150),
-                'category' => $category !== null ? $this->categoryName($category) : null,
+                'category' => $category,
                 'price' => round((float) str_replace(',', '', $m[1]), 2),
                 'delivery' => $delivery !== '' ? mb_substr($delivery, 0, 60) : null,
                 'instant' => (bool) preg_match('/^instant\b/i', $delivery),
@@ -104,14 +108,6 @@ class ServiceImportService
         array_push($skipped, ...$buffer);
 
         return ['rows' => $rows, 'skipped' => $skipped];
-    }
-
-    /** "Honor Frp - Direct Source Services" becomes "Honor Frp". */
-    private function categoryName(string $line): string
-    {
-        $name = trim(explode(' - ', $line, 2)[0]);
-
-        return mb_substr($name !== '' ? $name : $line, 0, 150);
     }
 
     /** What the customer must type: SN, IMEI, or either. Clean-IMEI services and unknowns ask for IMEI. */
@@ -180,7 +176,7 @@ class ServiceImportService
         $target = $categoryId ? ServiceCategory::findOrFail($categoryId) : null;
 
         if (!$target && collect($chosen)->contains(fn ($r) => blank($r['category']))) {
-            throw new WorkflowException('Some services have no category in the file. Choose a category to import them into.');
+            throw new WorkflowException('The file has no category line at the top. Choose a category to import the services into.');
         }
 
         // The same name ticked twice (e.g. one supplier service listed at two prices): the admin picks one.

@@ -35,7 +35,7 @@ class ServiceImportController extends Controller
         }
 
         if (!$parsed['rows']) {
-            return back()->withErrors(['import_file' => __('No services were found in this file. Each service needs a name line, a category line and a price line such as "$12.5 1-24 Hours".')]);
+            return back()->withErrors(['import_file' => __('No services were found in this file. Start the file with the category name, then three lines per service: name, supplier line and a price line such as "$12.5 1-24 Hours".')]);
         }
 
         $request->session()->put(self::SESSION_KEY, [

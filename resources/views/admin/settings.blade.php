@@ -262,11 +262,12 @@
                     @error('import_file') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <span class="label">{{ __('Each service is three lines') }}</span>
-<pre class="mono" dir="ltr" style="margin: 0; white-space: pre-wrap; font-size: .85rem">Honor Frp Key by Sn Only Instant
+                    <span class="label">{{ __('File layout') }}</span>
+<pre class="mono" dir="ltr" style="margin: 0; white-space: pre-wrap; font-size: .85rem">IMEI Services
+Honor Frp Key by Sn Only Instant
 Honor Frp - Direct Source Services
 $42.5 Instant</pre>
-                    <p class="help">{{ __('Name, then category (the part after " - " is ignored), then price and delivery time.') }}</p>
+                    <p class="help">{{ __('First line: the category every service goes into. Then three lines per service: name, supplier line (ignored), price and delivery time.') }}</p>
                 </div>
             </div>
         </div>

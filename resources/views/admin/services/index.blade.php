@@ -54,12 +54,32 @@
         @if ($services->isEmpty())
             <div class="empty"><strong>{{ __('No services found') }}</strong>{{ __('Create a service, or change the filters.') }}</div>
         @else
+            <form id="bulk-move" class="bulk-bar" method="post" action="{{ route('admin.services.move') }}" data-once data-bulk
+                data-confirm="{{ __('Move the ticked services to the chosen category?') }}">
+                @csrf
+                <label style="display: inline-flex; align-items: center; gap: 8px; margin: 0; cursor: pointer">
+                    <input type="checkbox" data-check-all> {{ __('Select all') }}
+                </label>
+                <span class="bulk-count" data-bulk-count data-template="{{ __(':count selected') }}">{{ __(':count selected', ['count' => 0]) }}</span>
+                <label for="target_category_id" class="sr-only">{{ __('Move to category') }}</label>
+                <select id="target_category_id" name="target_category_id" required>
+                    <option value="">{{ __('Move selected to…') }}</option>
+                    @foreach ($categories as $category)
+                        <option value="{{ $category->id }}">{{ $category->name }}</option>
+                    @endforeach
+                </select>
+                <button class="btn btn-sm btn-primary" type="submit" data-bulk-submit disabled>{{ __('Move') }}</button>
+                @error('ids') <span class="error-text">{{ $message }}</span> @enderror
+                @error('target_category_id') <span class="error-text">{{ $message }}</span> @enderror
+            </form>
+
             <div class="table-wrap">
                 <table class="cards">
-                    <thead><tr><th>{{ __('Service') }}</th><th>{{ __('Category') }}</th><th class="right">{{ __('Price') }}</th><th>{{ __('Delivery') }}</th><th class="right">{{ __('Requests') }}</th><th>{{ __('Status') }}</th><th></th></tr></thead>
+                    <thead><tr><th style="width: 40px"><input type="checkbox" data-check-all aria-label="{{ __('Select all services on this page') }}"></th><th>{{ __('Service') }}</th><th>{{ __('Category') }}</th><th class="right">{{ __('Price') }}</th><th>{{ __('Delivery') }}</th><th class="right">{{ __('Requests') }}</th><th>{{ __('Status') }}</th><th></th></tr></thead>
                     <tbody>
                         @foreach ($services as $service)
                             <tr>
+                                <td class="check-cell"><input type="checkbox" name="ids[]" value="{{ $service->id }}" form="bulk-move" data-check-item aria-label="{{ __('Select :name', ['name' => $service->name]) }}"></td>
                                 <td class="primary">
                                     <a href="{{ route('admin.services.edit', $service->id) }}">{{ $service->name }}</a>
                                     @if ($service->isNew()) <span class="new-tag">{{ __('New') }}</span> @endif

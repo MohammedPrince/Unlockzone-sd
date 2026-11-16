@@ -100,6 +100,7 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::post('services', [Admin\ServiceController::class, 'store'])->name('services.store');
     Route::get('services/{id}/edit', [Admin\ServiceController::class, 'edit'])->whereNumber('id')->name('services.edit');
     Route::put('services/{id}', [Admin\ServiceController::class, 'update'])->whereNumber('id')->name('services.update');
+    Route::post('services/move', [Admin\ServiceController::class, 'move'])->name('services.move');
     Route::post('services/{id}/toggle', [Admin\ServiceController::class, 'toggle'])->whereNumber('id')->name('services.toggle');
     Route::delete('services/{id}', [Admin\ServiceController::class, 'destroy'])->whereNumber('id')->name('services.destroy');
     Route::post('uploads/image', [Admin\UploadController::class, 'image'])->middleware('throttle:30,1')->name('uploads.image');

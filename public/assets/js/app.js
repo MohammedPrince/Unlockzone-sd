@@ -181,6 +181,33 @@
         el.addEventListener('change', function () { el.form.submit(); });
     });
 
+    // ----- Bulk actions: tick rows one by one or all at once, then submit the [data-bulk] form -----
+    var bulk = $('form[data-bulk]');
+    if (bulk) {
+        var items = $$('[data-check-item]');
+        var alls = $$('[data-check-all]');
+        var count = $('[data-bulk-count]', bulk);
+        var submit = $('[data-bulk-submit]', bulk);
+        var refresh = function () {
+            var n = items.filter(function (i) { return i.checked; }).length;
+            alls.forEach(function (a) {
+                a.checked = n > 0 && n === items.length;
+                a.indeterminate = n > 0 && n < items.length;
+            });
+            if (count) { count.textContent = (count.getAttribute('data-template') || ':count').replace(':count', n); }
+            if (submit) { submit.disabled = n === 0; }
+            bulk.classList.toggle('has-selection', n > 0);
+        };
+        alls.forEach(function (a) {
+            a.addEventListener('change', function () {
+                items.forEach(function (i) { i.checked = a.checked; });
+                refresh();
+            });
+        });
+        items.forEach(function (i) { i.addEventListener('change', refresh); });
+        refresh();
+    }
+
     // ----- Category form: add / remove input-field rows -----
     var rows = $('#field-rows');
     var template = $('#field-row-template');
