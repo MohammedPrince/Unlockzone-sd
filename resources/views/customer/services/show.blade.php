@@ -94,8 +94,9 @@
                     </form>
 
                     <div class="order-price" aria-label="{{ __('Price') }}">
-                        <small>$</small><b>{{ amount($service->price) }}</b>
-                        @if ($qtyField) <span class="muted" style="font-size: .85rem">{{ __('each') }}</span> @endif
+                        {{-- With a quantity field the big number is the total; app.js keeps it in step with QTY. --}}
+                        <small>$</small><b @if ($qtyField) data-qty-amount @endif>{{ amount($qtyField ? $total : $service->price) }}</b>
+                        @if ($qtyField) <span class="muted" style="font-size: .85rem" dir="ltr">{{ price($service->price) }} × <span data-qty-count>{{ $qty }}</span></span> @endif
                         @if ($service->is_instant) <span class="tag-instant">{{ __('Instant') }}</span> @endif
                     </div>
 

@@ -283,6 +283,8 @@
             var enough = Math.round(balance * 100) >= cents;
             $$('[data-qty-count]').forEach(function (el) { el.textContent = q; });
             $$('[data-qty-total]').forEach(function (el) { el.textContent = fmt(total); });
+            // The big price under the button: the number only (its "$" is a separate small sign).
+            $$('[data-qty-amount]').forEach(function (el) { el.textContent = fmt(total).replace('$', ''); });
             $$('[data-qty-after], [data-qty-after-row]').forEach(function (el) { el.hidden = !enough; });
             $$('[data-qty-after]').forEach(function (el) { el.textContent = fmt(balance - total); });
             $$('[data-qty-short]').forEach(function (el) { el.hidden = enough; });
