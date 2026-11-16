@@ -148,15 +148,27 @@ class ServiceManagementService
         });
     }
 
-    public function delete(Service $service, int $adminId): void
+    /** Returns true when the service was archived (it had finished orders) rather than removed. */
+    public function delete(Service $service, int $adminId): bool
     {
-        if ($this->services->hasRequests($service)) {
-            throw new WorkflowException('This service has request history and cannot be deleted. Deactivate it instead.');
+        // Refused while a customer order is unfinished. With finished orders the service is archived
+        // (customers still see those orders, greyed out); without orders it is removed for good.
+        $open = $service->requests()->whereIn('status', ['pending', 'processing'])->count();
+        if ($open) {
+            throw new WorkflowException(__('This service has :count unfinished customer orders. Complete or cancel them first, then delete it.', ['count' => $open]));
         }
 
         $name = $service->name;
-        $this->services->delete($service);
+        $archived = $this->services->hasRequests($service);
 
-        $this->logs->log('service_deleted', "Deleted service {$name}", null, [], $adminId);
+        if ($archived) {
+            $service->delete(); // archive
+        } else {
+            $this->services->delete($service);
+        }
+
+        $this->logs->log('service_deleted', ($archived ? 'Archived' : 'Deleted') . " service {$name}", $archived ? $service : null, [], $adminId);
+
+        return $archived;
     }
 }

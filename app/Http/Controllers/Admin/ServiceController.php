@@ -89,11 +89,13 @@ class ServiceController extends Controller
     public function destroy(Request $request, int $id)
     {
         try {
-            $this->services->delete($this->services->find($id), $request->user()->id);
+            $archived = $this->services->delete($this->services->find($id), $request->user()->id);
         } catch (WorkflowException $e) {
             return back()->withErrors(['service' => $e->getMessage()]);
         }
 
-        return redirect()->route('admin.services.index')->with('success', 'Service deleted.');
+        return redirect()->route('admin.services.index')->with('success', $archived
+            ? __('Service archived. Customers still see their orders for it in their order history.')
+            : __('Service deleted.'));
     }
 }

@@ -19,7 +19,7 @@
             '<b>Active / inactive</b>: inactive services disappear from the customer catalog but keep their history.',
             '<b>Changing a price</b> only affects new orders. Existing requests keep the amount they were charged.',
         ],
-        'note' => 'A service with request history cannot be deleted, only deactivated.',
+        'note' => 'A service cannot be deleted while a customer order for it is pending or processing. A service with finished orders is archived: it leaves this list and the shop, and customers still see their orders for it, greyed out.',
     ])
 
     <div class="card">
@@ -101,7 +101,9 @@
                                             @csrf
                                             <button class="btn btn-sm" type="submit">{{ $service->status === 'active' ? __('Deactivate') : __('Activate') }}</button>
                                         </form>
-                                        <form method="post" action="{{ route('admin.services.destroy', $service->id) }}" data-confirm="{{ __('Delete the service ":name"? This cannot be undone.', ['name' => $service->name]) }}">
+                                        <form method="post" action="{{ route('admin.services.destroy', $service->id) }}" data-confirm="{{ $service->requests_count
+                                            ? __('Delete the service ":name"? It has orders, so it is archived: customers keep seeing them in their order history. This cannot be undone.', ['name' => $service->name])
+                                            : __('Delete the service ":name"? This cannot be undone.', ['name' => $service->name]) }}">
                                             @csrf @method('delete')
                                             <button class="btn btn-sm btn-danger" type="submit">{{ __('Delete') }}</button>
                                         </form>

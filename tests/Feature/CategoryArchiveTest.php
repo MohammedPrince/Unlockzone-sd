@@ -86,6 +86,32 @@ class CategoryArchiveTest extends TestCase
         $this->assertNotSame($category->id, $again->id);
     }
 
+    public function test_a_single_service_with_finished_orders_is_archived_and_stays_in_history(): void
+    {
+        $customer = $this->customer();
+        $category = $this->category('IMEI Services');
+        $service = $this->service($category, 'Haafedk Test 01');
+        $order = $this->order($customer, $service, 'pending');
+
+        $this->actingAs($this->admin())->delete(route('admin.services.destroy', $service->id))
+            ->assertSessionHasErrors('service');
+        $this->assertNotSoftDeleted($service);
+
+        $order->update(['status' => 'completed']);
+        $this->delete(route('admin.services.destroy', $service->id))
+            ->assertSessionHas('success', fn ($m) => str_contains($m, 'archived'));
+        $this->assertSoftDeleted($service);
+        $this->get(route('admin.services.index'))->assertDontSee('Haafedk Test 01');
+
+        $this->actingAs($customer)->get(route('customer.requests.index', ['category' => $category->id]))->assertOk()
+            ->assertSee('Haafedk Test 01')->assertSee('is-archived', false);
+
+        // Without orders a service is removed for good.
+        $unused = $this->service($category, 'Unused');
+        $this->actingAs($this->admin())->delete(route('admin.services.destroy', $unused->id))->assertSessionHas('success', 'Service deleted.');
+        $this->assertDatabaseMissing('services', ['id' => $unused->id]);
+    }
+
     public function test_an_empty_or_unordered_category_is_removed_completely(): void
     {
         $category = $this->category('Unordered Services');
