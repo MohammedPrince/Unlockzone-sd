@@ -50,6 +50,12 @@ class User extends Authenticatable
         return $this->hasMany(ServiceRequest::class);
     }
 
+    /** API access for another server ordering on this customer's account, if given. */
+    public function apiClient(): HasOne
+    {
+        return $this->hasOne(ApiClient::class);
+    }
+
     /** Services this customer is suspended from. */
     public function blockedServices(): BelongsToMany
     {

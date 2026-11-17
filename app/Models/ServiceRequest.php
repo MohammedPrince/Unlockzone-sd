@@ -23,6 +23,7 @@ class ServiceRequest extends Model
         'user_id', 'service_id', 'reference', 'idempotency_key', 'amount', 'status',
         'request_data', 'response_data', 'error_message', 'processed_by', 'refunded_at', 'completed_at',
         'api_provider_id', 'remote_order_id', 'provider_status', 'provider_message', 'provider_checked_at',
+        'api_client_id',
     ];
 
     protected function casts(): array
@@ -50,6 +51,12 @@ class ServiceRequest extends Model
     public function provider(): BelongsTo
     {
         return $this->belongsTo(ApiProvider::class, 'api_provider_id');
+    }
+
+    /** Set when another server placed this order through our API. */
+    public function apiClient(): BelongsTo
+    {
+        return $this->belongsTo(ApiClient::class);
     }
 
     public function processor(): BelongsTo

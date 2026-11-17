@@ -18,12 +18,17 @@ class ApiProviderController extends Controller
         private ApiProviderService $providers,
         private ProviderOrderService $orders,
         private ServiceCategoryService $categories,
+        private \App\Services\ApiClientService $clients,
     ) {
     }
 
+    /** Both directions: providers we buy from, and API clients (other servers) we sell to. */
     public function index()
     {
-        return view('admin.providers.index', ['providers' => $this->providers->all()]);
+        return view('admin.providers.index', [
+            'providers' => $this->providers->all(),
+            'clients' => $this->clients->all(),
+        ]);
     }
 
     public function create()

@@ -63,7 +63,7 @@ class ServiceRequestService
      * deduction are written in one transaction: either both exist or neither does.
      * $idempotencyKey is generated when the order form is shown, so a double submit is charged once.
      */
-    public function submit(User $customer, int $serviceId, array $inputs, string $idempotencyKey): ServiceRequest
+    public function submit(User $customer, int $serviceId, array $inputs, string $idempotencyKey, ?int $apiClientId = null): ServiceRequest
     {
         if ($existing = $this->requests->findByIdempotencyKey($customer->id, $idempotencyKey)) {
             return $existing;
@@ -85,7 +85,7 @@ class ServiceRequestService
         $requestData = $this->validateInputs($service, $inputs);
 
         try {
-            $request = DB::transaction(function () use ($customer, $service, $requestData, $idempotencyKey) {
+            $request = DB::transaction(function () use ($customer, $service, $requestData, $idempotencyKey, $apiClientId) {
                 $request = $this->requests->create([
                     'user_id' => $customer->id,
                     'service_id' => $service->id,
@@ -98,6 +98,7 @@ class ServiceRequestService
                     'status' => 'processing',
                     'request_data' => $requestData,
                     'api_provider_id' => $service->usesProvider() ? $service->api_provider_id : null,
+                    'api_client_id' => $apiClientId,
                 ]);
 
                 // Throws when credit is short, which rolls the request row back too.

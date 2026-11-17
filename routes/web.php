@@ -131,6 +131,15 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::get('providers/{id}/services', [Admin\ApiProviderController::class, 'services'])->whereNumber('id')->name('providers.services');
     Route::post('providers/{id}/import', [Admin\ApiProviderController::class, 'import'])->whereNumber('id')->name('providers.import');
 
+    /* Other servers using our API (we are their provider); listed on the API providers page */
+    Route::get('api-clients/create', [Admin\ApiClientController::class, 'create'])->name('api-clients.create');
+    Route::post('api-clients', [Admin\ApiClientController::class, 'store'])->name('api-clients.store');
+    Route::get('api-clients/{id}/edit', [Admin\ApiClientController::class, 'edit'])->whereNumber('id')->name('api-clients.edit');
+    Route::put('api-clients/{id}', [Admin\ApiClientController::class, 'update'])->whereNumber('id')->name('api-clients.update');
+    Route::post('api-clients/{id}/status', [Admin\ApiClientController::class, 'status'])->whereNumber('id')->name('api-clients.status');
+    Route::post('api-clients/{id}/key', [Admin\ApiClientController::class, 'regenerate'])->whereNumber('id')->name('api-clients.key');
+    Route::delete('api-clients/{id}', [Admin\ApiClientController::class, 'destroy'])->whereNumber('id')->name('api-clients.destroy');
+
     /* The scrolling announcement bar on the customer site */
     Route::get('announcements', [Admin\AnnouncementController::class, 'index'])->name('announcements.index');
     Route::post('announcements', [Admin\AnnouncementController::class, 'store'])->name('announcements.store');
