@@ -5,7 +5,28 @@
 @section('page-title', __('Platform settings'))
 @section('page-description', __('Branding, customer chat buttons, and how new customer accounts are handled. Credit amounts are shown in dollars.'))
 
+@php $maintenance = $settings['maintenance_enabled'] === '1'; @endphp
+
+@section('page-actions')
+    {{-- One click on / off, without touching the rest of the settings. --}}
+    <form method="post" action="{{ route('admin.maintenance') }}" class="inline" data-once
+          @unless ($maintenance) data-confirm="{{ __('Turn maintenance mode on? Visitors and customers will only see the maintenance page until you turn it off.') }}" @endunless>
+        @csrf
+        <input type="hidden" name="enabled" value="{{ $maintenance ? '0' : '1' }}">
+        <button type="submit" class="btn {{ $maintenance ? 'btn-success' : 'btn-danger' }}">
+            @include('partials.icon', ['name' => 'tool']) {{ $maintenance ? __('Turn maintenance off') : __('Turn maintenance on') }}
+        </button>
+    </form>
+@endsection
+
 @section('content')
+    @if ($maintenance)
+        <div class="alert alert-error">
+            <b>{{ __('Maintenance mode is on.') }}</b>
+            {{ __('Visitors and customers only see the maintenance page. You see the site normally because you are signed in as admin.') }}
+        </div>
+    @endif
+
     @include('partials.page-guide', [
         'key' => 'admin-platform-settings',
         'title' => 'How platform settings work',
@@ -22,6 +43,52 @@
 
     <form method="post" action="{{ route('admin.settings.update') }}" class="stack" data-once enctype="multipart/form-data">
         @csrf @method('put')
+
+        <div class="card" id="maintenance">
+            <div class="card-head">
+                <div>
+                    <h2>{{ __('Maintenance mode') }}</h2>
+                    <p>{{ __('While it is on, visitors and customers see only a maintenance page. Admins still see the site, and /admin/login stays open. Other servers using your API are not affected.') }}</p>
+                </div>
+                <span class="badge {{ $maintenance ? 'badge-failed' : 'badge-active' }}">{{ $maintenance ? __('On') : __('Off') }}</span>
+            </div>
+            <div class="card-body form-grid">
+                <div class="full settings-sub">
+                    <input type="hidden" name="maintenance_enabled" value="0">
+                    <label class="check"><input type="checkbox" name="maintenance_enabled" value="1" @checked(old('maintenance_enabled', $settings['maintenance_enabled']) == '1')> <span><b>{{ __('Site under maintenance') }}</b><br><span class="muted">{{ __('Visitors and customers see the maintenance page instead of the site.') }}</span></span></label>
+                </div>
+                <div>
+                    <label for="maintenance_badge">{{ __('Badge (English)') }}</label>
+                    <input type="text" id="maintenance_badge" name="maintenance_badge" value="{{ old('maintenance_badge', $settings['maintenance_badge']) }}" maxlength="80">
+                </div>
+                <div>
+                    <label for="maintenance_badge_ar">{{ __('Badge (Arabic)') }}</label>
+                    <input type="text" id="maintenance_badge_ar" name="maintenance_badge_ar" value="{{ old('maintenance_badge_ar', $settings['maintenance_badge_ar']) }}" maxlength="80" dir="rtl">
+                </div>
+                <div>
+                    <label for="maintenance_text">{{ __('Message (English)') }} <span class="muted">({{ __('optional') }})</span></label>
+                    <textarea id="maintenance_text" name="maintenance_text" maxlength="2000" rows="5" placeholder="{{ __('Empty shows a standard "we will be back soon" message.') }}">{{ old('maintenance_text', $settings['maintenance_text']) }}</textarea>
+                </div>
+                <div>
+                    <label for="maintenance_text_ar">{{ __('Message (Arabic)') }} <span class="muted">({{ __('optional') }})</span></label>
+                    <textarea id="maintenance_text_ar" name="maintenance_text_ar" maxlength="2000" rows="5" dir="rtl" placeholder="{{ __('Empty shows a standard "we will be back soon" message.') }}">{{ old('maintenance_text_ar', $settings['maintenance_text_ar']) }}</textarea>
+                </div>
+                <div>
+                    <label for="maintenance_email">{{ __('Help email') }} <span class="muted">({{ __('optional') }})</span></label>
+                    <input type="email" id="maintenance_email" name="maintenance_email" value="{{ old('maintenance_email', $settings['maintenance_email']) }}" maxlength="150" dir="ltr" placeholder="{{ $settings['contact_email'] ?: 'info@example.com' }}">
+                    <p class="help">{{ __('Shown as "Need help? Email us at…". Empty uses the contact email below.') }}</p>
+                    @error('maintenance_email') <p class="error-text">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label>&nbsp;</label>
+                    <input type="hidden" name="maintenance_show_visits" value="0">
+                    <label class="check"><input type="checkbox" name="maintenance_show_visits" value="1" @checked(old('maintenance_show_visits', $settings['maintenance_show_visits']) == '1')> <span>{{ __('Show the visit counter on the page') }}</span></label>
+                </div>
+                <div class="full">
+                    <p class="help" style="margin: 0">{{ __('Line breaks in the messages are kept. The page follows the visitor\'s language and has its own English / العربية switch.') }}</p>
+                </div>
+            </div>
+        </div>
 
         <div class="card">
             <div class="card-head"><h2>{{ __('General') }}</h2></div>

@@ -146,6 +146,12 @@
                     </div>
                 </details>
 
+                @if (setting('maintenance_enabled') === '1')
+                    {{-- Reminder: the site is closed to visitors and customers. --}}
+                    <a class="btn btn-danger btn-sm" href="{{ route('admin.settings') }}#maintenance" title="{{ __('Visitors and customers only see the maintenance page.') }}">
+                        @include('partials.icon', ['name' => 'tool']) <span class="hide-sm">{{ __('Maintenance mode is on') }}</span>
+                    </a>
+                @endif
                 <a class="btn btn-primary hide-sm" href="{{ route('admin.credits.create') }}">
                     @include('partials.icon', ['name' => 'plus']) {{ __('Recharge') }}
                 </a>

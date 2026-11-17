@@ -50,13 +50,37 @@ class SettingService
             'home_offer_title' => $data['home_offer_title'] ?? '',
             'home_offer_text' => $data['home_offer_text'] ?? '',
             'home_offer_ends_at' => $data['home_offer_ends_at'] ?? '',
+            'maintenance_badge' => trim((string) ($data['maintenance_badge'] ?? '')),
+            'maintenance_badge_ar' => trim((string) ($data['maintenance_badge_ar'] ?? '')),
+            'maintenance_text' => $data['maintenance_text'] ?? '',
+            'maintenance_text_ar' => $data['maintenance_text_ar'] ?? '',
+            'maintenance_email' => trim((string) ($data['maintenance_email'] ?? '')),
+            'maintenance_show_visits' => !empty($data['maintenance_show_visits']) ? '1' : '0',
         ]);
+
+        $this->setMaintenance(!empty($data['maintenance_enabled']), $adminId);
 
         $this->saveLogo('site_logo', $data['site_logo'] ?? null, !empty($data['remove_logo']));
         $this->saveLogo('site_logo_wide', $data['site_logo_wide'] ?? null, !empty($data['remove_logo_wide']));
         $this->saveLogo('site_logo_wide_dark', $data['site_logo_wide_dark'] ?? null, !empty($data['remove_logo_wide_dark']));
 
         $this->logs->log('settings_saved', 'Updated platform settings', null, [], $adminId);
+    }
+
+    public function maintenanceOn(): bool
+    {
+        return $this->settings->get('maintenance_enabled') === '1';
+    }
+
+    /** Turns maintenance mode on or off; only a real change is written to the activity log. */
+    public function setMaintenance(bool $on, int $adminId): void
+    {
+        if ($on === $this->maintenanceOn()) {
+            return;
+        }
+
+        $this->settings->setMany(['maintenance_enabled' => $on ? '1' : '0']);
+        $this->logs->log($on ? 'maintenance_on' : 'maintenance_off', $on ? 'Turned maintenance mode on' : 'Turned maintenance mode off', null, [], $adminId);
     }
 
     /** Stores a new logo image under public/uploads/branding (or removes it) and deletes the old file. */

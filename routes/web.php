@@ -167,6 +167,7 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
 
     Route::get('settings', [Admin\SettingController::class, 'edit'])->name('settings');
     Route::put('settings', [Admin\SettingController::class, 'update'])->name('settings.update');
+    Route::post('settings/maintenance', [Admin\SettingController::class, 'maintenance'])->name('maintenance');
     Route::post('settings/import', [Admin\ServiceImportController::class, 'upload'])->middleware('throttle:20,1')->name('settings.import.upload');
     Route::get('settings/import', [Admin\ServiceImportController::class, 'show'])->name('settings.import.show');
     Route::post('settings/import/confirm', [Admin\ServiceImportController::class, 'store'])->name('settings.import.store');
