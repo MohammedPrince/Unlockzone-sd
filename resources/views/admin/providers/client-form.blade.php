@@ -82,11 +82,11 @@
                     </div>
                     <div>
                         <label>{{ __('Which services') }}</label>
-                        <label style="display: flex; gap: 8px; align-items: center; margin: 6px 0; cursor: pointer; font-weight: 400">
+                        <label class="access-choice">
                             <input type="radio" name="access" value="all" @checked($access === 'all') data-access> <b>{{ __('All services') }}</b>
                             <span class="muted">{{ __('(services you add later are shared too)') }}</span>
                         </label>
-                        <label style="display: flex; gap: 8px; align-items: center; margin: 6px 0; cursor: pointer; font-weight: 400">
+                        <label class="access-choice">
                             <input type="radio" name="access" value="selected" @checked($access === 'selected') data-access> <b>{{ __('Only the services I tick') }}</b>
                         </label>
                         @error('service_ids') <p class="error-text">{{ $message }}</p> @enderror
@@ -95,14 +95,14 @@
 
                 <div data-service-picker data-mode="{{ $access }}">
                     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px">
-                        <input type="search" placeholder="{{ __('Filter services') }}" data-service-filter style="max-width: 320px" autocomplete="off">
+                        <input type="search" placeholder="{{ __('Filter services') }}" data-service-filter style="max-width: 320px; flex: 1 1 200px; min-width: 0" autocomplete="off">
                         <span class="muted" data-picked-count data-template="{{ __(':count selected') }}" data-only-selected>{{ __(':count selected', ['count' => count($ticked)]) }}</span>
                         <span class="muted" style="font-size: 13px">{{ __('Client price: leave empty to use the percentage above.') }}</span>
                     </div>
                     @error('prices.*') <p class="error-text">{{ $message }}</p> @enderror
 
                     @forelse ($categories as $category)
-                        <fieldset data-service-group style="border: 1px solid var(--border, rgba(255,255,255,.1)); border-radius: 10px; padding: 6px 14px 10px; margin: 0 0 10px">
+                        <fieldset data-service-group class="price-group">
                             <legend style="padding: 0 6px">
                                 <label style="display: inline-flex; gap: 8px; align-items: center; margin: 0; cursor: pointer; font-weight: 700">
                                     <input type="checkbox" data-group-all data-only-selected> {{ $category->name }}
@@ -110,20 +110,20 @@
                                 </label>
                             </legend>
                             <div class="table-wrap">
-                                <table>
-                                    <thead><tr><th style="width: 32px" data-only-selected></th><th>{{ __('Service') }}</th><th class="right">{{ __('Site price') }}</th><th class="right" style="width: 170px">{{ __('Client price') }}</th></tr></thead>
+                                <table class="price-table">
+                                    <thead><tr><th class="pt-check" data-only-selected></th><th>{{ __('Service') }}</th><th class="right">{{ __('Site price') }}</th><th class="right pt-input">{{ __('Client price') }}</th></tr></thead>
                                     <tbody>
                                         @foreach ($category->services as $service)
                                             <tr data-service-row data-name="{{ mb_strtolower($service->name) }}">
-                                                <td data-only-selected><input type="checkbox" name="service_ids[]" value="{{ $service->id }}" id="svc-{{ $service->id }}" data-service-item @checked(in_array($service->id, $ticked, true))></td>
-                                                <td>
-                                                    <label for="svc-{{ $service->id }}" style="margin: 0; font-size: inherit; font-weight: 500; color: var(--text)">{{ $service->name }}</label>
+                                                <td class="pt-check" data-only-selected><input type="checkbox" name="service_ids[]" value="{{ $service->id }}" id="svc-{{ $service->id }}" data-service-item @checked(in_array($service->id, $ticked, true))></td>
+                                                <td class="pt-name">
+                                                    <label for="svc-{{ $service->id }}">{{ $service->name }}</label>
                                                     @if ($service->status !== 'active') <span class="badge badge-inactive">{{ __('Inactive') }}</span> @endif
                                                 </td>
-                                                <td class="right num">{{ money($service->price) }}</td>
-                                                <td class="right">
-                                                    <input type="number" name="prices[{{ $service->id }}]" value="{{ $fixed[$service->id] ?? '' }}" min="0" step="0.01" dir="ltr"
-                                                           style="max-width: 150px; text-align: right" data-client-price data-base="{{ (float) $service->price }}" aria-label="{{ __('Client price') }}: {{ $service->name }}">
+                                                <td class="right num pt-site" data-label="{{ __('Site price') }}">{{ money($service->price) }}</td>
+                                                <td class="right pt-input" data-label="{{ __('Client price') }}">
+                                                    <input type="number" name="prices[{{ $service->id }}]" value="{{ $fixed[$service->id] ?? '' }}" min="0" step="0.01" dir="ltr" inputmode="decimal"
+                                                           data-client-price data-base="{{ (float) $service->price }}" aria-label="{{ __('Client price') }}: {{ $service->name }}">
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -146,6 +146,34 @@
 @endsection
 
 @push('scripts')
+<style>
+    /* A fieldset never shrinks below its content by default, which pushed the page wider than a phone. */
+    .price-group { min-width: 0; border: 1px solid var(--line, rgba(255,255,255,.1)); border-radius: 10px; padding: 6px 14px 10px; margin: 0 0 10px; }
+    .price-table .pt-check { width: 32px; }
+    .price-table .pt-input { width: 170px; }
+    .price-table .pt-input input { max-width: 150px; text-align: right; }
+    .price-table .pt-name label { margin: 0; font-size: inherit; font-weight: 500; color: var(--text); }
+    .access-choice { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; margin: 6px 0; cursor: pointer; font-weight: 400; }
+
+    /* Phones: one small card per service — tick box and name on top, site price and client price below. */
+    @media (max-width: 680px) {
+        .price-group { padding: 4px 10px 6px; }
+        .price-table thead { display: none; }
+        .price-table, .price-table tbody { display: block; width: 100%; }
+        .price-table tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "check name name" "check site input"; gap: 6px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line, rgba(255,255,255,.08)); }
+        .price-table tr[hidden] { display: none; }
+        .price-table tr:last-child { border-bottom: 0; }
+        .price-table td { display: block; padding: 0; border: 0; width: auto; }
+        .price-table td[hidden] { display: none; }
+        .price-table .pt-check { grid-area: check; align-self: start; padding-top: 2px; }
+        .price-table .pt-name { grid-area: name; overflow-wrap: anywhere; }
+        .price-table .pt-site { grid-area: site; text-align: start; font-size: 13px; }
+        .price-table .pt-site::before { content: attr(data-label) ": "; color: var(--muted); }
+        .price-table .pt-input { grid-area: input; }
+        .price-table .pt-input input { width: 110px; max-width: 110px; }
+        .price-table:not(:has(.pt-check:not([hidden]))) tr { grid-template-areas: "name name" "site input"; grid-template-columns: minmax(0, 1fr) auto; }
+    }
+</style>
 <script>
 (function () {
     var picker = document.querySelector('[data-service-picker]');

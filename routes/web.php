@@ -71,6 +71,8 @@ Route::middleware('role:customer')->name('customer.')->group(function () {
 /* ---------- Admin control panel ---------- */
 Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [Admin\DashboardController::class, 'index'])->name('dashboard');
+    // Admin manual: one page, English or Arabic following the language switch.
+    Route::view('guide', 'admin.guide')->name('guide');
 
     Route::get('notifications', [Admin\NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/read', [Admin\NotificationController::class, 'read'])->name('notifications.read');

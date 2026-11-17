@@ -1237,5 +1237,6 @@
     ":pct% discount": "خصم :pct%",
     "{1} :count fixed price|[2,*] :count fixed prices": "{1} سعر ثابت واحد|[2,*] :count أسعار ثابتة",
     "price adjustment": "نسبة السعر",
-    "price": "السعر"
+    "price": "السعر",
+    "Admin manual": "دليل المسؤول"
 }

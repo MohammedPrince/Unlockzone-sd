@@ -177,6 +177,18 @@ class ApiClientTest extends TestCase
         $this->actingAs($this->admin())->get(route('admin.providers.index'))->assertSee('50% discount');
     }
 
+    public function test_admin_manual_opens_in_english_and_arabic(): void
+    {
+        $this->actingAs($this->admin())->get(route('admin.guide'))
+            ->assertOk()->assertSee('Admin manual')->assertSee('API clients (selling your services to other servers)');
+
+        $this->actingAs($this->admin())->withCookie('locale', 'ar')->get(route('admin.guide'))
+            ->assertOk()->assertSee('دليل المسؤول')->assertSee('عملاء الـ API');
+
+        // Customers are sent away from admin pages.
+        $this->actingAs($this->customer())->get(route('admin.guide'))->assertRedirect();
+    }
+
     public function test_only_selected_services_are_shared(): void
     {
         $customer = $this->customer();
