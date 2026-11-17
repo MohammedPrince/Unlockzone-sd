@@ -30,7 +30,8 @@
 @section('content')
     <div class="grid grid-side">
         <div class="stack">
-            <div class="card">
+            {{-- Status, code and times are refreshed every minute by app.js (data-live-section). --}}
+            <div class="card" data-live-section="status">
                 <div class="card-head">
                     <h2>{{ __('Status') }}</h2>
                     <span class="badge badge-{{ $req->status }}" @if ($req->isOpen()) data-live-order="{{ $req->id }}" data-live-status="{{ $req->status }}" @endif>{{ __(ucfirst($req->status)) }}</span>
@@ -81,7 +82,7 @@
                             <dd>{{ $req->created_at->diffForHumans($repliedAt ?? now(), ['syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE, 'parts' => 2]) }}</dd>
                         </div>
                     </dl>
-
+                    <p class="muted live-note" style="margin: 0">{{ __('This page updates every minute.') }}</p>
                 </div>
             </div>
 
@@ -114,7 +115,7 @@
                 </div>
             </div>
 
-            <div class="card">
+            <div class="card" data-live-section="credits">
                 <div class="card-head"><h2>{{ __('Credit movements') }}</h2></div>
                 <div class="card-body stack">
                     @foreach ($req->transactions as $t)

@@ -1238,5 +1238,8 @@
     "{1} :count fixed price|[2,*] :count fixed prices": "{1} سعر ثابت واحد|[2,*] :count أسعار ثابتة",
     "price adjustment": "نسبة السعر",
     "price": "السعر",
-    "Admin manual": "دليل المسؤول"
+    "Admin manual": "دليل المسؤول",
+    "Updates every minute": "يتحدث كل دقيقة",
+    "No result yet. It appears here by itself when the request is completed.": "لا توجد نتيجة بعد. ستظهر هنا تلقائيًا عند اكتمال الطلب.",
+    "This page updates every minute.": "هذه الصفحة تتحدث تلقائيًا كل دقيقة."
 }

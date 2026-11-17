@@ -1168,3 +1168,6 @@ input[type=datetime-local] { width: 100%; padding: 9px 12px; min-height: 38px; b
 .btn-copy-mini { display: inline-flex; vertical-align: middle; margin-inline-start: 6px; padding: 3px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
 .btn-copy-mini:hover { color: var(--accent); border-color: var(--accent); }
 .btn-copy-mini svg { width: 13px; height: 13px; }
+
+/* "Updates every minute" note on request pages */
+.live-note { font-size: 12px; font-weight: 400; }

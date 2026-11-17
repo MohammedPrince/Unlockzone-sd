@@ -365,6 +365,34 @@
     };
     liveOrdersScan();
 
+    // ----- Request page: result, status and ledger refreshed every minute -----
+    // Blocks marked data-live-section="name" are fetched again with the page and swapped when they
+    // changed. Opening the page on the server also asks the provider for news on open orders.
+    // A block the user is selecting text in is left alone until the next minute.
+    if ($('[data-live-section]') && window.fetch && window.DOMParser) {
+        var refreshSections = function () {
+            if (document.hidden) { return; }
+            fetch(window.location.href, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                .then(function (r) { return r.ok && !r.redirected ? r.text() : Promise.reject(r.status); })
+                .then(function (html) {
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var sel = window.getSelection && window.getSelection();
+                    $$('[data-live-section]').forEach(function (el) {
+                        var fresh = doc.querySelector('[data-live-section="' + el.getAttribute('data-live-section') + '"]');
+                        if (!fresh || fresh.innerHTML === el.innerHTML) { return; }
+                        if (sel && String(sel).length > 0 && el.contains(sel.anchorNode)) { return; }
+                        if (el.contains(document.activeElement)) { return; }
+                        el.replaceWith(document.importNode(fresh, true));
+                    });
+                    liveOrdersScan();
+                })
+                .catch(function () { /* offline or signed out: try again next minute */ });
+        };
+        setInterval(refreshSections, 60000);
+        // Coming back to the tab after a while: refresh at once.
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) { refreshSections(); } });
+    }
+
     // ----- Category form: add / remove input-field rows -----
     var rows = $('#field-rows');
     var template = $('#field-row-template');
