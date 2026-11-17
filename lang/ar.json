@@ -1224,5 +1224,18 @@
     "customer": "العميل",
     "allowed IP addresses": "عناوين IP المسموحة",
     ":ip is not a valid IP address.": ":ip ليس عنوان IP صالحًا.",
-    "This customer already has API access.": "هذا العميل لديه وصول API بالفعل."
+    "This customer already has API access.": "هذا العميل لديه وصول API بالفعل.",
+    "Shared services and prices": "الخدمات المشتركة والأسعار",
+    "Price for this client": "السعر لهذا العميل",
+    "Applied to your site price for every service. 0 = same as your site, 10 = 10% more, -5 = 5% discount. A price typed next to a service below replaces it for that service.": "تُطبَّق على سعر موقعك لكل خدمة. 0 = نفس سعر موقعك، 10 = أعلى بـ 10%، ‎-5 = خصم 5%. السعر المكتوب بجانب خدمة بالأسفل يحل محلها لتلك الخدمة.",
+    "Which services": "أي الخدمات",
+    "Client price: leave empty to use the percentage above.": "سعر العميل: اتركه فارغًا لاستخدام النسبة بالأعلى.",
+    "Site price": "سعر الموقع",
+    "Client price": "سعر العميل",
+    "Site prices": "أسعار الموقع",
+    ":pct% above site prices": "أعلى من أسعار الموقع بـ :pct%",
+    ":pct% discount": "خصم :pct%",
+    "{1} :count fixed price|[2,*] :count fixed prices": "{1} سعر ثابت واحد|[2,*] :count أسعار ثابتة",
+    "price adjustment": "نسبة السعر",
+    "price": "السعر"
 }

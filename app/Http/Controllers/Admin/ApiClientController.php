@@ -97,14 +97,27 @@ class ApiClientController extends Controller
             'service_ids' => ['nullable', 'array', 'required_if:access,selected'],
             'service_ids.*' => ['integer', 'exists:services,id'],
             'status' => ['required', Rule::in(['active', 'suspended'])],
+            // Percent on the site price: -90 (90% discount) up to +1000.
+            'price_adjust' => ['nullable', 'numeric', 'min:-90', 'max:1000'],
+            // [service id => fixed price]; empty boxes fall back to the percentage.
+            'prices' => ['nullable', 'array'],
+            'prices.*' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'allowed_ips' => ['nullable', 'string', 'max:2000'],
             'note' => ['nullable', 'string', 'max:255'],
         ], ['service_ids.required_if' => __('Tick at least one service, or share all services.')], [
             'user_id' => __('customer'), 'service_ids' => __('services'), 'allowed_ips' => __('allowed IP addresses'),
+            'price_adjust' => __('price adjustment'), 'prices.*' => __('price'),
         ]);
 
         // An unticked list is sent as nothing at all; it still means "none".
         $data['service_ids'] = $data['service_ids'] ?? [];
+        $data['prices'] = array_filter($data['prices'] ?? [], fn ($p, $id) => ctype_digit((string) $id), ARRAY_FILTER_USE_BOTH);
+
+        // Fixed prices only for services that exist (ids come from the form).
+        if ($data['prices']) {
+            $known = \App\Models\Service::whereIn('id', array_keys($data['prices']))->pluck('id')->all();
+            $data['prices'] = array_intersect_key($data['prices'], array_flip($known));
+        }
 
         return $data;
     }

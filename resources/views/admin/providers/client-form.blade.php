@@ -4,6 +4,9 @@
     $editing = $client !== null;
     $access = old('access', $client->access ?? 'all');
     $ticked = array_map('intval', old('service_ids', $editing ? $client->services->pluck('id')->all() : []));
+    $adjust = old('price_adjust', $editing ? rtrim(rtrim(number_format((float) $client->price_adjust, 2, '.', ''), '0'), '.') : '0');
+    // [service id => fixed price] from the form after an error, or from the database.
+    $fixed = old('prices', $editing ? $client->prices->mapWithKeys(fn ($p) => [$p->service_id => rtrim(rtrim($p->price, '0'), '.')])->all() : []);
 @endphp
 
 @section('title', $editing ? __('Edit API client') : __('Add API client'))
@@ -65,45 +68,67 @@
         <div class="card">
             <div class="card-head">
                 <div>
-                    <h2>{{ __('Shared services') }}</h2>
+                    <h2>{{ __('Shared services and prices') }}</h2>
                     <p>{{ __('Only active services are offered. Services this customer is suspended from are never offered.') }}</p>
                 </div>
             </div>
             <div class="card-body">
-                <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px">
-                    <label style="display: inline-flex; gap: 8px; align-items: center; margin: 0; cursor: pointer">
-                        <input type="radio" name="access" value="all" @checked($access === 'all') data-access> <b>{{ __('All services') }}</b>
-                        <span class="muted">{{ __('(services you add later are shared too)') }}</span>
-                    </label>
-                    <label style="display: inline-flex; gap: 8px; align-items: center; margin: 0; cursor: pointer">
-                        <input type="radio" name="access" value="selected" @checked($access === 'selected') data-access> <b>{{ __('Only the services I tick') }}</b>
-                    </label>
+                <div class="form-grid" style="margin-bottom: 16px">
+                    <div>
+                        <label for="price_adjust">{{ __('Price for this client') }} (%)</label>
+                        <input type="number" id="price_adjust" name="price_adjust" value="{{ $adjust }}" min="-90" max="1000" step="0.01" dir="ltr" data-price-adjust>
+                        <p class="help">{{ __('Applied to your site price for every service. 0 = same as your site, 10 = 10% more, -5 = 5% discount. A price typed next to a service below replaces it for that service.') }}</p>
+                        @error('price_adjust') <p class="error-text">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label>{{ __('Which services') }}</label>
+                        <label style="display: flex; gap: 8px; align-items: center; margin: 6px 0; cursor: pointer; font-weight: 400">
+                            <input type="radio" name="access" value="all" @checked($access === 'all') data-access> <b>{{ __('All services') }}</b>
+                            <span class="muted">{{ __('(services you add later are shared too)') }}</span>
+                        </label>
+                        <label style="display: flex; gap: 8px; align-items: center; margin: 6px 0; cursor: pointer; font-weight: 400">
+                            <input type="radio" name="access" value="selected" @checked($access === 'selected') data-access> <b>{{ __('Only the services I tick') }}</b>
+                        </label>
+                        @error('service_ids') <p class="error-text">{{ $message }}</p> @enderror
+                    </div>
                 </div>
-                @error('service_ids') <p class="error-text">{{ $message }}</p> @enderror
 
-                <div data-service-picker @if ($access !== 'selected') hidden @endif>
+                <div data-service-picker data-mode="{{ $access }}">
                     <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px">
                         <input type="search" placeholder="{{ __('Filter services') }}" data-service-filter style="max-width: 320px" autocomplete="off">
-                        <span class="muted" data-picked-count data-template="{{ __(':count selected') }}">{{ __(':count selected', ['count' => count($ticked)]) }}</span>
+                        <span class="muted" data-picked-count data-template="{{ __(':count selected') }}" data-only-selected>{{ __(':count selected', ['count' => count($ticked)]) }}</span>
+                        <span class="muted" style="font-size: 13px">{{ __('Client price: leave empty to use the percentage above.') }}</span>
                     </div>
+                    @error('prices.*') <p class="error-text">{{ $message }}</p> @enderror
 
                     @forelse ($categories as $category)
-                        <fieldset data-service-group style="border: 1px solid var(--border, rgba(255,255,255,.1)); border-radius: 10px; padding: 10px 14px; margin: 0 0 10px">
+                        <fieldset data-service-group style="border: 1px solid var(--border, rgba(255,255,255,.1)); border-radius: 10px; padding: 6px 14px 10px; margin: 0 0 10px">
                             <legend style="padding: 0 6px">
                                 <label style="display: inline-flex; gap: 8px; align-items: center; margin: 0; cursor: pointer; font-weight: 700">
-                                    <input type="checkbox" data-group-all> {{ $category->name }}
+                                    <input type="checkbox" data-group-all data-only-selected> {{ $category->name }}
                                     @if ($category->status !== 'active') <span class="badge badge-inactive">{{ __('Inactive') }}</span> @endif
                                 </label>
                             </legend>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 16px">
-                                @foreach ($category->services as $service)
-                                    <label data-service-row data-name="{{ mb_strtolower($service->name) }}" style="display: flex; gap: 8px; align-items: flex-start; margin: 0; cursor: pointer; font-weight: 400">
-                                        <input type="checkbox" name="service_ids[]" value="{{ $service->id }}" data-service-item @checked(in_array($service->id, $ticked, true))>
-                                        <span>{{ $service->name }} <span class="muted num">· {{ money($service->price) }}</span>
-                                            @if ($service->status !== 'active') <span class="badge badge-inactive">{{ __('Inactive') }}</span> @endif
-                                        </span>
-                                    </label>
-                                @endforeach
+                            <div class="table-wrap">
+                                <table>
+                                    <thead><tr><th style="width: 32px" data-only-selected></th><th>{{ __('Service') }}</th><th class="right">{{ __('Site price') }}</th><th class="right" style="width: 170px">{{ __('Client price') }}</th></tr></thead>
+                                    <tbody>
+                                        @foreach ($category->services as $service)
+                                            <tr data-service-row data-name="{{ mb_strtolower($service->name) }}">
+                                                <td data-only-selected><input type="checkbox" name="service_ids[]" value="{{ $service->id }}" id="svc-{{ $service->id }}" data-service-item @checked(in_array($service->id, $ticked, true))></td>
+                                                <td>
+                                                    <label for="svc-{{ $service->id }}" style="margin: 0; font-size: inherit; font-weight: 500; color: var(--text)">{{ $service->name }}</label>
+                                                    @if ($service->status !== 'active') <span class="badge badge-inactive">{{ __('Inactive') }}</span> @endif
+                                                </td>
+                                                <td class="right num">{{ money($service->price) }}</td>
+                                                <td class="right">
+                                                    <input type="number" name="prices[{{ $service->id }}]" value="{{ $fixed[$service->id] ?? '' }}" min="0" step="0.01" dir="ltr"
+                                                           style="max-width: 150px; text-align: right" data-client-price data-base="{{ (float) $service->price }}" aria-label="{{ __('Client price') }}: {{ $service->name }}">
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
                             </div>
                         </fieldset>
                     @empty
@@ -127,6 +152,21 @@
     if (!picker) { return; }
     var items = function (root) { return Array.prototype.slice.call((root || picker).querySelectorAll('[data-service-item]')); };
     var counter = picker.querySelector('[data-picked-count]');
+    var adjust = document.querySelector('[data-price-adjust]');
+
+    // Tick boxes only matter for "Only the services I tick".
+    var setMode = function (mode) {
+        picker.querySelectorAll('[data-only-selected]').forEach(function (el) { el.hidden = mode !== 'selected'; });
+    };
+
+    // Empty price boxes show what the percentage gives.
+    var placeholders = function () {
+        var pct = parseFloat(adjust.value) || 0;
+        picker.querySelectorAll('[data-client-price]').forEach(function (input) {
+            var p = Math.max(0, Math.round(parseFloat(input.getAttribute('data-base')) * (1 + pct / 100) * 100) / 100);
+            input.placeholder = p.toFixed(2);
+        });
+    };
 
     var refresh = function () {
         picker.querySelectorAll('[data-service-group]').forEach(function (group) {
@@ -141,8 +181,9 @@
     };
 
     document.querySelectorAll('[data-access]').forEach(function (radio) {
-        radio.addEventListener('change', function () { picker.hidden = radio.value !== 'selected' || !radio.checked; });
+        radio.addEventListener('change', function () { if (radio.checked) { setMode(radio.value); } });
     });
+    adjust.addEventListener('input', placeholders);
 
     picker.addEventListener('change', function (e) {
         if (e.target.matches('[data-group-all]')) {
@@ -150,6 +191,11 @@
             items(e.target.closest('[data-service-group]')).forEach(function (b) {
                 if (!b.closest('[data-service-row]').hidden) { b.checked = e.target.checked; }
             });
+        }
+        // Typing a client price for a service also ticks it.
+        if (e.target.matches('[data-client-price]') && e.target.value !== '') {
+            var box = e.target.closest('[data-service-row]').querySelector('[data-service-item]');
+            if (box) { box.checked = true; }
         }
         refresh();
     });
@@ -166,6 +212,8 @@
         });
     });
 
+    setMode(picker.getAttribute('data-mode'));
+    placeholders();
     refresh();
 })();
 </script>

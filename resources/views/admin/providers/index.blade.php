@@ -118,7 +118,7 @@
         @else
             <div class="table-wrap">
                 <table class="cards">
-                    <thead><tr><th>{{ __('Client') }}</th><th>{{ __('Shared services') }}</th><th>{{ __('API key') }}</th><th class="right">{{ __('Orders') }}</th><th>{{ __('Last used') }}</th><th>{{ __('Status') }}</th><th></th></tr></thead>
+                    <thead><tr><th>{{ __('Client') }}</th><th>{{ __('Shared services and prices') }}</th><th>{{ __('API key') }}</th><th class="right">{{ __('Orders') }}</th><th>{{ __('Last used') }}</th><th>{{ __('Status') }}</th><th></th></tr></thead>
                     <tbody>
                         @foreach ($clients as $client)
                             <tr>
@@ -128,12 +128,17 @@
                                     @if ($client->note) <span class="sub">{{ $client->note }}</span> @endif
                                     @if ($client->user->status !== 'active') <span class="sub neg">{{ __('Customer account is :status', ['status' => __($client->user->status)]) }}</span> @endif
                                 </td>
-                                <td data-label="{{ __('Shared services') }}">
+                                <td data-label="{{ __('Shared services and prices') }}">
                                     @if ($client->sharesAll())
                                         <span class="tag">{{ __('All services') }}</span>
                                     @else
                                         <span class="tag">{{ trans_choice('{0} No services|{1} :count service|[2,*] :count services', $client->services_count, ['count' => $client->services_count]) }}</span>
                                     @endif
+                                    @php $pct = (float) $client->price_adjust; @endphp
+                                    <span class="sub">
+                                        {{ $pct == 0 ? __('Site prices') : ($pct > 0 ? __(':pct% above site prices', ['pct' => amount($pct)]) : __(':pct% discount', ['pct' => amount(abs($pct))])) }}
+                                        @if ($client->prices_count) · {{ trans_choice('{1} :count fixed price|[2,*] :count fixed prices', $client->prices_count, ['count' => $client->prices_count]) }} @endif
+                                    </span>
                                     @if ($client->ipList()) <span class="sub">{{ __('IP allow-list: :count', ['count' => count($client->ipList())]) }}</span> @endif
                                 </td>
                                 <td data-label="{{ __('API key') }}"><span class="mono">•••{{ $client->api_key_hint }}</span></td>

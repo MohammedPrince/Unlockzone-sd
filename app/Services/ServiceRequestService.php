@@ -11,6 +11,7 @@ use App\Repositories\ServiceRepository;
 use App\Repositories\ServiceRequestRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -63,8 +64,10 @@ class ServiceRequestService
      * deduction are written in one transaction: either both exist or neither does.
      * $idempotencyKey is generated when the order form is shown, so a double submit is charged once.
      */
-    public function submit(User $customer, int $serviceId, array $inputs, string $idempotencyKey, ?int $apiClientId = null): ServiceRequest
+    public function submit(User $customer, int $serviceId, array $inputs, string $idempotencyKey, ?\App\Models\ApiClient $apiClient = null): ServiceRequest
     {
+        $apiClientId = $apiClient?->id;
+
         if ($existing = $this->requests->findByIdempotencyKey($customer->id, $idempotencyKey)) {
             return $existing;
         }
@@ -85,14 +88,18 @@ class ServiceRequestService
         $requestData = $this->validateInputs($service, $inputs);
 
         try {
-            $request = DB::transaction(function () use ($customer, $service, $requestData, $idempotencyKey, $apiClientId) {
+            // An API client pays its own price (percentage or fixed price); everyone else the site price.
+            $unitPrice = $apiClient ? $apiClient->priceFor($service) : (string) $service->price;
+            $amount = number_format(round((float) $unitPrice * self::quantityOf($requestData), 2), 2, '.', '');
+
+            $request = DB::transaction(function () use ($customer, $service, $requestData, $idempotencyKey, $apiClientId, $amount) {
                 $request = $this->requests->create([
                     'user_id' => $customer->id,
                     'service_id' => $service->id,
                     'reference' => $this->requests->newReference(),
                     'idempotency_key' => $idempotencyKey,
                     // Price x quantity when the service has a QTY field; always computed here, never sent by the browser.
-                    'amount' => $service->totalFor(self::quantityOf($requestData)),
+                    'amount' => $amount,
                     // Orders go straight to processing: work starts at once, so the customer cannot cancel for a refund.
                     // Credit still comes back automatically if the order fails or an administrator cancels it.
                     'status' => 'processing',
@@ -183,7 +190,7 @@ class ServiceRequestService
             if ($status === 'completed') {
                 $request->response_data = ['result' => (string) $result];
                 $request->error_message = null;
-                $request->completed_at = now();
+                $request->completed_at = Carbon::now();
             }
 
             if (in_array($status, ['failed', 'cancelled'], true)) {
@@ -210,7 +217,7 @@ class ServiceRequestService
         }
 
         $this->credits->refund($request, $reason, $adminId);
-        $request->refunded_at = now();
+        $request->refunded_at = Carbon::now();
     }
 
     public function lockedAmount(int $userId): string

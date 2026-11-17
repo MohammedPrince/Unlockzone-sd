@@ -20,14 +20,14 @@ class ApiClientService
     public function all(): Collection
     {
         return ApiClient::with('user:id,name,username,status')
-            ->withCount(['services', 'requests'])
+            ->withCount(['services', 'requests', 'prices'])
             ->orderBy('id')
             ->get();
     }
 
     public function find(int $id): ApiClient
     {
-        return ApiClient::with(['user', 'services:id'])->findOrFail($id);
+        return ApiClient::with(['user', 'services:id', 'prices'])->findOrFail($id);
     }
 
     /** Customers that do not have API access yet (plus the one being edited). */
@@ -69,6 +69,7 @@ class ApiClientService
 
             $client->fill([
                 'access' => $data['access'],
+                'price_adjust' => round((float) ($data['price_adjust'] ?? 0), 2),
                 'status' => $data['status'],
                 'allowed_ips' => $this->cleanIps($data['allowed_ips'] ?? null),
                 'note' => $data['note'] ?? null,
@@ -82,9 +83,25 @@ class ApiClientService
                 $client->services()->sync(array_map('intval', $data['service_ids'] ?? []));
             }
 
+            // Fixed prices: an empty box means "use the percentage", so only filled boxes are kept.
+            if (array_key_exists('prices', $data)) {
+                $client->prices()->delete();
+                $rows = collect($data['prices'] ?? [])
+                    ->filter(fn ($price) => $price !== null && $price !== '')
+                    ->map(fn ($price, $serviceId) => [
+                        'api_client_id' => $client->id,
+                        'service_id' => (int) $serviceId,
+                        'price' => number_format(round((float) $price, 2), 2, '.', ''),
+                    ])->values()->all();
+                if ($rows) {
+                    \App\Models\ApiClientPrice::insert($rows);
+                }
+            }
+
             $client->load('user');
             $this->logs->log($creating ? 'api_client_created' : 'api_client_saved', ($creating ? 'Gave API access to ' : 'Saved API access of ') . $client->user->username, $client, [
                 'access' => $client->access, 'services' => $client->services()->count(),
+                'price_adjust' => $client->price_adjust, 'fixed_prices' => $client->prices()->count(),
             ], $adminId);
 
             return [$client, $key];

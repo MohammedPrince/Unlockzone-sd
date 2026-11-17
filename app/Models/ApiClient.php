@@ -12,13 +12,36 @@ use Illuminate\Support\Str;
 class ApiClient extends Model
 {
     // The key hash is never fillable: it is set only by newKey().
-    protected $fillable = ['user_id', 'access', 'status', 'allowed_ips', 'note'];
+    protected $fillable = ['user_id', 'access', 'price_adjust', 'status', 'allowed_ips', 'note'];
 
     protected $hidden = ['api_key_hash'];
 
     protected function casts(): array
     {
         return ['last_used_at' => 'datetime'];
+    }
+
+    /** Fixed prices for single services: [service_id => price]. */
+    public function prices(): HasMany
+    {
+        return $this->hasMany(ApiClientPrice::class);
+    }
+
+    private ?array $priceMap = null;
+
+    /**
+     * What this client pays for one unit of $service: its fixed price when one is set,
+     * otherwise the site price with the client's percentage applied. Never below zero.
+     */
+    public function priceFor(Service $service): string
+    {
+        $this->priceMap ??= $this->prices()->pluck('price', 'service_id')->all();
+
+        $price = isset($this->priceMap[$service->id])
+            ? (float) $this->priceMap[$service->id]
+            : (float) $service->price * (1 + (float) $this->price_adjust / 100);
+
+        return number_format(max(0, round($price, 2)), 2, '.', '');
     }
 
     public function user(): BelongsTo

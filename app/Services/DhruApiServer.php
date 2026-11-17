@@ -160,7 +160,8 @@ class DhruApiServer
                     'SERVICEID' => $service->id,
                     'SERVICETYPE' => $imei ? 'IMEI' : 'SERVER',
                     'SERVICENAME' => $service->name,
-                    'CREDIT' => number_format((float) $service->price, 2, '.', ''),
+                    // This client's own price (its percentage, or a fixed price set for it).
+                    'CREDIT' => $client->priceFor($service),
                     'TIME' => (string) $service->delivery_time,
                     'INFO' => Str::limit(trim(strip_tags((string) $service->description)), 500, ''),
                     'MINQNT' => $service->quantityField($fields) ? '1' : '',
@@ -208,7 +209,7 @@ class DhruApiServer
 
         try {
             // Each API call is a new order; DHRU clients do not send a key of their own.
-            $request = $this->requests->submit($client->user, $service->id, $inputs, 'api-' . Str::uuid(), $client->id);
+            $request = $this->requests->submit($client->user, $service->id, $inputs, 'api-' . Str::uuid(), $client);
         } catch (ValidationException $e) {
             throw new WorkflowException(collect($e->errors())->flatten()->first() ?: 'Invalid order details.');
         }

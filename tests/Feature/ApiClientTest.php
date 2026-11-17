@@ -148,6 +148,35 @@ class ApiClientTest extends TestCase
         }
     }
 
+    public function test_client_pays_its_own_price_percentage_or_fixed(): void
+    {
+        $customer = $this->customer();
+        $one = $this->service('haafedk-test-1');   // site price 5.00
+        $two = $this->service('haafedk-test-2');   // site price 8.00
+        // +10% on everything, but a fixed 4.25 for service one.
+        [$client, $key] = $this->client($customer, ['price_adjust' => '10', 'prices' => [$one->id => '4.25', $two->id => '']]);
+        $this->assertSame(1, $client->prices()->count());
+
+        $api = $this->remote('reseller', $key);
+        $list = collect($api->serviceList())->keyBy('remote_id');
+        $this->assertSame(4.25, $list[(string) $one->id]['price']);
+        $this->assertSame(8.8, $list[(string) $two->id]['price']);
+
+        $orderId = $api->placeOrder((string) $one->id, '123456789012345');
+        $this->assertSame('4.25', ServiceRequest::findOrFail((int) $orderId)->amount);
+        $this->assertSame('45.75', $this->balance($customer));
+
+        // A discount; the site price for normal customers does not change.
+        $this->actingAs($this->admin())->put(route('admin.api-clients.update', $client->id), [
+            'access' => 'all', 'status' => 'active', 'price_adjust' => '-50', 'prices' => [],
+        ])->assertSessionHasNoErrors();
+        $list = collect($api->serviceList())->keyBy('remote_id');
+        $this->assertSame(2.5, $list[(string) $one->id]['price']);
+        $this->assertSame('5.00', $one->fresh()->price);
+
+        $this->actingAs($this->admin())->get(route('admin.providers.index'))->assertSee('50% discount');
+    }
+
     public function test_only_selected_services_are_shared(): void
     {
         $customer = $this->customer();
