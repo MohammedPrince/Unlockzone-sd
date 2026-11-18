@@ -27,6 +27,18 @@ class MaintenanceMode
             return response()->json(['message' => 'The site is under maintenance. Please try again later.'], 503, ['Retry-After' => '600']);
         }
 
-        return response()->view('maintenance', [], 503, ['Retry-After' => '600']);
+        // Link-preview bots (WhatsApp, Telegram ...) skip pages that answer with an error, so they get the same
+        // page with 200 and a shared link still shows its title and logo. Everyone else, search engines included, gets 503.
+        $status = $this->isLinkPreviewBot($request) ? 200 : 503;
+
+        return response()->view('maintenance', [], $status, ['Retry-After' => '600']);
+    }
+
+    private function isLinkPreviewBot(Request $request): bool
+    {
+        return (bool) preg_match(
+            '/WhatsApp|facebookexternalhit|Facebot|TelegramBot|Twitterbot|Slackbot|LinkedInBot|Discordbot|SkypeUriPreview|Viber|Pinterest|redditbot|Embedly/i',
+            (string) $request->userAgent()
+        );
     }
 }
