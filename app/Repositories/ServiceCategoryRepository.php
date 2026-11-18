@@ -21,7 +21,8 @@ class ServiceCategoryRepository
 
     public function uniqueSlug(string $name, ?int $ignoreId = null): string
     {
-        $base = Str::slug($name) ?: 'category';
+        // The column holds 170 characters; 150 leaves room for a "-123" suffix. Providers send very long group names.
+        $base = rtrim(mb_substr(Str::slug($name), 0, 150), '-') ?: 'category';
         $slug = $base;
         $i = 1;
 

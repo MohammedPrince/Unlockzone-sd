@@ -110,6 +110,49 @@ class ProviderImportTest extends TestCase
             ->assertSee('id="bulk-move"', false);
     }
 
+    public function test_services_with_very_long_names_import_without_a_database_error(): void
+    {
+        $long = 'Unlock code by imei (#5) Router - 4Good Light A103, S450m, Beeline Fast/Fast +/Fast 2/Fast 2+/Fast HD/Pro 2/Pro 3/Pro 4/Pro 5/Pro 6/Smart/Smart 4/Smart 5/Smart 6/Smart 7/Smart 8/Tab/Tab 2/Tab Fast/Tab Fast 2/Tab Pro/Fly FS454/Huawei Y320/Y360/Y511';
+        Http::fake(fn ($r) => match ($r['action']) {
+            'accountinfo' => Http::response(['SUCCESS' => [['AccoutInfo' => ['credit' => '1', 'currency' => 'USD']]]]),
+            'imeiservicelist' => Http::response(['SUCCESS' => [['LIST' => [
+                str_repeat('Long group name ', 20) => ['GROUPNAME' => str_repeat('Long group name ', 20), 'GROUPTYPE' => 'IMEI', 'SERVICES' => [
+                    '22244' => ['SERVICEID' => 22244, 'SERVICENAME' => $long, 'CREDIT' => '2.5', 'TIME' => '15 Minutes'],
+                    '22245' => ['SERVICEID' => 22245, 'SERVICENAME' => $long . ' V2', 'CREDIT' => '3', 'TIME' => '15 Minutes'],
+                ]],
+            ]]]]),
+        });
+        $this->actingAs($this->admin())->post(route('admin.providers.store'), [
+            'name' => 'Amrr', 'url' => 'https://provider.test', 'username' => 'me', 'api_key' => 'K', 'status' => 'active',
+        ])->assertSessionHasNoErrors();
+        $provider = ApiProvider::sole();
+        $this->post(route('admin.providers.sync', $provider->id))->assertSessionHasNoErrors();
+
+        $this->post(route('admin.providers.import', $provider->id), [
+            'scope' => 'all', 'service_category_id' => '', 'margin' => 5, 'status' => 'active',
+        ])->assertSessionHasNoErrors();
+
+        // Both cut to the same 150 characters: one service, and no slug longer than the column.
+        $services = Service::where('api_provider_id', $provider->id)->get();
+        $this->assertCount(1, $services);
+        $this->assertLessThanOrEqual(170, strlen($services->first()->slug));
+        $this->assertLessThanOrEqual(170, strlen($services->first()->category->slug));
+    }
+
+    public function test_a_cloudflare_bot_check_is_reported_clearly(): void
+    {
+        $provider = new ApiProvider(['name' => 'P', 'url' => 'https://blocked.test', 'username' => 'me', 'api_key' => 'K', 'status' => 'active']);
+        Http::fake(['*' => Http::response('<!DOCTYPE html><html><head><title>Just a moment...</title></head></html>', 403, ['cf-mitigated' => 'challenge'])]);
+
+        try {
+            (new \App\Support\DhruFusionClient($provider))->call('accountinfo');
+            $this->fail('Expected a ProviderException.');
+        } catch (\App\Exceptions\ProviderException $e) {
+            $this->assertStringContainsString('Cloudflare', $e->getMessage());
+            $this->assertStringContainsString('www', $e->getMessage());
+        }
+    }
+
     public function test_import_all_respects_the_search_and_a_chosen_category(): void
     {
         $provider = $this->syncedProvider();

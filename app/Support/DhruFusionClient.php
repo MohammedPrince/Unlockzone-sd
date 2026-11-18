@@ -157,7 +157,16 @@ class DhruFusionClient implements ProviderClient
         $json = $start === false ? null : json_decode(substr($body, $start), true);
 
         if (!is_array($json)) {
-            throw new ProviderException('The provider did not return a valid API answer. Check the server address.');
+            // A Cloudflare "Just a moment..." bot check answers instead of the API. Often only one form of the address
+            // is protected (for example without www), so the other form works.
+            if ($response->header('cf-mitigated') !== '' || str_contains($body, 'Just a moment...') || str_contains($body, 'challenge-platform')) {
+                throw new ProviderException(
+                    "The provider's Cloudflare protection blocked the request (\"Just a moment...\" page), so no API answer came back. "
+                    . 'Try the address with www (or without it), or ask the provider to allow API calls to /api/index.php.'
+                );
+            }
+
+            throw new ProviderException('The provider did not return a valid API answer (HTTP ' . $response->status() . '). Check the server address.');
         }
 
         if (!empty($json['ERROR'])) {
