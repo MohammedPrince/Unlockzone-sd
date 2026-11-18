@@ -63,7 +63,7 @@ img, svg { max-width: 100%; }
 .right { text-align: end; }
 .nowrap { white-space: nowrap; }
 .stack > * + * { margin-top: 18px; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; white-space: nowrap; clip: rect(0 0 0 0); clip-path: inset(50%); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- Shell ---------- */
@@ -260,7 +260,8 @@ select { appearance: none; padding-inline-end: 34px; background-image: url("data
 .page-guide-note { color: var(--blue); font-weight: 500; }
 
 /* ---------- Tables ---------- */
-.table-wrap { overflow-x: auto; }
+/* position: relative keeps hidden labels (.sr-only) inside the scroll box; without it they escape it and widen the whole page on phones. */
+.table-wrap { position: relative; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th { text-align: start; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 11px 18px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--th-bg); }
 td { padding: 12px 18px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
@@ -1077,6 +1078,8 @@ input[type=datetime-local] { width: 100%; padding: 9px 12px; min-height: 38px; b
 
 /* Chat button: larger, and lifted clear of the bottom edge. */
 .chat-float { bottom: 32px; }
+/* On phones the open menu covers the page, so the chat button must not sit on top of its links. */
+@media (max-width: 960px) { body.nav-open .chat-float { display: none; } }
 .chat-btn { width: 60px; height: 60px; }
 .chat-btn svg { width: 34px; height: 34px; }
 @media (max-width: 680px) {
@@ -1165,7 +1168,7 @@ input[type=datetime-local] { width: 100%; padding: 9px 12px; min-height: 38px; b
 .req-times dd { margin: 0; font-weight: 600; }
 [lang=ar] .req-times dt { letter-spacing: 0; }
 @media (max-width: 560px) { .req-times { grid-template-columns: 1fr; gap: 10px; } }
-.btn-copy-mini { display: inline-flex; vertical-align: middle; margin-inline-start: 6px; padding: 3px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.btn-copy-mini { position: relative; display: inline-flex; vertical-align: middle; margin-inline-start: 6px; padding: 3px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
 .btn-copy-mini:hover { color: var(--accent); border-color: var(--accent); }
 .btn-copy-mini svg { width: 13px; height: 13px; }
 
