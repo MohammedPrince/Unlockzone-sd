@@ -17,9 +17,11 @@ class ServiceRepository
             ->when($filters['q'] ?? null, fn ($q, $v) => $q->where('name', 'like', "%{$v}%"))
             ->when($filters['category'] ?? null, fn ($q, $v) => $q->where('service_category_id', $v))
             ->when($filters['status'] ?? null, fn ($q, $v) => $q->where('status', $v))
+            ->when($filters['provider'] ?? null, fn ($q, $v) => $q->where('api_provider_id', $v))
             ->orderBy('service_category_id')
             ->orderBy('name')
-            ->paginate($perPage)
+            // One provider's services usually get moved together, so show them on one page.
+            ->paginate(($filters['provider'] ?? null) ? max($perPage, 100) : $perPage)
             ->withQueryString();
     }
 

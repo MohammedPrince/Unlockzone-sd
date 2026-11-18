@@ -91,6 +91,25 @@ class ProviderImportTest extends TestCase
         $this->assertSame(3, Service::whereNotNull('remote_service_id')->count());
     }
 
+    public function test_linked_services_count_opens_the_services_list_for_that_provider(): void
+    {
+        $provider = $this->syncedProvider();
+        $this->post(route('admin.providers.import', $provider->id), [
+            'scope' => 'selected', 'remote_ids' => ['1526', '1562'], 'service_category_id' => '', 'margin' => 0, 'status' => 'active',
+        ])->assertSessionHasNoErrors();
+        $manual = Service::where('remote_service_id', null)->firstOrFail();
+
+        $link = route('admin.services.index', ['provider' => $provider->id]);
+        $this->get(route('admin.providers.index'))->assertOk()->assertSee('href="' . $link . '"', false);
+
+        // Only this provider's services, with the bulk "Move selected to" bar to change their category.
+        $this->get($link)->assertOk()
+            ->assertSee('Infinity BB5 Active For Cm2')
+            ->assertSee('Infinity Box/Dongle Credits Any Quantity')
+            ->assertDontSee($manual->name)
+            ->assertSee('id="bulk-move"', false);
+    }
+
     public function test_import_all_respects_the_search_and_a_chosen_category(): void
     {
         $provider = $this->syncedProvider();

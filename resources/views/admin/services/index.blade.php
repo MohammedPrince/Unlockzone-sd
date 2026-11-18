@@ -46,6 +46,17 @@
                     <option value="inactive" @selected(($filters['status'] ?? '') === 'inactive')>{{ __('Inactive') }}</option>
                 </select>
             </div>
+            @if ($providers->isNotEmpty())
+                <div class="field">
+                    <label for="provider">{{ __('Provider') }}</label>
+                    <select id="provider" name="provider">
+                        <option value="">{{ __('All providers') }}</option>
+                        @foreach ($providers as $provider)
+                            <option value="{{ $provider->id }}" @selected((string) ($filters['provider'] ?? '') === (string) $provider->id)>{{ $provider->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div class="btns">
                 <button class="btn btn-primary" type="submit">{{ __('Filter') }}</button>
                 <a class="btn" href="{{ route('admin.services.index') }}">{{ __('Reset') }}</a>

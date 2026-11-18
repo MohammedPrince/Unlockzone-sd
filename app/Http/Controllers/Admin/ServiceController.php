@@ -21,11 +21,12 @@ class ServiceController extends Controller
 
     public function index(Request $request)
     {
-        $filters = $request->only(['q', 'category', 'status']);
+        $filters = $request->only(['q', 'category', 'status', 'provider']);
 
         return view('admin.services.index', [
             'services' => $this->services->paginate($filters),
             'categories' => $this->categories->all(),
+            'providers' => $this->providers->forSelect(),
             'filters' => $filters,
         ]);
     }

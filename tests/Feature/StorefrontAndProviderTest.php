@@ -264,9 +264,10 @@ class StorefrontAndProviderTest extends TestCase
         Http::assertSent(fn ($r) => $r['action'] === 'placeimeiorder'
             && str_contains($r['parameters'], '<ID>134</ID>') && str_contains($r['parameters'], '<IMEI>123456789012345</IMEI>'));
 
-        // Still in process at the provider: nothing changes.
+        // Still in process at the provider: nothing changes, and the API tag is yellow (waiting).
         app(ProviderOrderService::class)->syncOpen();
         $this->assertSame('processing', $request->fresh()->status);
+        $this->actingAs($this->admin())->get(route('admin.requests.show', $request->id))->assertSee('api-tag api-wait', false);
 
         $status = '4';
         $this->artisan('providers:sync-orders')->assertSuccessful();
@@ -276,7 +277,8 @@ class StorefrontAndProviderTest extends TestCase
         $this->assertSame('45.00', $this->balance($customer));
 
         $this->actingAs($customer)->get(route('customer.requests.show', $request->id))->assertOk()->assertSee('UNLOCK-CODE-777');
-        $this->actingAs($this->admin())->get(route('admin.requests.show', $request->id))->assertOk()->assertSee('9001');
+        // The provider answered with the result: green.
+        $this->actingAs($this->admin())->get(route('admin.requests.show', $request->id))->assertOk()->assertSee('9001')->assertSee('api-tag api-ok', false);
     }
 
     public function test_provider_rejection_refunds_once_and_place_errors_wait_for_the_admin(): void
@@ -296,6 +298,7 @@ class StorefrontAndProviderTest extends TestCase
         $this->assertSame('45.00', $this->balance($customer));
         // The provider's own problem is not shown to the customer.
         $this->actingAs($customer)->get(route('customer.requests.show', $first->id))->assertOk()->assertDontSee('Not enough credits');
+        $this->actingAs($this->admin())->get(route('admin.requests.show', $first->id))->assertSee('api-tag api-bad', false);
 
         // 2) The admin sends it again and this time it is accepted, then rejected by the provider.
         Http::swap(new \Illuminate\Http\Client\Factory());
