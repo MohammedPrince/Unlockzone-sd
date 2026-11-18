@@ -6,6 +6,9 @@ Options -Indexes
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    # Already inside public/ (e.g. the main domain's public_html/.htaccess sent it here): leave it,
+    # or LiteSpeed would turn public/index.php into public/public/index.php and answer 404.
+    RewriteRule ^public/ - [L]
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 
