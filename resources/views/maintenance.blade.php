@@ -28,6 +28,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
+    {{-- A shared link still shows the site name, tagline and logo, as when the site is open. --}}
+    @include('partials.share-meta')
     @include('partials.favicon')
     <title>{{ $ar ? 'الموقع تحت الصيانة' : 'Under maintenance' }} · {{ $site }}</title>
     {{-- Same theme rule as the rest of the site: dark by default, light if the visitor chose it. --}}

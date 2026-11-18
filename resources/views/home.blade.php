@@ -28,7 +28,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="description" content="{{ setting('home_tagline') }}">
+    @include('partials.share-meta')
     <meta name="theme-color" content="#0a1424">
     @include('partials.favicon')
     <title>{{ $site }} · {{ setting('home_tagline') }}</title>

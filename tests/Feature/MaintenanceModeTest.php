@@ -80,6 +80,20 @@ class MaintenanceModeTest extends TestCase
         $this->withCookie('locale', 'ar')->get('/')->assertStatus(503)->assertSee('نص عربي مخصص')->assertSee('نجهّز لك تجربة أفضل');
     }
 
+    public function test_shared_links_still_get_a_preview_while_maintenance_is_on(): void
+    {
+        app(SettingRepository::class)->setMany(['maintenance_enabled' => '1', 'site_name' => 'Unlock-SD', 'home_tagline' => 'Mobile unlocking']);
+
+        // People and search engines: 503, but the page already carries the preview tags.
+        $this->get('/')->assertStatus(503)
+            ->assertSee('<meta property="og:title" content="Unlock-SD · Mobile unlocking">', false)
+            ->assertSee('<meta property="og:description" content="Mobile unlocking">', false);
+
+        // WhatsApp's link-preview fetch gets the same page with 200, so the preview is built.
+        $this->withHeader('User-Agent', 'WhatsApp/2.23.20.0 A')->get('/')->assertOk()->assertSee('og:title', false);
+        $this->withHeader('User-Agent', 'facebookexternalhit/1.1')->get('/login')->assertOk();
+    }
+
     public function test_settings_form_saves_the_texts_and_switch(): void
     {
         $settings = app(SettingRepository::class)->all();
