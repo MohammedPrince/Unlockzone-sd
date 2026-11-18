@@ -35,6 +35,12 @@ class User extends Authenticatable
         ];
     }
 
+    /** Password reset email in the site's own branded template (instead of Laravel's default notification). */
+    public function sendPasswordResetNotification($token): void
+    {
+        app(\App\Services\EmailNotifier::class)->passwordReset($this, $token);
+    }
+
     public function wallet(): HasOne
     {
         return $this->hasOne(CustomerWallet::class);

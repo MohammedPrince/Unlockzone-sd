@@ -185,9 +185,22 @@ class EmailNotificationTest extends TestCase
 
         $this->actingAs($this->admin())->put(route('admin.requests.update', $request->id), ['status' => 'completed', 'result' => 'CODE-778899'])->assertSessionHasNoErrors();
 
+        // The customer gets the result with the order details (including the IMEI they typed); the admin gets a hidden copy.
         Mail::assertSent(SiteMail::class, fn (SiteMail $m) => $m->hasTo($customer->email) && $m->code === 'CODE-778899'
-            && str_contains($m->mailSubject, 'completed'));
+            && str_contains($m->mailSubject, 'completed') && $m->tone === 'success'
+            && $m->hasBcc('boss@example.com') && !$m->hasTo('boss@example.com')
+            && ($m->details['Order ID'] ?? null) === $request->reference && in_array('123456789012345', $m->details, true));
         Mail::assertSent(SiteMail::class, 2);
+
+        // The admin's own new-order email is not copied to the admin a second time.
+        Mail::assertSent(SiteMail::class, fn (SiteMail $m) => $m->hasTo('boss@example.com') && !$m->hasBcc('boss@example.com'));
+
+        // The branded template renders with the subject as its title, the code, the details and the button.
+        $html = (new SiteMail('Your order R-1 is completed', 'Your order is completed', ['Hello'], ['Order ID' => 'R-1'], 'CODE-778899', 'View order', 'https://x.test/o/1', 'success'))->render();
+        $this->assertStringContainsString('>Your order R-1 is completed</h1>', $html);
+        $this->assertStringContainsString('CODE-778899', $html);
+        $this->assertStringContainsString('#16a34a', $html);
+        $this->assertStringContainsString('https://x.test/o/1', $html);
     }
 
     public function test_customer_is_told_about_a_failed_order_and_the_refund(): void
@@ -196,9 +209,21 @@ class EmailNotificationTest extends TestCase
 
         $this->actingAs($this->admin())->put(route('admin.requests.update', $request->id), ['status' => 'failed', 'error' => 'Not found'])->assertSessionHasNoErrors();
 
-        Mail::assertSent(SiteMail::class, fn (SiteMail $m) => $m->hasTo($customer->email) && $m->code === null
+        Mail::assertSent(SiteMail::class, fn (SiteMail $m) => $m->hasTo($customer->email) && $m->code === null && $m->hasBcc('boss@example.com')
             && collect($m->lines)->contains(fn ($l) => str_contains($l, 'Reason: Not found'))
             && collect($m->lines)->contains(fn ($l) => str_contains($l, 'returned to your credit')));
+    }
+
+    public function test_password_reset_email_uses_the_site_template_and_is_not_copied_to_the_admin(): void
+    {
+        $customer = $this->customer();
+
+        $this->post(route('password.email'), ['email' => $customer->email])->assertSessionHasNoErrors();
+
+        Mail::assertSent(SiteMail::class, fn (SiteMail $m) => $m->hasTo($customer->email)
+            && str_starts_with($m->mailSubject, 'Reset your password')
+            && str_contains((string) $m->buttonUrl, '/reset-password/')
+            && !$m->hasBcc('boss@example.com'));
     }
 
     public function test_a_mail_server_error_does_not_break_the_order(): void

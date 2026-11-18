@@ -156,23 +156,60 @@ class EmailNotifier
             ],
         };
 
+        $completed = $request->status === 'completed';
+
+        // Order details as on the order page: number, service, what the customer typed in (IMEI, SN ...), credit, dates.
+        $details = ['Order ID' => $request->reference, 'Service' => $service];
+        foreach ($request->request_data ?? [] as $field) {
+            $value = trim((string) ($field['value'] ?? ''));
+            if ($value !== '') {
+                $details[$field['label'] ?? 'Field'] = $value;
+            }
+        }
+        $details['Credit'] = amount($request->amount) . '$';
+        $details['Status'] = ucfirst($request->status);
+        $details['Ordered'] = $request->created_at?->format('Y-m-d H:i');
+        if ($completed && $request->completed_at) {
+            $details['Completed'] = $request->completed_at->format('Y-m-d H:i');
+        }
+
         $this->send($customer->email, new SiteMail(
             mailSubject: $subject,
             heading: $heading,
             lines: array_values($lines),
-            details: [
-                'Order' => $request->reference,
-                'Service' => $service,
-                'Credit' => amount($request->amount) . '$',
-                'Status' => ucfirst($request->status),
-            ],
-            code: $request->status === 'completed' ? (string) ($request->response_data['result'] ?? '') : null,
+            details: array_filter($details, fn ($v) => $v !== null && $v !== ''),
+            code: $completed ? (string) ($request->response_data['result'] ?? '') : null,
             buttonText: 'View order',
             buttonUrl: route('customer.requests.show', $request->id),
+            tone: ['completed' => 'success', 'failed' => 'danger', 'cancelled' => 'muted'][$request->status],
+            codeLabel: 'Your result',
         ));
     }
 
-    /** Sends at once (not after the response) so the admin sees whether it worked. Throws on failure. */
+    /** The "reset your password" email, in the site's own template (replaces Laravel's default one). */
+    public function passwordReset(User $user, string $token): void
+    {
+        if (!filter_var($user->email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        $minutes = (int) config('auth.passwords.users.expire', 60);
+
+        // No admin copy: whoever holds this link can set a new password for the account.
+        $this->send($user->email, new SiteMail(
+            mailSubject: 'Reset your password for ' . $this->siteName(),
+            heading: 'Reset your password',
+            lines: [
+                "Hello {$user->first_name}, we received a request to reset the password of your account. Press the button below to choose a new one.",
+                "The link works for {$minutes} minutes. If you did not ask for this, you can ignore this email: your password stays the same.",
+            ],
+            details: ['Username' => $user->username],
+            buttonText: 'Choose a new password',
+            buttonUrl: route('password.reset', ['token' => $token, 'email' => $user->email]),
+        ), bccAdmins: false);
+    }
+
+    /** Sends at once (not after the response) so the admin sees whether it worked. Throws on failure. No BCC: it is the admin's own test. */
     public function sendTest(string $to): void
     {
         Mail::to($to)->send(new SiteMail(
@@ -194,11 +231,21 @@ class EmailNotifier
         }
     }
 
-    private function send(string|array $to, SiteMail $mail): void
+    /**
+     * Every email also goes to the admin addresses as a hidden copy (BCC), so the admin has a record of all mail sent.
+     * Emails already addressed to the admins are not copied again.
+     */
+    private function send(string|array $to, SiteMail $mail, bool $bccAdmins = true): void
     {
-        \Illuminate\Support\defer(function () use ($to, $mail) {
+        $bcc = $bccAdmins ? array_values(array_diff($this->adminAddresses(), (array) $to)) : [];
+
+        \Illuminate\Support\defer(function () use ($to, $mail, $bcc) {
             try {
-                Mail::to($to)->send($mail);
+                $pending = Mail::to($to);
+                if ($bcc) {
+                    $pending->bcc($bcc);
+                }
+                $pending->send($mail);
             } catch (Throwable $e) {
                 report($e);
             }
