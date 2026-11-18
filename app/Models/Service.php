@@ -5,10 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 
 class Service extends Model
 {
+    // Archived with its deleted category when it has orders; never shown for sale again.
+    use SoftDeletes;
+
     protected $fillable = [
         'service_category_id', 'name', 'slug', 'description', 'price', 'status', 'delivery_time', 'is_instant', 'configuration',
         'api_provider_id', 'remote_service_id',
@@ -21,7 +25,13 @@ class Service extends Model
 
     public function category(): BelongsTo
     {
-        return $this->belongsTo(ServiceCategory::class, 'service_category_id');
+        return $this->belongsTo(ServiceCategory::class, 'service_category_id')->withTrashed();
+    }
+
+    /** The service, or its category, was deleted by the admin: its orders show greyed out. */
+    public function isArchived(): bool
+    {
+        return $this->trashed() || (bool) $this->category?->trashed();
     }
 
     public function provider(): BelongsTo
@@ -67,6 +77,29 @@ class Service extends Model
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+    }
+
+    /** Field labels that mean "how many": the order total is the price times this number. */
+    public const QUANTITY_LABEL = '/^\s*(qty|qnt|quantity|quantities|count|pcs|pieces|credits?|units?|الكمية|كمية|العدد)\b/iu';
+
+    public const MAX_QUANTITY = 1000;
+
+    public static function isQuantityLabel(string $label): bool
+    {
+        return (bool) preg_match(self::QUANTITY_LABEL, $label);
+    }
+
+    /** The number field (e.g. "QTY") whose value multiplies the price, if the service has one. */
+    public function quantityField(?Collection $fields = null): ?CategoryField
+    {
+        return ($fields ?? $this->inputFields())
+            ->first(fn (CategoryField $f) => in_array($f->input_type, ['number', 'text'], true) && self::isQuantityLabel($f->label));
+    }
+
+    /** What an order costs for $quantity units, in the database's decimal format. */
+    public function totalFor(int $quantity): string
+    {
+        return number_format(round((float) $this->price * max(1, $quantity), 2), 2, '.', '');
     }
 
     /** A customer can order it only when both the service and its category are active. */

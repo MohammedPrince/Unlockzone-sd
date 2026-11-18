@@ -161,25 +161,237 @@
         });
     });
 
-    // ----- Confirm before destructive or money-moving submits -----
-    $$('form[data-confirm]').forEach(function (form) {
-        form.addEventListener('submit', function (e) {
-            if (!window.confirm(form.getAttribute('data-confirm'))) { e.preventDefault(); }
-        });
-    });
-
-    // ----- Stop double submits (the server is idempotent too; this is just nicer) -----
-    $$('form[data-once]').forEach(function (form) {
-        form.addEventListener('submit', function (e) {
-            if (e.defaultPrevented) { return; }
-            $$('button[type=submit]', form).forEach(function (b) { b.disabled = true; });
-        });
+    // ----- Confirm before destructive or money-moving submits, and stop double submits -----
+    // Listened for on the document, so forms swapped in by the live search work too.
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (e.defaultPrevented || !form.matches) { return; }
+        if (form.matches('form[data-confirm]') && !window.confirm(form.getAttribute('data-confirm'))) {
+            e.preventDefault();
+            return;
+        }
+        if (form.matches('form[data-once]')) {
+            // A disabled button's name=value is not sent, so keep the clicked one's value in a hidden field.
+            if (e.submitter && e.submitter.name) {
+                var keep = document.createElement('input');
+                keep.type = 'hidden';
+                keep.name = e.submitter.name;
+                keep.value = e.submitter.value;
+                form.appendChild(keep);
+            }
+            // Buttons inside the form, plus buttons elsewhere that belong to it (form="id").
+            var buttons = $$('button[type=submit]', form);
+            if (form.id) { buttons = buttons.concat($$('button[type=submit][form="' + form.id + '"]')); }
+            buttons.forEach(function (b) { b.disabled = true; });
+        }
     });
 
     // ----- Selects that submit their filter form on change -----
-    $$('[data-autosubmit]').forEach(function (el) {
-        el.addEventListener('change', function () { el.form.submit(); });
+    document.addEventListener('change', function (e) {
+        if (e.target.matches && e.target.matches('[data-autosubmit]')) { e.target.form.submit(); }
     });
+
+    // ----- Bulk actions: tick rows one by one or all at once, then submit the [data-bulk] form -----
+    var bulkRefresh = function () {
+        var bulk = $('form[data-bulk]');
+        if (!bulk) { return; }
+        var items = $$('[data-check-item]');
+        var n = items.filter(function (i) { return i.checked; }).length;
+        $$('[data-check-all]').forEach(function (a) {
+            a.checked = n > 0 && n === items.length;
+            a.indeterminate = n > 0 && n < items.length;
+        });
+        var count = $('[data-bulk-count]', bulk);
+        var submit = $('[data-bulk-submit]', bulk);
+        if (count) { count.textContent = (count.getAttribute('data-template') || ':count').replace(':count', n); }
+        if (submit) { submit.disabled = n === 0; }
+        bulk.classList.toggle('has-selection', n > 0);
+    };
+    document.addEventListener('change', function (e) {
+        var t = e.target;
+        if (!t.matches) { return; }
+        if (t.matches('[data-check-all]')) {
+            $$('[data-check-item]').forEach(function (i) { i.checked = t.checked; });
+            bulkRefresh();
+        } else if (t.matches('[data-check-item]')) {
+            bulkRefresh();
+        }
+    });
+    bulkRefresh();
+
+    // ----- Live search: results follow what is typed, no Enter needed -----
+    // <form data-live-search="#results"> … <div id="results" data-live-results>. The page is fetched
+    // with the form's values and only the results block is swapped. Enter / the button still work.
+    $$('form[data-live-search]').forEach(function (form) {
+        var target = form.getAttribute('data-live-search');
+        var timer = null;
+        var seq = 0;
+        var run = function () {
+            var box = $(target);
+            if (!box || !window.fetch) { return; }
+            // Only filled-in filters go into the address (deleting while iterating would skip some).
+            var params = new URLSearchParams();
+            new FormData(form).forEach(function (v, k) { if (v !== '') { params.append(k, v); } });
+            var url = form.action + (params.toString() ? '?' + params.toString() : '');
+            var mine = ++seq;
+            box.classList.add('is-loading');
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+                .then(function (html) {
+                    if (mine !== seq) { return; } // a newer search already started
+                    var fresh = new DOMParser().parseFromString(html, 'text/html').querySelector(target);
+                    if (fresh) {
+                        box.innerHTML = fresh.innerHTML;
+                        if (window.history && history.replaceState) { history.replaceState(null, '', url); }
+                        bulkRefresh();
+                        liveOrdersScan();
+                    }
+                })
+                .catch(function () { /* keep the current list; Enter still works */ })
+                .then(function () { if (mine === seq) { box.classList.remove('is-loading'); } });
+        };
+        form.addEventListener('input', function (e) {
+            if (!e.target.matches('input[type=search], input[type=text]')) { return; }
+            clearTimeout(timer);
+            timer = setTimeout(run, 250);
+        });
+        form.addEventListener('change', function (e) {
+            if (e.target.matches('select')) { clearTimeout(timer); run(); }
+        });
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            clearTimeout(timer);
+            run();
+        });
+    });
+
+    // ----- Order form with a quantity field: total = price x quantity, kept live -----
+    var qtyForm = $('form[data-qty-form]');
+    if (qtyForm) {
+        var unit = parseFloat(qtyForm.getAttribute('data-unit-price')) || 0;
+        var balance = parseFloat(qtyForm.getAttribute('data-balance')) || 0;
+        var qtyInput = $('[data-qty]', qtyForm);
+        var fmt = function (v) {
+            v = Math.round(v * 100) / 100;
+            return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(2)) + '$';
+        };
+        var qtyUpdate = function () {
+            var max = parseInt(qtyInput.getAttribute('max'), 10) || 1000;
+            var q = Math.min(max, Math.max(1, parseInt(qtyInput.value, 10) || 1));
+            var cents = Math.round(unit * 100) * q;
+            var total = cents / 100;
+            var enough = Math.round(balance * 100) >= cents;
+            $$('[data-qty-count]').forEach(function (el) { el.textContent = q; });
+            $$('[data-qty-total]').forEach(function (el) { el.textContent = fmt(total); });
+            // The big price under the button: the number only (its "$" is a separate small sign).
+            $$('[data-qty-amount]').forEach(function (el) { el.textContent = fmt(total).replace('$', ''); });
+            $$('[data-qty-after], [data-qty-after-row]').forEach(function (el) { el.hidden = !enough; });
+            $$('[data-qty-after]').forEach(function (el) { el.textContent = fmt(balance - total); });
+            $$('[data-qty-short]').forEach(function (el) { el.hidden = enough; });
+            $$('[data-qty-ok]').forEach(function (el) { el.hidden = !enough; });
+            var btn = $('[data-qty-submit]', qtyForm);
+            if (btn) {
+                btn.disabled = !enough;
+                btn.textContent = btn.getAttribute(enough ? 'data-label-ok' : 'data-label-short');
+            }
+            var tpl = qtyForm.getAttribute('data-confirm-template');
+            if (tpl) { qtyForm.setAttribute('data-confirm', tpl.replace('__PRICE__', fmt(total))); }
+        };
+        if (qtyInput) {
+            qtyInput.addEventListener('input', qtyUpdate);
+            qtyUpdate();
+        }
+    }
+
+    // ----- Provider form: show the fields of the chosen API type -----
+    var providerType = $('[data-provider-type]');
+    if (providerType) {
+        var typeSync = function () {
+            $$('[data-type-help]').forEach(function (el) { el.hidden = el.getAttribute('data-type-help') !== providerType.value; });
+            $$('[data-type-only]').forEach(function (el) {
+                var on = el.getAttribute('data-type-only') === providerType.value;
+                el.hidden = !on;
+                $$('input', el).forEach(function (i) { i.required = on; });
+            });
+        };
+        providerType.addEventListener('change', typeSync);
+        typeSync();
+    }
+
+    // ----- Live order status: open orders on the page are checked every 15 seconds -----
+    // Badges carry data-live-order="id"; the server also checks the providers in the background.
+    // When an order changes the page reloads (or, while the user is typing, the badge is updated).
+    var liveMeta = document.querySelector('meta[name="live-orders-url"]');
+    var liveTimer = null;
+    var liveOrdersScan = function () {
+        clearTimeout(liveTimer);
+        if (!liveMeta || !window.fetch || !$('[data-live-order]')) { return; }
+        liveTimer = setTimeout(livePoll, 15000);
+    };
+    var busy = function () {
+        var a = document.activeElement;
+        var typing = a && (a.matches('input:not([type=checkbox]):not([type=radio]), textarea, select') || a.isContentEditable);
+        var selecting = window.getSelection && String(window.getSelection()).length > 0;
+        return typing || selecting || !!$('dialog[open]');
+    };
+    var livePoll = function () {
+        var badges = $$('[data-live-order]');
+        if (!badges.length) { return; }
+        if (document.hidden) { liveTimer = setTimeout(livePoll, 15000); return; }
+        var ids = badges.map(function (b) { return 'ids[]=' + encodeURIComponent(b.getAttribute('data-live-order')); });
+        var unique = ids.filter(function (v, i) { return ids.indexOf(v) === i; });
+        fetch(liveMeta.content + '?' + unique.join('&'), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+            .then(function (data) {
+                var orders = (data && data.orders) || {};
+                var changed = false;
+                badges.forEach(function (b) {
+                    var o = orders[b.getAttribute('data-live-order')];
+                    if (o && o.status !== b.getAttribute('data-live-status')) {
+                        changed = true;
+                        b.className = 'badge badge-' + o.status;
+                        b.textContent = o.label;
+                        b.setAttribute('data-live-status', o.status);
+                    }
+                });
+                $$('[data-live-checked]').forEach(function (el) {
+                    var o = orders[el.getAttribute('data-live-checked')];
+                    if (o && o.checked) { el.textContent = o.checked; }
+                });
+                if (changed && !busy()) { window.location.reload(); return; }
+                liveTimer = setTimeout(livePoll, 15000);
+            })
+            .catch(function () { liveTimer = setTimeout(livePoll, 60000); });
+    };
+    liveOrdersScan();
+
+    // ----- Request page: result, status and ledger refreshed every minute -----
+    // Blocks marked data-live-section="name" are fetched again with the page and swapped when they
+    // changed. Opening the page on the server also asks the provider for news on open orders.
+    // A block the user is selecting text in is left alone until the next minute.
+    if ($('[data-live-section]') && window.fetch && window.DOMParser) {
+        var refreshSections = function () {
+            if (document.hidden) { return; }
+            fetch(window.location.href, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                .then(function (r) { return r.ok && !r.redirected ? r.text() : Promise.reject(r.status); })
+                .then(function (html) {
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var sel = window.getSelection && window.getSelection();
+                    $$('[data-live-section]').forEach(function (el) {
+                        var fresh = doc.querySelector('[data-live-section="' + el.getAttribute('data-live-section') + '"]');
+                        if (!fresh || fresh.innerHTML === el.innerHTML) { return; }
+                        if (sel && String(sel).length > 0 && el.contains(sel.anchorNode)) { return; }
+                        if (el.contains(document.activeElement)) { return; }
+                        el.replaceWith(document.importNode(fresh, true));
+                    });
+                    liveOrdersScan();
+                })
+                .catch(function () { /* offline or signed out: try again next minute */ });
+        };
+        setInterval(refreshSections, 60000);
+        // Coming back to the tab after a while: refresh at once.
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) { refreshSections(); } });
+    }
 
     // ----- Category form: add / remove input-field rows -----
     var rows = $('#field-rows');
@@ -658,4 +870,49 @@
 
         show(current);
     }
+})();
+
+/*
+ * Copy buttons: <button data-copy="text" data-copied="Copied"><span data-copy-label>Copy</span></button>.
+ * Works without HTTPS too (falls back to a hidden text box), since navigator.clipboard needs a secure page.
+ */
+(function () {
+    function fallbackCopy(text) {
+        var box = document.createElement('textarea');
+        box.value = text;
+        box.setAttribute('readonly', '');
+        box.style.position = 'fixed';
+        box.style.opacity = '0';
+        document.body.appendChild(box);
+        box.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+        document.body.removeChild(box);
+        return ok;
+    }
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-copy]');
+        if (!btn) { return; }
+        e.preventDefault();
+
+        var text = btn.getAttribute('data-copy');
+        var label = btn.querySelector('[data-copy-label]') || btn;
+        var done = function () {
+            if (!label.hasAttribute('data-original')) { label.setAttribute('data-original', label.textContent); }
+            label.textContent = btn.getAttribute('data-copied') || 'Copied';
+            btn.classList.add('is-copied');
+            clearTimeout(btn._copyTimer);
+            btn._copyTimer = setTimeout(function () {
+                label.textContent = label.getAttribute('data-original');
+                btn.classList.remove('is-copied');
+            }, 1500);
+        };
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(done, function () { if (fallbackCopy(text)) { done(); } });
+        } else if (fallbackCopy(text)) {
+            done();
+        }
+    });
 })();

@@ -331,4 +331,28 @@ class StorefrontAndProviderTest extends TestCase
         Http::assertNothingSent();
         $this->assertSame('processing', ServiceRequest::firstOrFail()->status);
     }
+
+    public function test_admin_can_hide_terms_and_privacy_links_from_customers(): void
+    {
+        $customer = $this->customer();
+        $terms = 'href="' . route('legal.terms') . '"';
+        $privacy = 'href="' . route('legal.privacy') . '"';
+
+        $this->actingAs($customer)->get(route('customer.dashboard'))->assertSee($terms, false)->assertSee($privacy, false);
+
+        $this->actingAs($this->admin())->put(route('admin.settings.update'), [
+            'site_name' => 'Unlock-SD', 'new_account_status' => 'active', 'new_badge_days' => 7,
+            'show_terms_link' => '0', 'show_privacy_link' => '1',
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($customer)->get(route('customer.dashboard'))->assertDontSee($terms, false)->assertSee($privacy, false);
+
+        app(SettingRepository::class)->setMany(['show_privacy_link' => '0']);
+        $this->actingAs($customer)->get(route('customer.dashboard'))->assertDontSee($privacy, false)
+            ->assertSee('cnav-static', false);
+
+        // The pages still open (registration and the order form link to them), and admins keep their footer links.
+        $this->get(route('legal.terms'))->assertOk();
+        $this->actingAs($this->admin())->get(route('admin.dashboard'))->assertSee($terms, false);
+    }
 }

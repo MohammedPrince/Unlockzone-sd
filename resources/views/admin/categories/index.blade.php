@@ -18,6 +18,7 @@
             '<b>Create the category</b>, for example "EMI Services".',
             '<b>Add its input fields</b>: IMEI, Serial Number, Email, Lock Code, or free text / number. Each type is validated for you (an IMEI must be 15 digits).',
             '<b>Add services</b> to the category and tick which of those fields each service needs.',
+            '<b>Deleting a category</b> deletes its services too. It is refused while a customer order in it is pending or processing. Services with finished orders are archived, and customers still see those orders, greyed out, in their order history.',
         ],
         'note' => 'An inactive category hides all of its services from customers without deleting anything.',
     ])
@@ -53,7 +54,7 @@
                                             @csrf
                                             <button class="btn btn-sm" type="submit">{{ $category->status === 'active' ? __('Deactivate') : __('Activate') }}</button>
                                         </form>
-                                        <form method="post" action="{{ route('admin.categories.destroy', $category->id) }}" data-confirm="{{ __('Delete the category ":name"? This cannot be undone.', ['name' => $category->name]) }}">
+                                        <form method="post" action="{{ route('admin.categories.destroy', $category->id) }}" data-confirm="{{ __('Delete the category ":name" and its services? Services with past orders are archived so customers keep their order history. This cannot be undone.', ['name' => $category->name]) }}">
                                             @csrf @method('delete')
                                             <button class="btn btn-sm btn-danger" type="submit">{{ __('Delete') }}</button>
                                         </form>

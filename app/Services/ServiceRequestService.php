@@ -11,6 +11,7 @@ use App\Repositories\ServiceRepository;
 use App\Repositories\ServiceRequestRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -21,6 +22,7 @@ class ServiceRequestService
         private ServiceRepository $services,
         private CreditService $credits,
         private ActivityLogRepository $logs,
+        private EmailNotifier $mail,
     ) {
     }
 
@@ -62,8 +64,10 @@ class ServiceRequestService
      * deduction are written in one transaction: either both exist or neither does.
      * $idempotencyKey is generated when the order form is shown, so a double submit is charged once.
      */
-    public function submit(User $customer, int $serviceId, array $inputs, string $idempotencyKey): ServiceRequest
+    public function submit(User $customer, int $serviceId, array $inputs, string $idempotencyKey, ?\App\Models\ApiClient $apiClient = null): ServiceRequest
     {
+        $apiClientId = $apiClient?->id;
+
         if ($existing = $this->requests->findByIdempotencyKey($customer->id, $idempotencyKey)) {
             return $existing;
         }
@@ -84,18 +88,24 @@ class ServiceRequestService
         $requestData = $this->validateInputs($service, $inputs);
 
         try {
-            $request = DB::transaction(function () use ($customer, $service, $requestData, $idempotencyKey) {
+            // An API client pays its own price (percentage or fixed price); everyone else the site price.
+            $unitPrice = $apiClient ? $apiClient->priceFor($service) : (string) $service->price;
+            $amount = number_format(round((float) $unitPrice * self::quantityOf($requestData), 2), 2, '.', '');
+
+            $request = DB::transaction(function () use ($customer, $service, $requestData, $idempotencyKey, $apiClientId, $amount) {
                 $request = $this->requests->create([
                     'user_id' => $customer->id,
                     'service_id' => $service->id,
                     'reference' => $this->requests->newReference(),
                     'idempotency_key' => $idempotencyKey,
-                    'amount' => $service->price,
+                    // Price x quantity when the service has a QTY field; always computed here, never sent by the browser.
+                    'amount' => $amount,
                     // Orders go straight to processing: work starts at once, so the customer cannot cancel for a refund.
                     // Credit still comes back automatically if the order fails or an administrator cancels it.
                     'status' => 'processing',
                     'request_data' => $requestData,
                     'api_provider_id' => $service->usesProvider() ? $service->api_provider_id : null,
+                    'api_client_id' => $apiClientId,
                 ]);
 
                 // Throws when credit is short, which rolls the request row back too.
@@ -109,9 +119,11 @@ class ServiceRequestService
                 ?? throw new WorkflowException('This request could not be submitted. Please try again.');
         }
 
-        $this->logs->log('request_submitted', "Ordered {$service->name} ({$request->reference})", $request, [
+        $this->logs->log('request_submitted', "Ordered {$service->name} ({$request->reference})", $request, array_filter([
             'amount' => $request->amount,
-        ], $customer->id);
+            'quantity' => ($q = self::quantityOf($requestData)) > 1 ? $q : null,
+        ]), $customer->id);
+        $this->mail->requestSubmitted($request);
 
         return $request;
     }
@@ -123,11 +135,15 @@ class ServiceRequestService
     private function validateInputs(Service $service, array $inputs): array
     {
         $fields = $service->inputFields();
+        $quantityField = $service->quantityField($fields);
         $rules = [];
         $names = [];
 
         foreach ($fields as $field) {
-            $rules["fields.{$field->id}"] = $field->rules();
+            $rules["fields.{$field->id}"] = $field->is($quantityField)
+                // A quantity is a whole number of units; left empty it means 1.
+                ? [$field->is_required ? 'required' : 'nullable', 'integer', 'min:1', 'max:' . Service::MAX_QUANTITY]
+                : $field->rules();
             $names["fields.{$field->id}"] = $field->label;
         }
 
@@ -136,8 +152,22 @@ class ServiceRequestService
         return $fields->map(fn ($field) => [
             'label' => $field->label,
             'type' => $field->input_type,
-            'value' => trim((string) ($clean['fields'][$field->id] ?? '')),
-        ])->all();
+            'value' => $field->is($quantityField)
+                ? (string) max(1, (int) ($clean['fields'][$field->id] ?? 1))
+                : trim((string) ($clean['fields'][$field->id] ?? '')),
+        ] + ($field->is($quantityField) ? ['quantity' => true] : []))->all();
+    }
+
+    /** How many units the stored answers ask for (1 when the service has no quantity field). */
+    public static function quantityOf(array $requestData): int
+    {
+        foreach ($requestData as $item) {
+            if (!empty($item['quantity'])) {
+                return max(1, (int) ($item['value'] ?? 1));
+            }
+        }
+
+        return 1;
     }
 
     /**
@@ -160,7 +190,7 @@ class ServiceRequestService
             if ($status === 'completed') {
                 $request->response_data = ['result' => (string) $result];
                 $request->error_message = null;
-                $request->completed_at = now();
+                $request->completed_at = Carbon::now();
             }
 
             if (in_array($status, ['failed', 'cancelled'], true)) {
@@ -174,6 +204,7 @@ class ServiceRequestService
         });
 
         $this->logs->log('request_' . $status, "Marked {$request->reference} as {$status}", $request, $admin ? [] : ['by' => 'provider'], $admin?->id);
+        $this->mail->requestUpdated($request);
 
         return $request;
     }
@@ -186,7 +217,7 @@ class ServiceRequestService
         }
 
         $this->credits->refund($request, $reason, $adminId);
-        $request->refunded_at = now();
+        $request->refunded_at = Carbon::now();
     }
 
     public function lockedAmount(int $userId): string

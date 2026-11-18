@@ -3,7 +3,7 @@
 @section('title', $customer->name)
 @section('eyebrow', $customer->customer_tag ? __('Customer profile') . ' · ' . $customer->customer_tag : __('Customer profile'))
 @section('page-title', $customer->name)
-@section('page-description', '@' . $customer->username . ' · ' . __('registered :date', ['date' => $customer->created_at->translatedFormat('M j, Y')]))
+@section('page-description', '@' . $customer->username . ' · ' . __('registered :date', ['date' => $customer->created_at->translatedFormat('M j, Y')]) . ($customer->signup_source ? ' · ' . __('Signed up from') . ' ' . app(\App\Services\VisitSourceService::class)->label($customer->signup_source) : ''))
 
 @section('page-actions')
     <a class="btn" href="{{ route('admin.customers.index') }}">@include('partials.icon', ['name' => 'back']) {{ __('Customers') }}</a>
@@ -53,7 +53,7 @@
                                             <td class="primary"><a href="{{ route('admin.requests.show', $r->id) }}">{{ $r->service->name ?? __('Service') }}</a><span class="sub mono">{{ $r->reference }}</span></td>
                                             <td data-label="{{ __('Date') }}" class="nowrap">{{ $r->created_at->translatedFormat('M j, Y H:i') }}</td>
                                             <td data-label="{{ __('Amount') }}" class="right num">{{ money($r->amount, false) }}</td>
-                                            <td data-label="{{ __('Status') }}"><span class="badge badge-{{ $r->status }}">{{ __(ucfirst($r->status)) }}</span></td>
+                                            <td data-label="{{ __('Status') }}"><span class="badge badge-{{ $r->status }}" @if ($r->isOpen()) data-live-order="{{ $r->id }}" data-live-status="{{ $r->status }}" @endif>{{ __(ucfirst($r->status)) }}</span></td>
                                         </tr>
                                     @endforeach
                                 </tbody>

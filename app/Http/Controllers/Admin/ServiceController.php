@@ -71,14 +71,31 @@ class ServiceController extends Controller
         return back()->with('success', __(':name is now :status.', ['name' => $service->name, 'status' => __($service->status)]));
     }
 
+    /** Moves the ticked services into the chosen category. */
+    public function move(Request $request)
+    {
+        $input = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['integer', 'exists:services,id'],
+            'target_category_id' => ['required', 'integer', 'exists:service_categories,id'],
+        ], ['ids.required' => __('Tick at least one service to move.')], ['target_category_id' => __('category')]);
+
+        $moved = $this->services->moveToCategory($input['ids'], (int) $input['target_category_id'], $request->user()->id);
+        $category = $this->categories->all()->firstWhere('id', (int) $input['target_category_id']);
+
+        return back()->with('success', __(':count services moved to :category.', ['count' => $moved, 'category' => $category?->name]));
+    }
+
     public function destroy(Request $request, int $id)
     {
         try {
-            $this->services->delete($this->services->find($id), $request->user()->id);
+            $archived = $this->services->delete($this->services->find($id), $request->user()->id);
         } catch (WorkflowException $e) {
             return back()->withErrors(['service' => $e->getMessage()]);
         }
 
-        return redirect()->route('admin.services.index')->with('success', 'Service deleted.');
+        return redirect()->route('admin.services.index')->with('success', $archived
+            ? __('Service archived. Customers still see their orders for it in their order history.')
+            : __('Service deleted.'));
     }
 }

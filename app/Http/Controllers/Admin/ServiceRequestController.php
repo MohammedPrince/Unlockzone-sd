@@ -47,6 +47,14 @@ class ServiceRequestController extends Controller
         return view('admin.requests.show', ['req' => $this->requests->find($id)]);
     }
 
+    /** Status of the requests shown on the page; app.js polls this while some are still open. */
+    public function live(Request $request)
+    {
+        $this->providerOrders->syncSoon();
+
+        return response()->json(['orders' => $this->providerOrders->liveStatuses((array) $request->input('ids', []))]);
+    }
+
     /** Sends an open request to the service's provider (first try, or again after an error). */
     public function sendToProvider(int $id)
     {

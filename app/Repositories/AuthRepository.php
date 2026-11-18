@@ -27,7 +27,11 @@ class AuthRepository
         }
 
         if ($user->status === 'pending') {
-            return ['ok' => false, 'message' => 'Your account is waiting for administrator activation.', 'user' => $user];
+            $message = $user->hasConfirmedEmail() || setting('new_account_status') === 'pending'
+                ? 'Your account is waiting for administrator activation.'
+                : 'Please confirm your email using the link we sent you, or wait for administrator activation.';
+
+            return ['ok' => false, 'message' => $message, 'user' => $user];
         }
 
         if ($user->status !== 'active') {

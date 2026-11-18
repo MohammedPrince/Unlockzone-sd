@@ -9,12 +9,18 @@ use Illuminate\Http\Request;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        // Our DHRU Fusion API for other servers: /api/index.php (no session, no CSRF).
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias(['role' => EnsureRole::class]);
-        $middleware->web(append: [\App\Http\Middleware\SetLocale::class]);
+        // MaintenanceMode comes after TrackVisit, so visits to the maintenance page are still counted.
+        $middleware->web(append: [\App\Http\Middleware\SetLocale::class, \App\Http\Middleware\TrackVisit::class, \App\Http\Middleware\MaintenanceMode::class]);
+
+        // Providers post order updates here from their own servers (no session, no CSRF token).
+        $middleware->validateCsrfTokens(except: ['provider-callback/*']);
 
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('admin', 'admin/*') ? route('admin.login') : route('login'));
 

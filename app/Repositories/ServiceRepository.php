@@ -59,7 +59,7 @@ class ServiceRepository
         $slug = $base;
         $i = 1;
 
-        while (Service::where('slug', $slug)->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->exists()) {
+        while (Service::withTrashed()->where('slug', $slug)->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->exists()) {
             $slug = $base . '-' . $i++;
         }
 
@@ -80,7 +80,8 @@ class ServiceRepository
 
     public function delete(Service $service): void
     {
-        $service->delete();
+        // Only services without orders are deleted, so nothing needs to be kept.
+        $service->forceDelete();
     }
 
     public function hasRequests(Service $service): bool

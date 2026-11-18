@@ -28,7 +28,7 @@ class ServiceRequestRepository
     public function paginate(array $filters, int $perPage = 20): LengthAwarePaginator
     {
         return $this->filtered($filters)
-            ->with(['user', 'service'])
+            ->with(['user', 'service.category'])
             ->orderByDesc('id')
             ->paginate($perPage)
             ->withQueryString();

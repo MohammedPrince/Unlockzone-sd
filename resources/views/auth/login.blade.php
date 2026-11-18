@@ -24,7 +24,7 @@
             </div>
             <p class="forgot"><a href="{{ route('password.request') }}">{{ __('Forgot Password?') }}</a></p>
         </div>
-        <label class="check"><input type="checkbox" name="remember" value="1"> {{ __('Trust this device?') }}</label>
+        <label class="check"><input type="checkbox" name="remember" value="1" @checked(old('remember'))> {{ __('Trust this device?') }}</label>
         <button type="submit" class="btn btn-primary btn-block btn-lg">{{ __('Login') }}</button>
     </form>
 

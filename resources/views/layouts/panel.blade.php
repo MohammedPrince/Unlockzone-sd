@@ -29,13 +29,14 @@
                 ['admin.announcements.index', 'Announcement bar', 'megaphone', 'admin.announcements.*'],
                 ['admin.settings', 'Settings', 'cog', 'admin.settings'],
                 ['admin.tools.index', 'Server Tools', 'tool', 'admin.tools.*'],
+                ['admin.guide', 'Admin manual', 'book', 'admin.guide'],
             ],
         ]
         : [
             'My account' => [
                 ['customer.dashboard', 'Dashboard', 'home', 'customer.dashboard'],
                 ['customer.services.index', 'Services', 'cart', 'customer.services.*'],
-                ['customer.requests.index', 'Server Orders', 'list', 'customer.requests.*'],
+                ['customer.requests.index', 'Order history', 'list', 'customer.requests.*'],
                 ['customer.credits', 'Credit history', 'wallet', 'customer.credits'],
                 ['customer.profile', 'Profile', 'user', 'customer.profile'],
             ],
@@ -49,6 +50,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    {{-- app.js polls this for open orders on the page ([data-live-order]) and refreshes when one changes. --}}
+    <meta name="live-orders-url" content="{{ $isAdmin ? route('admin.requests.live') : route('customer.requests.live') }}">
     @include('partials.favicon')
     <title>@yield('title', __('Dashboard')) · {{ $site }}</title>
     @include('partials.head-theme')
@@ -81,6 +84,13 @@
                     </a>
                 @endforeach
             @endforeach
+            <form method="post" action="{{ route('logout') }}" class="nav-logout">
+                @csrf
+                <button type="submit">
+                    @include('partials.icon', ['name' => 'logout'])
+                    <span>{{ __('Logout') }}</span>
+                </button>
+            </form>
         </nav>
 
         <div class="sidebar-foot">{{ __('Signed in as') }} {{ $me->username }}</div>
@@ -136,6 +146,12 @@
                     </div>
                 </details>
 
+                @if (setting('maintenance_enabled') === '1')
+                    {{-- Reminder: the site is closed to visitors and customers. --}}
+                    <a class="btn btn-danger btn-sm" href="{{ route('admin.settings') }}#maintenance" title="{{ __('Visitors and customers only see the maintenance page.') }}">
+                        @include('partials.icon', ['name' => 'tool']) <span class="hide-sm">{{ __('Maintenance mode is on') }}</span>
+                    </a>
+                @endif
                 <a class="btn btn-primary hide-sm" href="{{ route('admin.credits.create') }}">
                     @include('partials.icon', ['name' => 'plus']) {{ __('Recharge') }}
                 </a>
@@ -150,7 +166,7 @@
                     <a href="{{ route($isAdmin ? 'admin.profile' : 'customer.profile') }}">@include('partials.icon', ['name' => 'user']) {{ __('My profile') }}</a>
                     <form method="post" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit">@include('partials.icon', ['name' => 'logout']) {{ __('Sign out') }}</button>
+                        <button type="submit">@include('partials.icon', ['name' => 'logout']) {{ __('Logout') }}</button>
                     </form>
                 </div>
             </details>
@@ -184,8 +200,12 @@
 
             <p class="footer">
                 {{ $site }} · {{ now()->year }}
-                · <a href="{{ route('legal.terms') }}">{{ __('Terms of Service') }}</a>
-                · <a href="{{ route('legal.privacy') }}">{{ __('Privacy Policy') }}</a>
+                @if ($isAdmin || setting('show_terms_link') !== '0')
+                    · <a href="{{ route('legal.terms') }}">{{ __('Terms of Service') }}</a>
+                @endif
+                @if ($isAdmin || setting('show_privacy_link') !== '0')
+                    · <a href="{{ route('legal.privacy') }}">{{ __('Privacy Policy') }}</a>
+                @endif
             </p>
         </main>
     </div>

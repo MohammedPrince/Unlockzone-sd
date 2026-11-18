@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
 /* ---------- Public legal pages (Arabic or English, following the chosen language) ---------- */
+// DHRU Fusion Pro Reseller providers announce finished orders here; the result is then read from their API.
+Route::post('provider-callback/{provider}', \App\Http\Controllers\ProviderCallbackController::class)
+    ->whereNumber('provider')->middleware('throttle:120,1')->name('providers.callback');
+
 Route::view('terms', 'legal.terms')->name('legal.terms');
 Route::view('privacy', 'legal.privacy')->name('legal.privacy');
 
@@ -36,6 +40,10 @@ Route::middleware('guest')->group(function () {
     Route::post('admin/login', [Admin\AuthController::class, 'login'])->middleware('throttle:8,1')->name('admin.login.submit');
 });
 
+// The link emailed after registration (signed, works for a few minutes).
+Route::get('email/confirm/{id}/{hash}', [AuthController::class, 'confirmEmail'])
+    ->whereNumber('id')->middleware('throttle:10,1')->name('verification.verify');
+
 Route::post('logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
 /* ---------- Customer portal ---------- */
@@ -49,6 +57,7 @@ Route::middleware('role:customer')->name('customer.')->group(function () {
 
     Route::get('requests', [Customer\ServiceRequestController::class, 'index'])->name('requests.index');
     Route::get('requests/export', [Customer\ServiceRequestController::class, 'export'])->name('requests.export');
+    Route::get('requests/live', [Customer\ServiceRequestController::class, 'live'])->name('requests.live');
     Route::get('requests/{id}', [Customer\ServiceRequestController::class, 'show'])->whereNumber('id')->name('requests.show');
 
     Route::get('credits', [Customer\CreditController::class, 'index'])->name('credits');
@@ -62,6 +71,8 @@ Route::middleware('role:customer')->name('customer.')->group(function () {
 /* ---------- Admin control panel ---------- */
 Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [Admin\DashboardController::class, 'index'])->name('dashboard');
+    // Admin manual: one page, English or Arabic following the language switch.
+    Route::view('guide', 'admin.guide')->name('guide');
 
     Route::get('notifications', [Admin\NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/read', [Admin\NotificationController::class, 'read'])->name('notifications.read');
@@ -96,12 +107,14 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::post('services', [Admin\ServiceController::class, 'store'])->name('services.store');
     Route::get('services/{id}/edit', [Admin\ServiceController::class, 'edit'])->whereNumber('id')->name('services.edit');
     Route::put('services/{id}', [Admin\ServiceController::class, 'update'])->whereNumber('id')->name('services.update');
+    Route::post('services/move', [Admin\ServiceController::class, 'move'])->name('services.move');
     Route::post('services/{id}/toggle', [Admin\ServiceController::class, 'toggle'])->whereNumber('id')->name('services.toggle');
     Route::delete('services/{id}', [Admin\ServiceController::class, 'destroy'])->whereNumber('id')->name('services.destroy');
     Route::post('uploads/image', [Admin\UploadController::class, 'image'])->middleware('throttle:30,1')->name('uploads.image');
 
     Route::get('requests', [Admin\ServiceRequestController::class, 'index'])->name('requests.index');
     Route::get('requests/export', [Admin\ServiceRequestController::class, 'export'])->name('requests.export');
+    Route::get('requests/live', [Admin\ServiceRequestController::class, 'live'])->name('requests.live');
     Route::get('requests/{id}', [Admin\ServiceRequestController::class, 'show'])->whereNumber('id')->name('requests.show');
     Route::put('requests/{id}', [Admin\ServiceRequestController::class, 'update'])->whereNumber('id')->name('requests.update');
     Route::post('requests/{id}/provider/send', [Admin\ServiceRequestController::class, 'sendToProvider'])->whereNumber('id')->name('requests.provider.send');
@@ -120,6 +133,15 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::get('providers/{id}/services', [Admin\ApiProviderController::class, 'services'])->whereNumber('id')->name('providers.services');
     Route::post('providers/{id}/import', [Admin\ApiProviderController::class, 'import'])->whereNumber('id')->name('providers.import');
 
+    /* Other servers using our API (we are their provider); listed on the API providers page */
+    Route::get('api-clients/create', [Admin\ApiClientController::class, 'create'])->name('api-clients.create');
+    Route::post('api-clients', [Admin\ApiClientController::class, 'store'])->name('api-clients.store');
+    Route::get('api-clients/{id}/edit', [Admin\ApiClientController::class, 'edit'])->whereNumber('id')->name('api-clients.edit');
+    Route::put('api-clients/{id}', [Admin\ApiClientController::class, 'update'])->whereNumber('id')->name('api-clients.update');
+    Route::post('api-clients/{id}/status', [Admin\ApiClientController::class, 'status'])->whereNumber('id')->name('api-clients.status');
+    Route::post('api-clients/{id}/key', [Admin\ApiClientController::class, 'regenerate'])->whereNumber('id')->name('api-clients.key');
+    Route::delete('api-clients/{id}', [Admin\ApiClientController::class, 'destroy'])->whereNumber('id')->name('api-clients.destroy');
+
     /* The scrolling announcement bar on the customer site */
     Route::get('announcements', [Admin\AnnouncementController::class, 'index'])->name('announcements.index');
     Route::post('announcements', [Admin\AnnouncementController::class, 'store'])->name('announcements.store');
@@ -134,12 +156,22 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
 
     // Server Tools: only the fixed tool keys exist; anything else is a 404.
     Route::get('tools', [Admin\ServerToolController::class, 'index'])->name('tools.index');
+    // Registered before tools/{tool} so "mail" is never taken for a tool key.
+    Route::put('tools/mail', [Admin\ServerToolController::class, 'saveMail'])->name('tools.mail.save');
+    Route::post('tools/mail/test', [Admin\ServerToolController::class, 'testMail'])->middleware('throttle:5,1')->name('tools.mail.test');
     Route::post('tools/{tool}', [Admin\ServerToolController::class, 'run'])->where('tool', '[a-z\-]+')->middleware('throttle:20,1')->name('tools.run');
+    Route::get('tools/log/download', [Admin\ServerToolController::class, 'downloadLog'])->name('tools.log.download');
+    Route::delete('tools/log', [Admin\ServerToolController::class, 'clearLog'])->name('tools.log.clear');
     Route::get('tools/backups/{file}', [Admin\ServerToolController::class, 'download'])->where('file', 'backup-[0-9\-]+\.sql')->name('tools.backups.download');
     Route::delete('tools/backups/{file}', [Admin\ServerToolController::class, 'destroy'])->where('file', 'backup-[0-9\-]+\.sql')->name('tools.backups.destroy');
 
     Route::get('settings', [Admin\SettingController::class, 'edit'])->name('settings');
     Route::put('settings', [Admin\SettingController::class, 'update'])->name('settings.update');
+    Route::post('settings/maintenance', [Admin\SettingController::class, 'maintenance'])->name('maintenance');
+    Route::post('settings/import', [Admin\ServiceImportController::class, 'upload'])->middleware('throttle:20,1')->name('settings.import.upload');
+    Route::get('settings/import', [Admin\ServiceImportController::class, 'show'])->name('settings.import.show');
+    Route::post('settings/import/confirm', [Admin\ServiceImportController::class, 'store'])->name('settings.import.store');
+    Route::delete('settings/import', [Admin\ServiceImportController::class, 'cancel'])->name('settings.import.cancel');
     Route::get('profile', [Admin\SettingController::class, 'profile'])->name('profile');
     Route::put('profile', [Admin\SettingController::class, 'updateProfile'])->name('profile.update');
 });

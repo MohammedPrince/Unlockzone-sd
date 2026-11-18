@@ -27,6 +27,9 @@ class SettingRepository
         'ticker_speed' => 'normal',
         // Customers must tick "Agree with terms of services" before ordering.
         'require_terms' => '1',
+        // Terms of Service / Privacy Policy links in the signed-in customer menu and page footer.
+        'show_terms_link' => '1',
+        'show_privacy_link' => '1',
         'terms_text' => '',
         // Branding: an uploaded logo replaces the letter badge everywhere (path under public/).
         'site_logo' => '',
@@ -46,6 +49,16 @@ class SettingRepository
         'home_offer_title' => '',
         'home_offer_text' => '',
         'home_offer_ends_at' => '',
+        // Maintenance mode: visitors and customers see only the maintenance page; admins see the site.
+        'maintenance_enabled' => '0',
+        'maintenance_badge' => 'We are preparing a better experience for you',
+        'maintenance_badge_ar' => 'نجهّز لك تجربة أفضل',
+        // Empty = a standard "back soon" message in each language.
+        'maintenance_text' => '',
+        'maintenance_text_ar' => '',
+        // Empty = the home page contact email.
+        'maintenance_email' => '',
+        'maintenance_show_visits' => '1',
     ];
 
     private ?array $loaded = null;

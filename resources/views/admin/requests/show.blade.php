@@ -12,10 +12,10 @@
 @section('content')
     <div class="grid grid-side">
         <div class="stack">
-            <div class="card">
+            <div class="card" data-live-section="details">
                 <div class="card-head">
                     <h2>{{ __('Submitted details') }}</h2>
-                    <span class="badge badge-{{ $req->status }}">{{ __(ucfirst($req->status)) }}</span>
+                    <span class="badge badge-{{ $req->status }}" @if ($req->isOpen()) data-live-order="{{ $req->id }}" data-live-status="{{ $req->status }}" @endif>{{ __(ucfirst($req->status)) }}</span>
                 </div>
                 <div class="card-body">
                     @if (empty($req->request_data))
@@ -31,9 +31,11 @@
                 </div>
             </div>
 
+            {{-- Refreshed every minute by app.js (data-live-section); display: contents keeps the stack spacing. --}}
+            <div data-live-section="result" style="display: contents">
             @if ($req->status === 'completed')
                 <div class="card">
-                    <div class="card-head"><h2>{{ __('Result sent to the customer') }}</h2></div>
+                    <div class="card-head"><h2>{{ __('Result sent to the customer') }}</h2> <span class="muted live-note">{{ __('Updates every minute') }}</span></div>
                     <div class="card-body"><div class="result-box mono">{{ $req->response_data['result'] ?? '' }}</div></div>
                 </div>
             @elseif (in_array($req->status, ['failed', 'cancelled'], true))
@@ -41,7 +43,13 @@
                     <div class="card-head"><h2>{{ __(ucfirst($req->status)) }}</h2></div>
                     <div class="card-body"><div class="result-box bad">{{ __($req->error_message) }}</div></div>
                 </div>
+            @else
+                <div class="card">
+                    <div class="card-head"><h2>{{ __('Result sent to the customer') }}</h2> <span class="muted live-note">{{ __('Updates every minute') }}</span></div>
+                    <div class="card-body"><p class="muted" style="margin: 0">{{ __('No result yet. It appears here by itself when the request is completed.') }}</p></div>
+                </div>
             @endif
+            </div>
 
             @if ($req->isOpen())
                 <form method="post" action="{{ route('admin.requests.update', $req->id) }}" class="card" data-once>
@@ -79,7 +87,7 @@
                 </form>
             @endif
 
-            <div class="card">
+            <div class="card" data-live-section="ledger">
                 <div class="card-head"><h2>{{ __('Ledger entries for this request') }}</h2></div>
                 <div class="table-wrap">
                     <table class="cards">
@@ -103,7 +111,7 @@
         <div class="stack">
             @if ($req->service?->usesProvider() || $req->remote_order_id)
                 @php $providerName = $req->provider->name ?? $req->service?->provider?->name ?? '—'; @endphp
-                <div class="card">
+                <div class="card" data-live-section="provider">
                     <div class="card-head">
                         <h2>{{ __('Provider') }}</h2>
                         <span class="tag api-tag">{{ __('API') }}</span>
@@ -121,7 +129,7 @@
                                 @else {{ __('Not sent') }}
                                 @endif
                             </dd>
-                            <dt>{{ __('Last check') }}</dt><dd>{{ $req->provider_checked_at?->diffForHumans() ?? '—' }}</dd>
+                            <dt>{{ __('Last check') }}</dt><dd data-live-checked="{{ $req->id }}">{{ $req->provider_checked_at?->diffForHumans() ?? '—' }}</dd>
                         </dl>
                         @if ($req->provider_message)
                             <div class="result-box bad">{{ $req->provider_message }}</div>
@@ -147,7 +155,7 @@
                 </div>
             @endif
 
-            <div class="card">
+            <div class="card" data-live-section="summary">
                 <div class="card-head"><h2>{{ __('Summary') }}</h2></div>
                 <div class="card-body">
                     <dl class="kv">

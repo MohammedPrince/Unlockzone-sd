@@ -24,6 +24,7 @@ class CustomerService
         private CreditRepository $credits,
         private ServiceRequestRepository $requests,
         private ActivityLogRepository $logs,
+        private EmailNotifier $mail,
     ) {
     }
 
@@ -47,17 +48,41 @@ class CustomerService
         return $this->customers->allForSelect();
     }
 
-    /** Public sign-up. The starting status comes from Settings (active, or pending admin approval). */
-    public function register(array $data): User
+    /**
+     * Public sign-up. The account starts as pending and a confirmation link is emailed to the customer.
+     * Opening the link (within EMAIL_LINK_MINUTES) activates the account by itself when Settings say
+     * "Active"; otherwise, or if the link is never opened, an administrator activates it.
+     */
+    public function register(array $data, ?string $source = null): User
     {
         if (setting('allow_registration') !== '1') {
             throw new WorkflowException('Registration is currently closed.');
         }
 
-        $status = setting('new_account_status') === 'pending' ? 'pending' : 'active';
-        $customer = $this->store($data, $status);
+        $customer = $this->store($data, 'pending');
+
+        // Where they came from (Facebook, WhatsApp...), as detected on their first page of this visit.
+        $customer->forceFill(['signup_source' => $source ? mb_substr($source, 0, 30) : 'direct'])->save();
 
         $this->logs->log('customer_registered', "New customer registered: {$customer->username}", $customer, [], $customer->id);
+        $this->mail->confirmEmail($customer);
+        $this->mail->customerRegistered($customer);
+
+        return $customer;
+    }
+
+    /** The customer opened their confirmation link. Only a pending account is activated; a suspended one stays suspended. */
+    public function confirmEmail(User $customer): User
+    {
+        if (!$customer->hasConfirmedEmail()) {
+            $customer->forceFill(['email_verified_at' => now()])->save();
+        }
+
+        if ($customer->status === 'pending' && setting('new_account_status') !== 'pending') {
+            $this->customers->setStatus($customer, 'active');
+        }
+
+        $this->logs->log('customer_email_confirmed', "{$customer->username} confirmed their email", $customer, [], $customer->id);
 
         return $customer;
     }

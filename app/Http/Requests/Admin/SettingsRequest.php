@@ -28,6 +28,8 @@ class SettingsRequest extends FormRequest
             'ticker_enabled' => ['nullable', 'boolean'],
             'ticker_new_services' => ['nullable', 'boolean'],
             'require_terms' => ['nullable', 'boolean'],
+            'show_terms_link' => ['nullable', 'boolean'],
+            'show_privacy_link' => ['nullable', 'boolean'],
             'terms_text' => ['nullable', 'string', 'max:5000'],
             // SVG is left out on purpose: it can carry scripts.
             'site_logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp', 'max:1024'],
@@ -48,6 +50,13 @@ class SettingsRequest extends FormRequest
             'home_offer_title' => ['nullable', 'string', 'max:120', 'required_if:home_offer_enabled,1'],
             'home_offer_text' => ['nullable', 'string', 'max:200'],
             'home_offer_ends_at' => ['nullable', 'date'],
+            'maintenance_enabled' => ['nullable', 'boolean'],
+            'maintenance_badge' => ['nullable', 'string', 'max:80'],
+            'maintenance_badge_ar' => ['nullable', 'string', 'max:80'],
+            'maintenance_text' => ['nullable', 'string', 'max:2000'],
+            'maintenance_text_ar' => ['nullable', 'string', 'max:2000'],
+            'maintenance_email' => ['nullable', 'email', 'max:150'],
+            'maintenance_show_visits' => ['nullable', 'boolean'],
         ];
     }
 }

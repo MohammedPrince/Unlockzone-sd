@@ -70,7 +70,7 @@
             'Use a service often? Tap <b>Want to use frequently</b> and it will be listed first on the services page.',
         ]],
         ['track', 'Tracking your orders', [
-            'Under <b>Order history</b>, open a category or <b>Server Orders</b> for all your orders.',
+            'Under <b>Order history</b>, open a category (for example <b>IMEI Orders</b>) to see its orders. Orders of a category that was removed stay there, greyed out.',
             'The <b>Code</b> column shows the result (code or reply) when an order is completed; <b>Fields</b> shows what you entered.',
             'Use <b>Search</b> to find an order by reference or service name, and <b>Export</b> to download your orders as an Excel file.',
         ]],

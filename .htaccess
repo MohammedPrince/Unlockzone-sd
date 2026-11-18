@@ -1,0 +1,15 @@
+# Used only when the web server's Document Root is this project folder (some shared hosts
+# cannot point a subdomain at public/). Every request is passed into public/, so private files
+# here (.env, storage, vendor, config ...) are never served. When the Document Root is public/,
+# this file is simply not read.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Without mod_rewrite nothing in this folder may be served.
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

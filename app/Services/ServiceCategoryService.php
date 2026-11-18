@@ -68,15 +68,45 @@ class ServiceCategoryService
         return $category;
     }
 
+    /**
+     * Deletes a category and its services.
+     * Refused while any customer order in it is still pending or processing.
+     * Services without orders are removed. Services with finished orders are archived with the category,
+     * so customers keep seeing those orders (greyed out) in their order history.
+     */
     public function delete(ServiceCategory $category, int $adminId): void
     {
-        if ($category->services()->exists()) {
-            throw new WorkflowException('This category still has services. Move or delete them first, or deactivate the category instead.');
-        }
+        DB::transaction(function () use ($category, $adminId) {
+            $services = $category->services()->withCount('requests')->lockForUpdate()->get();
 
-        $name = $category->name;
-        $this->categories->delete($category);
+            $open = \App\Models\ServiceRequest::whereIn('service_id', $services->pluck('id'))
+                ->whereIn('status', ['pending', 'processing'])
+                ->count();
 
-        $this->logs->log('category_deleted', "Deleted category {$name}", null, [], $adminId);
+            if ($open) {
+                throw new WorkflowException(__('This category has :count unfinished customer orders. Complete or cancel them first, then delete the category.', ['count' => $open]));
+            }
+
+            [$withOrders, $withoutOrders] = $services->partition(fn ($s) => $s->requests_count > 0);
+
+            foreach ($withoutOrders as $service) {
+                $this->services->delete($service);
+            }
+            foreach ($withOrders as $service) {
+                $service->delete(); // archive
+            }
+
+            $name = $category->name;
+            if ($withOrders->isEmpty()) {
+                $this->categories->delete($category);
+            } else {
+                $category->delete(); // archive
+            }
+
+            $this->logs->log('category_deleted', "Deleted category {$name}", $withOrders->isEmpty() ? null : $category, [
+                'services_deleted' => $withoutOrders->count(),
+                'services_archived' => $withOrders->count(),
+            ], $adminId);
+        });
     }
 }

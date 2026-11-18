@@ -29,6 +29,10 @@ class ServiceRequestController extends Controller
             'counts' => $this->requests->statusCounts($request->user()->id),
             'filters' => $filters,
             'statuses' => ServiceRequest::STATUSES,
+            // Opened from "Order history": the category for the heading, archived (deleted) ones included.
+            'category' => $request->integer('category')
+                ? \App\Models\ServiceCategory::withTrashed()->find($request->integer('category'), ['id', 'name', 'deleted_at'])
+                : null,
         ]);
     }
 
@@ -60,6 +64,16 @@ class ServiceRequestController extends Controller
 
         return redirect()->route('customer.requests.show', $created->id)
             ->with('success', __('Request submitted. :amount was deducted from your balance.', ['amount' => money($created->amount)]));
+    }
+
+    /** Status of the customer's own orders shown on the page; app.js polls this while some are still open. */
+    public function live(Request $request)
+    {
+        $this->providerOrders->syncSoon();
+
+        return response()->json([
+            'orders' => $this->providerOrders->liveStatuses((array) $request->input('ids', []), $request->user()->id),
+        ]);
     }
 
     public function show(Request $request, int $id)

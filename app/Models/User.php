@@ -27,6 +27,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'notifications_seen_at' => 'datetime',
             'services_suspended' => 'boolean',
@@ -47,6 +48,12 @@ class User extends Authenticatable
     public function serviceRequests(): HasMany
     {
         return $this->hasMany(ServiceRequest::class);
+    }
+
+    /** API access for another server ordering on this customer's account, if given. */
+    public function apiClient(): HasOne
+    {
+        return $this->hasOne(ApiClient::class);
     }
 
     /** Services this customer is suspended from. */
@@ -75,6 +82,11 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function hasConfirmedEmail(): bool
+    {
+        return $this->email_verified_at !== null;
     }
 
     public function initials(): string
