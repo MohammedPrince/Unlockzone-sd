@@ -48,6 +48,37 @@ class StorefrontAndProviderTest extends TestCase
         return Service::where('slug', 'haafedk-test-1')->firstOrFail(); // 5.00, needs an IMEI
     }
 
+    public function test_customer_catalog_shows_20_services_per_page(): void
+    {
+        $customer = $this->customer();
+        $category = \App\Models\ServiceCategory::create(['name' => 'Zz Bulk', 'slug' => 'zz-bulk', 'status' => 'active', 'sort_order' => 99]);
+        for ($i = 1; $i <= 45; $i++) {
+            Service::create([
+                'service_category_id' => $category->id, 'name' => sprintf('Bulk service %02d', $i), 'slug' => "bulk-{$i}",
+                'price' => '1.00', 'status' => 'active', 'configuration' => ['field_ids' => [], 'execution' => 'manual'],
+            ]);
+        }
+        $total = Service::where('status', 'active')->whereHas('category', fn ($q) => $q->where('status', 'active'))->count();
+        $this->actingAs($customer)->post(route('customer.services.favorite', $this->service()->id));
+
+        $first = $this->actingAs($customer)->get(route('customer.services.index'))->assertOk()
+            ->assertSee('Frequently used')
+            ->assertSee('Showing 1–20 of ' . $total)
+            ->assertSee('?page=2', false);
+        $this->assertSame(20, substr_count($first->getContent(), 'class="service-card') - 1); // minus the favourite's copy
+
+        // Last page: the rest, the category heading still shows the category's full count, no favourites block.
+        $last = (int) ceil($total / 20);
+        $this->actingAs($customer)->get(route('customer.services.index', ['page' => $last]))->assertOk()
+            ->assertSee('Bulk service 45')
+            ->assertSee('45 services')
+            ->assertDontSee('Frequently used');
+
+        // Searching narrows the list and the pages follow.
+        $this->actingAs($customer)->get(route('customer.services.index', ['q' => 'Bulk service 1']))->assertOk()
+            ->assertSee('Bulk service 10')->assertDontSee('Bulk service 20')->assertDontSee('?page=2', false);
+    }
+
     private function order(User $customer, Service $service, array $extra = [])
     {
         return $this->actingAs($customer)->post(route('customer.services.order', $service->id), array_merge([

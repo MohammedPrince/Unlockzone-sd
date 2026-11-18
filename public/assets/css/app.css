@@ -315,8 +315,14 @@ td .sub { display: block; color: var(--muted); font-size: 12px; }
 .service-card p { color: var(--muted); font-size: 13px; flex: 1; }
 .service-card .price { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
 .service-card .price b { font-size: 17px; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
-.section-title { display: flex; align-items: baseline; gap: 10px; margin: 26px 0 12px; }
-.section-title h2 { font-size: 17px; }
+.section-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 26px 0 12px; }
+.section-title h2 { font-size: 17px; min-width: 0; overflow-wrap: anywhere; }
+/* Long provider names with no spaces ("[WIFI+BT]|IPAD|A7X...") must wrap inside the card, never widen the page. */
+.catalog { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); }
+.service-card { min-width: 0; }
+.service-card h3, .service-card p { overflow-wrap: anywhere; }
+.catalog-pages { margin-top: 18px; }
+.catalog-pages .pagination { border-top: 0; }
 
 /* ---------- Auth pages ---------- */
 .auth { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
