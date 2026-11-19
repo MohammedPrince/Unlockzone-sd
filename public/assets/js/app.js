@@ -26,6 +26,130 @@
         });
     });
 
+    // ----- Searchable dropdowns: <select data-search="Search by service name..."> -----
+    // The native select stays in the form (hidden) and keeps the value; this draws a button and a panel
+    // with a search box over its options.
+    $$('select[data-search]').forEach(function (select) {
+        var wrap = document.createElement('div');
+        var toggle = document.createElement('button');
+        var panel = document.createElement('div');
+        var search = document.createElement('input');
+        var list = document.createElement('ul');
+        var empty = document.createElement('p');
+        var required = select.required;
+        var active = -1;
+
+        wrap.className = 'ss';
+        toggle.type = 'button';
+        toggle.className = 'ss-toggle';
+        toggle.id = (select.id || 'ss') + '-toggle';
+        toggle.setAttribute('aria-haspopup', 'listbox');
+        toggle.setAttribute('aria-expanded', 'false');
+        panel.className = 'ss-panel';
+        panel.hidden = true;
+        search.type = 'search';
+        search.className = 'ss-search';
+        search.placeholder = select.getAttribute('data-search') || 'Search...';
+        search.autocomplete = 'off';
+        list.className = 'ss-list';
+        list.setAttribute('role', 'listbox');
+        empty.className = 'ss-empty';
+        empty.textContent = select.getAttribute('data-search-empty') || 'No match.';
+        empty.hidden = true;
+
+        select.parentNode.insertBefore(wrap, select);
+        wrap.appendChild(select);
+        wrap.appendChild(toggle);
+        wrap.appendChild(panel);
+        panel.appendChild(search);
+        panel.appendChild(list);
+        panel.appendChild(empty);
+        select.hidden = true;
+        select.required = false; // a hidden required select cannot show the browser's message; checked on submit below
+        if (select.id) { $$('label[for="' + select.id + '"]').forEach(function (l) { l.htmlFor = toggle.id; }); }
+
+        var items = Array.prototype.map.call(select.options, function (opt) {
+            if (opt.value === '') { return null; }
+            var li = document.createElement('li');
+            li.setAttribute('role', 'option');
+            li.textContent = opt.textContent;
+            li.setAttribute('dir', 'auto');
+            li._opt = opt;
+            li._text = opt.textContent.toLowerCase();
+            list.appendChild(li);
+            return li;
+        }).filter(Boolean);
+        var placeholder = select.options[0] && select.options[0].value === '' ? select.options[0].textContent : '';
+
+        var visible = function () { return items.filter(function (li) { return !li.hidden; }); };
+        var paint = function () {
+            var opt = select.options[select.selectedIndex];
+            toggle.textContent = opt && opt.value !== '' ? opt.textContent : placeholder;
+            toggle.classList.toggle('is-placeholder', !opt || opt.value === '');
+            items.forEach(function (li) { li.setAttribute('aria-selected', li._opt.selected && li._opt.value !== '' ? 'true' : 'false'); });
+        };
+        var highlight = function (i) {
+            var shown = visible();
+            items.forEach(function (li) { li.classList.remove('is-active'); });
+            active = shown.length ? Math.max(0, Math.min(i, shown.length - 1)) : -1;
+            if (active >= 0) { shown[active].classList.add('is-active'); shown[active].scrollIntoView({ block: 'nearest' }); }
+        };
+        var filter = function () {
+            var words = search.value.toLowerCase().split(/\s+/).filter(Boolean);
+            items.forEach(function (li) { li.hidden = !words.every(function (w) { return li._text.indexOf(w) !== -1; }); });
+            empty.hidden = visible().length > 0;
+            highlight(0);
+        };
+        var open = function () {
+            panel.hidden = false;
+            wrap.classList.add('is-open');
+            toggle.setAttribute('aria-expanded', 'true');
+            search.value = '';
+            filter();
+            var chosen = visible().findIndex(function (li) { return li._opt.selected; });
+            if (chosen > 0) { highlight(chosen); }
+            search.focus();
+        };
+        var close = function (refocus) {
+            panel.hidden = true;
+            wrap.classList.remove('is-open');
+            toggle.setAttribute('aria-expanded', 'false');
+            if (refocus) { toggle.focus(); }
+        };
+        var choose = function (li) {
+            li._opt.selected = true;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            wrap.classList.remove('is-invalid');
+            paint();
+            close(true);
+        };
+
+        toggle.addEventListener('click', function () { if (panel.hidden) { open(); } else { close(true); } });
+        toggle.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); open(); }
+        });
+        search.addEventListener('input', filter);
+        search.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowDown') { e.preventDefault(); highlight(active + 1); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); highlight(active - 1); }
+            else if (e.key === 'Enter') { e.preventDefault(); if (active >= 0) { choose(visible()[active]); } }
+            else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+            else if (e.key === 'Tab') { close(false); }
+        });
+        list.addEventListener('mousedown', function (e) { e.preventDefault(); }); // keep focus in the search box
+        list.addEventListener('click', function (e) {
+            var li = e.target.closest('li[role=option]');
+            if (li) { choose(li); }
+        });
+        document.addEventListener('click', function (e) { if (!panel.hidden && !wrap.contains(e.target)) { close(false); } });
+        if (required && select.form) {
+            select.form.addEventListener('submit', function (e) {
+                if (select.value === '') { e.preventDefault(); wrap.classList.add('is-invalid'); open(); }
+            });
+        }
+        paint();
+    });
+
     // ----- Menu button -----
     // Phones and tablets: the menu slides in over the page. Desktop: the sidebar collapses to give the page full width,
     // and the choice is remembered in this browser. Pages without a sidebar (sign-in) always use the slide-in drawer.

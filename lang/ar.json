@@ -181,6 +181,8 @@
     "Checked": "آخر فحص",
     "Choose a new password": "اختر كلمة مرور جديدة",
     "Choose a service": "اختر خدمة",
+    "Search by service name...": "ابحث باسم الخدمة...",
+    "No service matches.": "لا توجد خدمة مطابقة.",
     "Choose a service to see what it needs and place an order. Prices are in :unit.": "اختر خدمة لمعرفة ما تحتاجه وتقديم الطلب. الأسعار بوحدة :unit.",
     "Choose at least one service to import.": "اختر خدمة واحدة على الأقل للاستيراد.",
     "Choose how you will sign in.": "اختر طريقة تسجيل دخولك.",

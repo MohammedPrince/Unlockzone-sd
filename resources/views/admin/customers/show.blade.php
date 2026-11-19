@@ -168,7 +168,7 @@
                                 @csrf
                                 <div class="field">
                                     <label for="block-service">{{ __('Suspend from one service') }}</label>
-                                    <select id="block-service" name="service_id" required>
+                                    <select id="block-service" name="service_id" required data-search="{{ __('Search by service name...') }}" data-search-empty="{{ __('No service matches.') }}">
                                         <option value="">{{ __('Choose a service') }}</option>
                                         @foreach ($blockable as $option)
                                             <option value="{{ $option->id }}">{{ $option->name }}</option>
