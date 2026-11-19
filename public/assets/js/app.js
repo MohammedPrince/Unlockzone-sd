@@ -353,6 +353,8 @@
         var run = function () {
             var box = $(target);
             if (!box || !window.fetch) { return; }
+            // A page can cancel a search (e.g. typed values in the results would be lost): "live-search:before".
+            if (!form.dispatchEvent(new CustomEvent('live-search:before', { cancelable: true }))) { return; }
             // Only filled-in filters go into the address (deleting while iterating would skip some).
             var params = new URLSearchParams();
             new FormData(form).forEach(function (v, k) { if (v !== '') { params.append(k, v); } });
@@ -369,6 +371,7 @@
                         if (window.history && history.replaceState) { history.replaceState(null, '', url); }
                         bulkRefresh();
                         liveOrdersScan();
+                        form.dispatchEvent(new CustomEvent('live-search:done'));
                     }
                 })
                 .catch(function () { /* keep the current list; Enter still works */ })

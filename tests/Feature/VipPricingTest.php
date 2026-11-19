@@ -134,6 +134,15 @@ class VipPricingTest extends TestCase
         $this->put(route('admin.vip-prices.update'), ['price_adjust' => '0', 'q' => 'Bulk', 'page' => 2, 'prices' => [$last->id => '1.5']])
             ->assertRedirect(route('admin.vip-prices.edit', ['q' => 'Bulk', 'page' => 2]) . '#vip-price-list');
         $this->assertSame('1.50', $last->fresh()->vip_price);
+
+        // Category filter, "fixed price only" filter, and the save returns to them.
+        $byCategory = $this->get(route('admin.vip-prices.edit', ['category' => $category->id]))->assertOk()
+            ->assertSee('Bulk service 01')->assertDontSee('Haafedk test 1')->assertSee('data-vip-group="' . $category->id . '"', false);
+        $this->assertSame(20, substr_count($byCategory->getContent(), 'data-vip-price '));
+        $fixedOnly = $this->get(route('admin.vip-prices.edit', ['only' => 'fixed']))->assertOk()->assertSee('Bulk service 25');
+        $this->assertSame(1, substr_count($fixedOnly->getContent(), 'data-vip-price '));
+        $this->put(route('admin.vip-prices.update'), ['price_adjust' => '0', 'category' => $category->id, 'only' => 'fixed'])
+            ->assertRedirect(route('admin.vip-prices.edit', ['category' => $category->id, 'only' => 'fixed']) . '#vip-price-list');
     }
 
     public function test_a_save_without_a_service_price_keeps_the_fixed_prices(): void

@@ -28,12 +28,18 @@ class VipPriceController extends Controller
     public function edit(Request $request)
     {
         $search = trim((string) $request->query('q'));
+        $categoryId = $request->integer('category');
+        // "fixed" = only services with their own VIP price, "percent" = only those using the percentage.
+        $only = in_array($request->query('only'), ['fixed', 'percent'], true) ? $request->query('only') : '';
 
         // In catalog order (category by category, then by name); archived categories are left out.
         $services = Service::query()
             ->join('service_categories as c', 'c.id', '=', 'services.service_category_id')
             ->whereNull('c.deleted_at')
             ->when($search !== '', fn ($q) => $q->where('services.name', 'like', '%' . addcslashes($search, '%_\\') . '%'))
+            ->when($categoryId, fn ($q) => $q->where('services.service_category_id', $categoryId))
+            ->when($only === 'fixed', fn ($q) => $q->whereNotNull('services.vip_price'))
+            ->when($only === 'percent', fn ($q) => $q->whereNull('services.vip_price'))
             ->orderBy('c.sort_order')->orderBy('c.name')->orderBy('services.name')->orderBy('services.id')
             ->select(['services.id', 'services.service_category_id', 'services.name', 'services.price', 'services.vip_price', 'services.status'])
             ->paginate(self::PER_PAGE)
@@ -51,6 +57,11 @@ class VipPriceController extends Controller
             'services' => $services,
             'categories' => $categories,
             'search' => $search,
+            'categoryId' => $categoryId,
+            'only' => $only,
+            // The "Category" filter: every category that has services, with how many.
+            'categoryOptions' => ServiceCategory::withCount('services')->having('services_count', '>', 0)
+                ->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
             'fixedCount' => Service::whereNotNull('vip_price')->count(),
             'adjust' => (float) $this->settings->get('vip_price_adjust', 0),
             'vipCustomers' => User::where('role', User::ROLE_CUSTOMER)->where('is_vip', true)
@@ -118,7 +129,12 @@ class VipPriceController extends Controller
         ], $request->user()->id);
 
         // Back to the same page and search the admin was on.
-        $back = array_filter(['q' => trim((string) $request->input('q')), 'page' => max(1, $request->integer('page'))], fn ($v) => $v !== '' && $v !== 1);
+        $back = array_filter([
+            'q' => trim((string) $request->input('q')),
+            'category' => $request->integer('category') ?: '',
+            'only' => in_array($request->input('only'), ['fixed', 'percent'], true) ? $request->input('only') : '',
+            'page' => max(1, $request->integer('page')),
+        ], fn ($v) => $v !== '' && $v !== 1);
 
         return redirect()->to(route('admin.vip-prices.edit', $back) . '#vip-price-list')->with('success', __('VIP prices saved.'));
     }
