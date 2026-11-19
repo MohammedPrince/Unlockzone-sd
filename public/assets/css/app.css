@@ -315,8 +315,14 @@ td .sub { display: block; color: var(--muted); font-size: 12px; }
 .service-card p { color: var(--muted); font-size: 13px; flex: 1; }
 .service-card .price { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
 .service-card .price b { font-size: 17px; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
-.section-title { display: flex; align-items: baseline; gap: 10px; margin: 26px 0 12px; }
-.section-title h2 { font-size: 17px; }
+.section-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 26px 0 12px; }
+.section-title h2 { font-size: 17px; min-width: 0; overflow-wrap: anywhere; }
+/* Long provider names with no spaces ("[WIFI+BT]|IPAD|A7X...") must wrap inside the card, never widen the page. */
+.catalog { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); }
+.service-card { min-width: 0; }
+.service-card h3, .service-card p { overflow-wrap: anywhere; }
+.catalog-pages { margin-top: 18px; }
+.catalog-pages .pagination { border-top: 0; }
 
 /* ---------- Auth pages ---------- */
 .auth { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
@@ -529,6 +535,10 @@ td .sub { display: block; color: var(--muted); font-size: 12px; }
 [lang=ar] .new-tag { letter-spacing: 0; font-size: 11px; }
 .ticker-item .new-tag { margin-inline: 0 8px; }
 .api-tag { color: var(--blue); border-color: rgba(76, 154, 255, .35); background: rgba(76, 154, 255, .1); }
+/* API tag on a request: green = the provider answered, yellow = still waiting, red = the provider refused it. */
+.api-tag.api-ok { color: var(--green); border-color: rgba(47, 207, 127, .45); background: rgba(47, 207, 127, .12); }
+.api-tag.api-wait { color: var(--amber); border-color: rgba(245, 181, 61, .45); background: rgba(245, 181, 61, .12); }
+.api-tag.api-bad { color: var(--red); border-color: rgba(242, 96, 106, .45); background: rgba(242, 96, 106, .12); }
 
 /* ---------- Scrolling announcement bar (customer site) ---------- */
 .ticker {

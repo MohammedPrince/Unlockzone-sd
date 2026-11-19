@@ -19,6 +19,9 @@ class ServiceController extends Controller
     ) {
     }
 
+    /** Services per page in the customer catalog. */
+    public const PER_PAGE = 20;
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -30,10 +33,31 @@ class ServiceController extends Controller
             $catalog = $catalog->where('id', $categoryId)->values();
         }
 
+        // 20 services per page, in catalog order (category by category); each page shows its services under their
+        // category headings. A category that runs over two pages shows its heading on both.
+        $all = $catalog->flatMap->services->values();
+        $page = \Illuminate\Pagination\Paginator::resolveCurrentPage();
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $all->forPage($page, self::PER_PAGE)->values(), $all->count(), self::PER_PAGE, $page,
+            ['path' => $request->url(), 'query' => $request->query()],
+        );
+        $onPage = $paginator->getCollection()->pluck('id')->flip();
+        $sections = $catalog
+            ->map(fn ($category) => [
+                'title' => $category->name,
+                'note' => $category->description,
+                'total' => $category->services->count(),
+                'services' => $category->services->filter(fn ($s) => $onPage->has($s->id))->values(),
+            ])
+            ->filter(fn ($section) => $section['services']->isNotEmpty())
+            ->values();
+
         return view('customer.services.index', [
             'catalog' => $catalog,
-            // "Use frequently" services, shown first.
-            'favorites' => $catalog->flatMap->services->whereIn('id', $favoriteIds)->values(),
+            'sections' => $sections,
+            'paginator' => $paginator,
+            // "Use frequently" services, shown first, on the first page only.
+            'favorites' => $paginator->onFirstPage() ? $all->whereIn('id', $favoriteIds)->values() : collect(),
             'favoriteIds' => $favoriteIds,
             'blockedIds' => $user->blockedServices()->pluck('services.id')->all(),
             'servicesSuspended' => (bool) $user->services_suspended,

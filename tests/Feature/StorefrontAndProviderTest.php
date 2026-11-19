@@ -48,6 +48,37 @@ class StorefrontAndProviderTest extends TestCase
         return Service::where('slug', 'haafedk-test-1')->firstOrFail(); // 5.00, needs an IMEI
     }
 
+    public function test_customer_catalog_shows_20_services_per_page(): void
+    {
+        $customer = $this->customer();
+        $category = \App\Models\ServiceCategory::create(['name' => 'Zz Bulk', 'slug' => 'zz-bulk', 'status' => 'active', 'sort_order' => 99]);
+        for ($i = 1; $i <= 45; $i++) {
+            Service::create([
+                'service_category_id' => $category->id, 'name' => sprintf('Bulk service %02d', $i), 'slug' => "bulk-{$i}",
+                'price' => '1.00', 'status' => 'active', 'configuration' => ['field_ids' => [], 'execution' => 'manual'],
+            ]);
+        }
+        $total = Service::where('status', 'active')->whereHas('category', fn ($q) => $q->where('status', 'active'))->count();
+        $this->actingAs($customer)->post(route('customer.services.favorite', $this->service()->id));
+
+        $first = $this->actingAs($customer)->get(route('customer.services.index'))->assertOk()
+            ->assertSee('Frequently used')
+            ->assertSee('Showing 1–20 of ' . $total)
+            ->assertSee('?page=2', false);
+        $this->assertSame(20, substr_count($first->getContent(), 'class="service-card') - 1); // minus the favourite's copy
+
+        // Last page: the rest, the category heading still shows the category's full count, no favourites block.
+        $last = (int) ceil($total / 20);
+        $this->actingAs($customer)->get(route('customer.services.index', ['page' => $last]))->assertOk()
+            ->assertSee('Bulk service 45')
+            ->assertSee('45 services')
+            ->assertDontSee('Frequently used');
+
+        // Searching narrows the list and the pages follow.
+        $this->actingAs($customer)->get(route('customer.services.index', ['q' => 'Bulk service 1']))->assertOk()
+            ->assertSee('Bulk service 10')->assertDontSee('Bulk service 20')->assertDontSee('?page=2', false);
+    }
+
     private function order(User $customer, Service $service, array $extra = [])
     {
         return $this->actingAs($customer)->post(route('customer.services.order', $service->id), array_merge([
@@ -264,9 +295,10 @@ class StorefrontAndProviderTest extends TestCase
         Http::assertSent(fn ($r) => $r['action'] === 'placeimeiorder'
             && str_contains($r['parameters'], '<ID>134</ID>') && str_contains($r['parameters'], '<IMEI>123456789012345</IMEI>'));
 
-        // Still in process at the provider: nothing changes.
+        // Still in process at the provider: nothing changes, and the API tag is yellow (waiting).
         app(ProviderOrderService::class)->syncOpen();
         $this->assertSame('processing', $request->fresh()->status);
+        $this->actingAs($this->admin())->get(route('admin.requests.show', $request->id))->assertSee('api-tag api-wait', false);
 
         $status = '4';
         $this->artisan('providers:sync-orders')->assertSuccessful();
@@ -276,7 +308,8 @@ class StorefrontAndProviderTest extends TestCase
         $this->assertSame('45.00', $this->balance($customer));
 
         $this->actingAs($customer)->get(route('customer.requests.show', $request->id))->assertOk()->assertSee('UNLOCK-CODE-777');
-        $this->actingAs($this->admin())->get(route('admin.requests.show', $request->id))->assertOk()->assertSee('9001');
+        // The provider answered with the result: green.
+        $this->actingAs($this->admin())->get(route('admin.requests.show', $request->id))->assertOk()->assertSee('9001')->assertSee('api-tag api-ok', false);
     }
 
     public function test_provider_rejection_refunds_once_and_place_errors_wait_for_the_admin(): void
@@ -296,6 +329,7 @@ class StorefrontAndProviderTest extends TestCase
         $this->assertSame('45.00', $this->balance($customer));
         // The provider's own problem is not shown to the customer.
         $this->actingAs($customer)->get(route('customer.requests.show', $first->id))->assertOk()->assertDontSee('Not enough credits');
+        $this->actingAs($this->admin())->get(route('admin.requests.show', $first->id))->assertSee('api-tag api-bad', false);
 
         // 2) The admin sends it again and this time it is accepted, then rejected by the provider.
         Http::swap(new \Illuminate\Http\Client\Factory());

@@ -110,11 +110,20 @@
 
         <div class="stack">
             @if ($req->service?->usesProvider() || $req->remote_order_id)
-                @php $providerName = $req->provider->name ?? $req->service?->provider?->name ?? '—'; @endphp
+                @php
+                    $providerName = $req->provider->name ?? $req->service?->provider?->name ?? '—';
+                    // Green: the provider took the order and its result came back. Red: it refused the order.
+                    // Yellow: still waiting (not sent yet, being sent, or sent and waiting for the result).
+                    [$apiState, $apiTitle] = match (true) {
+                        $req->remote_order_id && !$req->isOpen() => ['api-ok', __('Answered by the provider')],
+                        !$req->remote_order_id && $req->provider_status === 'error' => ['api-bad', __('Not accepted by the provider')],
+                        default => ['api-wait', __('Waiting for the provider')],
+                    };
+                @endphp
                 <div class="card" data-live-section="provider">
                     <div class="card-head">
                         <h2>{{ __('Provider') }}</h2>
-                        <span class="tag api-tag">{{ __('API') }}</span>
+                        <span class="tag api-tag {{ $apiState }}" title="{{ $apiTitle }}">{{ __('API') }}</span>
                     </div>
                     <div class="card-body stack">
                         <dl class="kv">

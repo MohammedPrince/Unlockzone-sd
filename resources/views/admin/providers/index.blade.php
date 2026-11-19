@@ -53,7 +53,14 @@
                                     <a href="{{ route('admin.providers.services', $provider->id) }}">{{ number_format($provider->remote_services_count) }}</a>
                                     <span class="sub">{{ $provider->services_synced_at ? $provider->services_synced_at->diffForHumans() : __('Not synced yet') }}</span>
                                 </td>
-                                <td data-label="{{ __('Linked services') }}" class="right num">{{ number_format($provider->services_count) }}</td>
+                                <td data-label="{{ __('Linked services') }}" class="right num">
+                                    @if ($provider->services_count > 0)
+                                        {{-- Opens Services filtered to this provider, where they can be ticked and moved to another category. --}}
+                                        <a href="{{ route('admin.services.index', ['provider' => $provider->id]) }}" title="{{ __('Show the services linked to this provider') }}">{{ number_format($provider->services_count) }}</a>
+                                    @else
+                                        0
+                                    @endif
+                                </td>
                                 <td data-label="{{ __('Status') }}"><span class="badge badge-{{ $provider->status }}">{{ __(ucfirst($provider->status)) }}</span></td>
                                 <td>
                                     <div class="row-actions">

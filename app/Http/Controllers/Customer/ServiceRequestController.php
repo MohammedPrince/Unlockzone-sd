@@ -23,6 +23,9 @@ class ServiceRequestController extends Controller
         // user_id is forced to the signed-in customer; it is never read from the query string.
         $filters = $request->only(['q', 'status', 'category']) + ['user_id' => $request->user()->id];
         $filters['user_id'] = $request->user()->id;
+        if ($request->integer('category')) {
+            $filters['category'] = \App\Models\ServiceCategory::historyIds($request->integer('category'));
+        }
 
         return view('customer.requests.index', [
             'requests' => $this->requests->paginate($filters, 15),
@@ -40,6 +43,9 @@ class ServiceRequestController extends Controller
     public function export(Request $request)
     {
         $filters = array_filter($request->only(['q', 'status', 'category']), fn ($v) => is_string($v) && $v !== '');
+        if ($request->integer('category')) {
+            $filters['category'] = \App\Models\ServiceCategory::historyIds($request->integer('category'));
+        }
 
         return $this->csv('my-orders', $this->requests->customerExportRows($request->user()->id, $filters));
     }

@@ -1263,5 +1263,8 @@
     "Maintenance mode is on. Visitors and customers now see the maintenance page.": "تم تفعيل وضع الصيانة. الزوار والعملاء يرون الآن صفحة الصيانة.",
     "Maintenance mode is off. The site is open again.": "تم إيقاف وضع الصيانة. الموقع مفتوح من جديد.",
     "Visitors and customers only see the maintenance page.": "الزوار والعملاء يرون صفحة الصيانة فقط.",
-    "Maintenance mode is on": "وضع الصيانة مفعّل"
+    "Maintenance mode is on": "وضع الصيانة مفعّل",
+    "All providers": "كل المزوّدين",
+    "Show the services linked to this provider": "عرض الخدمات المرتبطة بهذا المزوّد",
+    "Waiting for the provider": "بانتظار المزوّد"
 }

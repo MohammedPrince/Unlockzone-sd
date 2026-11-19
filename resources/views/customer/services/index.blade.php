@@ -28,17 +28,17 @@
     @endif
 
     @php
-        // Favourites first, then every category.
-        $sections = $catalog->map(fn ($category) => ['title' => $category->name, 'note' => $category->description, 'services' => $category->services, 'star' => false]);
+        // Favourites first (page 1 only), then this page's services under their category headings.
+        $sections = $sections->map(fn ($s) => $s + ['star' => false]);
         if ($favorites->isNotEmpty()) {
-            $sections = $sections->prepend(['title' => __('Frequently used'), 'note' => null, 'services' => $favorites, 'star' => true]);
+            $sections = $sections->prepend(['title' => __('Frequently used'), 'note' => null, 'services' => $favorites, 'total' => $favorites->count(), 'star' => true]);
         }
     @endphp
 
     @foreach ($sections as $section)
         <div class="section-title">
             <h2>@if ($section['star'])<span class="fav-star">@include('partials.icon', ['name' => 'star'])</span> @endif{{ $section['title'] }}</h2>
-            <span class="muted">{{ trans_choice('{1} :count service|[2,*] :count services', $section['services']->count(), ['count' => $section['services']->count()]) }}</span>
+            <span class="muted">{{ trans_choice('{1} :count service|[2,*] :count services', $section['total'], ['count' => $section['total']]) }}</span>
         </div>
         @if ($section['note']) <p class="muted" style="margin: -6px 0 12px">{{ $section['note'] }}</p> @endif
 
@@ -72,5 +72,9 @@
             @endforeach
         </div>
     @endforeach
+
+    @if ($paginator->hasPages())
+        <div class="card catalog-pages">{{ $paginator->links() }}</div>
+    @endif
     </div>
 @endsection

@@ -180,7 +180,9 @@ class ApiProviderService
             $result = ['created' => 0, 'linked' => 0, 'skipped' => 0, 'categories' => 0];
 
             foreach ($rows as $row) {
-                $key = ServiceImportService::key($row->name);
+                // Names are stored cut to 150 characters, so compare the cut name (very long provider names).
+                $name = mb_substr($row->name, 0, 150);
+                $key = ServiceImportService::key($name);
                 $price = number_format(round((float) $row->price * (1 + $margin / 100), 2), 2, '.', '');
                 $delivery = $row->delivery_time ? mb_substr($row->delivery_time, 0, 60) : null;
 
@@ -217,8 +219,8 @@ class ApiProviderService
 
                 $service = $this->services->create([
                     'service_category_id' => $category->id,
-                    'name' => mb_substr($row->name, 0, 150),
-                    'slug' => $this->services->uniqueSlug($row->name),
+                    'name' => $name,
+                    'slug' => $this->services->uniqueSlug($name),
                     'description' => null,
                     'price' => $price,
                     'status' => $status,
