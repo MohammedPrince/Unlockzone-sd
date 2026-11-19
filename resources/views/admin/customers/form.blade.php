@@ -39,7 +39,7 @@
                     <label for="customer_tag">{{ __('Customer tag') }} <span class="muted">({{ __('optional') }})</span></label>
                     <input type="text" id="customer_tag" name="customer_tag" value="{{ old('customer_tag', $customer->customer_tag ?? '') }}" maxlength="30" list="customer-tags" placeholder="VIP">
                     <datalist id="customer-tags"><option value="VIP"><option value="Gold"><option value="Reseller"><option value="Dealer"></datalist>
-                    <p class="help">{{ __('Shown as "(VIP) email" in the customer\'s menu. Leave empty for a normal customer.') }}</p>
+                    <p class="help">{{ __('Shown as "(VIP) email" in the customer\'s menu. Leave empty for a normal customer.') }} {{ __('The tag "VIP" also gives VIP prices; removing it takes them away.') }}</p>
                     @error('customer_tag') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
                 @unless ($editing)

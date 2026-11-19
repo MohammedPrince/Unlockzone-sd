@@ -145,6 +145,34 @@ class VipPricingTest extends TestCase
             ->assertRedirect(route('admin.vip-prices.edit', ['category' => $category->id, 'only' => 'fixed']) . '#vip-price-list');
     }
 
+    public function test_the_vip_customer_tag_and_vip_prices_go_together(): void
+    {
+        $customer = $this->customer('tagged');
+        $update = fn (string $tag) => $this->actingAs($this->admin())->put(route('admin.customers.update', $customer->id), [
+            'first_name' => 'Tagged', 'username' => 'tagged', 'email' => 'tagged@example.com', 'customer_tag' => $tag,
+        ])->assertSessionHasNoErrors();
+
+        // Tagging "vip" (any case) gives VIP prices, and the VIP prices page lists them as VIP.
+        $update('vip');
+        $this->assertTrue($customer->fresh()->is_vip);
+        $this->get(route('admin.vip-prices.edit'))->assertSee(route('admin.vip-prices.customers.remove', $customer->id), false)
+            ->assertDontSee('tagged — Tagged Test');
+        // One badge in the customer list, not a yellow tag plus a purple one.
+        $this->assertSame(0, substr_count($this->get(route('admin.customers.index'))->getContent(), '<span class="tag-vip">vip</span>'));
+
+        // Another tag is just a label; changing away from "VIP" removes VIP prices.
+        $update('Gold');
+        $this->assertFalse($customer->fresh()->is_vip);
+
+        // VIP given from the page keeps a non-VIP tag; removing VIP removes a "VIP" tag.
+        $this->post(route('admin.vip-prices.customers.add'), ['user_id' => $customer->id]);
+        $this->assertSame('Gold', $customer->fresh()->customer_tag);
+        $update('VIP');
+        $this->delete(route('admin.vip-prices.customers.remove', $customer->id));
+        $this->assertFalse($customer->fresh()->is_vip);
+        $this->assertNull($customer->fresh()->customer_tag);
+    }
+
     public function test_a_save_without_a_service_price_keeps_the_fixed_prices(): void
     {
         $test1 = Service::where('slug', 'haafedk-test-1')->firstOrFail();

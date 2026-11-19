@@ -82,6 +82,12 @@ class User extends Authenticatable
         return !$this->services_suspended && !$this->blockedServices()->whereKey($serviceId)->exists();
     }
 
+    /** True for the customer tag "VIP" (any case): that tag also gives VIP prices. */
+    public static function isVipTag(?string $tag): bool
+    {
+        return strcasecmp(trim((string) $tag), 'VIP') === 0;
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;

@@ -105,7 +105,17 @@ class CustomerService
         }
 
         $tag = trim((string) $data['customer_tag']);
-        $customer->forceFill(['customer_tag' => $tag !== '' ? mb_substr($tag, 0, 30) : null])->save();
+        $wasVipTag = User::isVipTag($customer->customer_tag);
+        $customer->forceFill(['customer_tag' => $tag !== '' ? mb_substr($tag, 0, 30) : null]);
+
+        // The "VIP" tag and VIP prices go together: adding the tag gives VIP prices, removing it takes them away.
+        if (User::isVipTag($tag)) {
+            $customer->forceFill(['is_vip' => true]);
+        } elseif ($wasVipTag) {
+            $customer->forceFill(['is_vip' => false]);
+        }
+
+        $customer->save();
     }
 
     /** Creates the user and their empty wallet together. */
@@ -168,7 +178,14 @@ class CustomerService
     /** VIP customers pay the VIP prices (Services > VIP prices). Set only by an administrator. */
     public function setVip(User $customer, bool $vip, int $adminId): void
     {
-        $customer->forceFill(['is_vip' => $vip])->save();
+        $customer->forceFill(['is_vip' => $vip]);
+
+        // A "VIP" tag would say VIP while they pay normal prices: removing VIP removes that tag too.
+        if (!$vip && User::isVipTag($customer->customer_tag)) {
+            $customer->forceFill(['customer_tag' => null]);
+        }
+
+        $customer->save();
 
         $this->logs->log('customer_vip', ($vip ? 'Enabled' : 'Disabled') . " VIP prices for {$customer->username}", $customer, [], $adminId);
     }
