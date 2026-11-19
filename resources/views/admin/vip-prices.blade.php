@@ -60,6 +60,8 @@
         </div>
     </div>
 
+    <form method="get" action="{{ route('admin.vip-prices.edit') }}#vip-price-list" id="vip-search" hidden></form>
+
     <form method="post" action="{{ route('admin.vip-prices.update') }}" class="stack" data-once autocomplete="off">
         @csrf
         @method('put')
@@ -83,10 +85,20 @@
                     <p>{{ __('Leave a VIP price empty to use the percentage above. The grey number shows what the percentage gives.') }}</p>
                 </div>
             </div>
-            <div class="card-body" data-vip-picker>
-                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px">
-                    <input type="search" placeholder="{{ __('Search by service name...') }}" data-service-filter style="max-width: 320px; flex: 1 1 200px; min-width: 0" autocomplete="off">
-                    <span class="muted" style="font-size: 13px">{{ __(':count services with a fixed VIP price', ['count' => $categories->flatMap->services->whereNotNull('vip_price')->count()]) }}</span>
+            <div class="card-body" data-vip-picker id="vip-price-list">
+                {{-- Kept on the same page and search after saving. --}}
+                <input type="hidden" name="q" value="{{ $search }}">
+                <input type="hidden" name="page" value="{{ $services->currentPage() }}">
+
+                {{-- The search box belongs to the GET form outside this one (form="vip-search"): it searches every page. --}}
+                <div style="display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px">
+                    <input type="search" name="q" form="vip-search" value="{{ $search }}" placeholder="{{ __('Search by service name...') }}" style="max-width: 320px; flex: 1 1 200px; min-width: 0" autocomplete="off" aria-label="{{ __('Search by service name...') }}">
+                    <button type="submit" form="vip-search" class="btn">{{ __('Search') }}</button>
+                    @if ($search !== '') <a class="btn" href="{{ route('admin.vip-prices.edit') }}#vip-price-list">{{ __('Reset') }}</a> @endif
+                    <span class="muted" style="font-size: 13px">
+                        {{ __(':count services with a fixed VIP price', ['count' => $fixedCount]) }}
+                        @if ($services->total() > 0) · {{ __('Showing :from–:to of :total', ['from' => $services->firstItem(), 'to' => $services->lastItem(), 'total' => $services->total()]) }} @endif
+                    </span>
                 </div>
                 @error('prices.*') <p class="error-text">{{ $message }}</p> @enderror
 
@@ -119,8 +131,16 @@
                         </div>
                     </fieldset>
                 @empty
-                    <div class="empty"><strong>{{ __('No services yet') }}</strong></div>
+                    @if ($search !== '')
+                        <div class="empty"><strong>{{ __('No service matches.') }}</strong></div>
+                    @else
+                        <div class="empty"><strong>{{ __('No services yet') }}</strong></div>
+                    @endif
                 @endforelse
+
+                @if ($services->hasPages())
+                    <div class="vip-pages" data-vip-pages>{{ $services->links() }}</div>
+                @endif
             </div>
         </div>
 
@@ -184,18 +204,24 @@
         });
     });
 
-    picker.querySelector('[data-service-filter]').addEventListener('input', function () {
-        var words = this.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
-        picker.querySelectorAll('[data-service-group]').forEach(function (group) {
-            var shown = 0;
-            group.querySelectorAll('[data-service-row]').forEach(function (row) {
-                var name = row.getAttribute('data-name');
-                row.hidden = !words.every(function (w) { return name.indexOf(w) !== -1; });
-                if (!row.hidden) { shown++; }
-            });
-            group.hidden = shown === 0;
+    // Changing page or searching leaves this page: warn when typed prices were not saved yet.
+    var unsaved = function () {
+        var adjustChanged = adjust.value.trim() !== adjust.defaultValue.trim();
+        return adjustChanged || Array.prototype.some.call(picker.querySelectorAll('[data-vip-price]'), function (input) {
+            return input.value.trim() !== input.getAttribute('data-orig');
         });
+    };
+    var warning = @json(__('You have VIP prices that are not saved. Leave this page without saving them?'));
+    picker.addEventListener('click', function (e) {
+        var link = e.target.closest('[data-vip-pages] a');
+        if (link && unsaved() && !window.confirm(warning)) { e.preventDefault(); }
     });
+    var search = document.getElementById('vip-search');
+    if (search) {
+        search.addEventListener('submit', function (e) {
+            if (unsaved() && !window.confirm(warning)) { e.preventDefault(); }
+        });
+    }
 
     placeholders();
 })();

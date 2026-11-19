@@ -59,7 +59,7 @@ class VipPricingTest extends TestCase
         $this->put(route('admin.vip-prices.update'), [
             'price_adjust' => '-10',
             'prices' => [$test1->id => '3', $test2->id => ''],
-        ])->assertSessionHasNoErrors()->assertRedirect(route('admin.vip-prices.edit'));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('admin.vip-prices.edit') . '#vip-price-list');
         $this->assertSame('3.00', $test1->fresh()->vip_price);
         $this->assertNull($test2->fresh()->vip_price);
 
@@ -110,6 +110,30 @@ class VipPricingTest extends TestCase
 
         $this->delete(route('admin.vip-prices.customers.remove', $customer->id))->assertRedirect(route('admin.vip-prices.edit'));
         $this->assertFalse($customer->fresh()->is_vip);
+    }
+
+    public function test_price_list_shows_20_services_per_page_and_searches_every_page(): void
+    {
+        $category = \App\Models\ServiceCategory::where('slug', 'server-services')->firstOrFail();
+        foreach (range(1, 25) as $i) {
+            $category->services()->create(['name' => sprintf('Bulk service %02d', $i), 'slug' => "bulk-{$i}", 'price' => 2, 'status' => 'active']);
+        }
+        $total = Service::count();
+        $this->actingAs($this->admin());
+
+        $first = $this->get(route('admin.vip-prices.edit'))->assertOk()
+            ->assertSee(__('Showing :from–:to of :total', ['from' => 1, 'to' => 20, 'total' => $total]));
+        $this->assertSame(20, substr_count($first->getContent(), 'data-vip-price '));
+
+        // Search covers services that are not on the first page.
+        $found = $this->get(route('admin.vip-prices.edit', ['q' => 'Bulk service 25']))->assertOk()->assertSee('Bulk service 25');
+        $this->assertSame(1, substr_count($found->getContent(), 'data-vip-price '));
+
+        // Saving from page 2 of a search returns there.
+        $last = Service::where('slug', 'bulk-25')->firstOrFail();
+        $this->put(route('admin.vip-prices.update'), ['price_adjust' => '0', 'q' => 'Bulk', 'page' => 2, 'prices' => [$last->id => '1.5']])
+            ->assertRedirect(route('admin.vip-prices.edit', ['q' => 'Bulk', 'page' => 2]) . '#vip-price-list');
+        $this->assertSame('1.50', $last->fresh()->vip_price);
     }
 
     public function test_a_save_without_a_service_price_keeps_the_fixed_prices(): void
