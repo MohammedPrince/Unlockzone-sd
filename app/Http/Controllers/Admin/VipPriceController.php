@@ -25,21 +25,45 @@ class VipPriceController extends Controller
     /** Services per page in "Price per service". */
     public const PER_PAGE = 20;
 
-    public function edit(Request $request)
+    /** The list filters from the request: [search, category id, only ("fixed" / "percent" / "")]. */
+    private function filters(Request $request): array
     {
-        $search = trim((string) $request->query('q'));
-        $categoryId = $request->integer('category');
-        // "fixed" = only services with their own VIP price, "percent" = only those using the percentage.
-        $only = in_array($request->query('only'), ['fixed', 'percent'], true) ? $request->query('only') : '';
+        return [
+            trim((string) $request->input('q')),
+            $request->integer('category'),
+            // "fixed" = only services with their own VIP price, "percent" = only those using the percentage.
+            in_array($request->input('only'), ['fixed', 'percent'], true) ? $request->input('only') : '',
+        ];
+    }
 
-        // In catalog order (category by category, then by name); archived categories are left out.
-        $services = Service::query()
+    /** Services matching the filters; archived categories are left out. Used by the list and by "all matching". */
+    private function filtered(string $search, int $categoryId, string $only)
+    {
+        return Service::query()
             ->join('service_categories as c', 'c.id', '=', 'services.service_category_id')
             ->whereNull('c.deleted_at')
             ->when($search !== '', fn ($q) => $q->where('services.name', 'like', '%' . addcslashes($search, '%_\\') . '%'))
             ->when($categoryId, fn ($q) => $q->where('services.service_category_id', $categoryId))
             ->when($only === 'fixed', fn ($q) => $q->whereNotNull('services.vip_price'))
-            ->when($only === 'percent', fn ($q) => $q->whereNull('services.vip_price'))
+            ->when($only === 'percent', fn ($q) => $q->whereNull('services.vip_price'));
+    }
+
+    /** Back to the page, search and filters the admin was on. */
+    private function back(Request $request)
+    {
+        [$search, $categoryId, $only] = $this->filters($request);
+        $query = array_filter(['q' => $search, 'category' => $categoryId ?: '', 'only' => $only, 'page' => max(1, $request->integer('page'))],
+            fn ($v) => $v !== '' && $v !== 1);
+
+        return redirect()->to(route('admin.vip-prices.edit', $query) . '#vip-price-list');
+    }
+
+    public function edit(Request $request)
+    {
+        [$search, $categoryId, $only] = $this->filters($request);
+
+        // In catalog order (category by category, then by name).
+        $services = $this->filtered($search, $categoryId, $only)
             ->orderBy('c.sort_order')->orderBy('c.name')->orderBy('services.name')->orderBy('services.id')
             ->select(['services.id', 'services.service_category_id', 'services.name', 'services.price', 'services.vip_price', 'services.status'])
             ->paginate(self::PER_PAGE)
@@ -128,14 +152,47 @@ class VipPriceController extends Controller
             'price_adjust' => $adjust, 'changed' => $changed,
         ], $request->user()->id);
 
-        // Back to the same page and search the admin was on.
-        $back = array_filter([
-            'q' => trim((string) $request->input('q')),
-            'category' => $request->integer('category') ?: '',
-            'only' => in_array($request->input('only'), ['fixed', 'percent'], true) ? $request->input('only') : '',
-            'page' => max(1, $request->integer('page')),
-        ], fn ($v) => $v !== '' && $v !== 1);
+        return $this->back($request)->with('success', __('VIP prices saved.'));
+    }
 
-        return redirect()->to(route('admin.vip-prices.edit', $back) . '#vip-price-list')->with('success', __('VIP prices saved.'));
+    /**
+     * The ticked services (or every service matching the filters): set one fixed VIP price, set the VIP price
+     * to the site price +/- a percentage, or clear the fixed price so the general percentage applies.
+     */
+    public function bulk(Request $request)
+    {
+        $data = $request->validate([
+            'action' => ['required', Rule::in(['fixed', 'percent', 'clear'])],
+            'value' => ['exclude_if:action,clear', 'required', 'numeric', 'decimal:0,2',
+                $request->input('action') === 'percent' ? 'min:-90' : 'min:0',
+                $request->input('action') === 'percent' ? 'max:1000' : 'max:999999.99'],
+            'scope' => ['required', Rule::in(['selected', 'all'])],
+            'ids' => ['exclude_unless:scope,selected', 'required', 'array', 'max:5000'],
+            'ids.*' => ['integer'],
+        ], ['ids.required' => __('Tick at least one service.')], ['value' => __('value'), 'ids' => __('services')]);
+
+        // The services to change: the ticked ones, or every one the current filters match (all pages).
+        $ids = $data['scope'] === 'all'
+            ? $this->filtered(...$this->filters($request))->pluck('services.id')
+            : Service::whereIn('id', array_map('intval', $data['ids']))->pluck('id');
+
+        $update = match ($data['action']) {
+            'fixed' => ['vip_price' => number_format((float) $data['value'], 2, '.', '')],
+            // The value is validated as a number, so it is safe to place in the expression.
+            'percent' => ['vip_price' => DB::raw('GREATEST(0, ROUND(price * ' . number_format(1 + (float) $data['value'] / 100, 6, '.', '') . ', 2))')],
+            'clear' => ['vip_price' => null],
+        };
+        DB::transaction(function () use ($ids, $update) {
+            foreach ($ids->chunk(1000) as $chunk) {
+                Service::whereIn('id', $chunk->all())->update($update);
+            }
+        });
+
+        $value = $data['value'] ?? null;
+        $this->logs->log('vip_prices', "Bulk VIP prices: {$data['action']}" . ($value !== null ? " {$value}" : '') . " for {$ids->count()} service(s)", null, [
+            'action' => $data['action'], 'value' => $value, 'scope' => $data['scope'], 'count' => $ids->count(),
+        ], $request->user()->id);
+
+        return $this->back($request)->with('success', trans_choice('{0} No service was changed.|{1} VIP price updated for :count service.|[2,*] VIP price updated for :count services.', $ids->count(), ['count' => $ids->count()]));
     }
 }

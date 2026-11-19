@@ -2,6 +2,13 @@
 
 @php
     $adjustValue = old('price_adjust', rtrim(rtrim(number_format($adjust, 2, '.', ''), '0'), '.'));
+    // Confirm texts for the bulk change (the page script fills in :count and :value).
+    $bulkTexts = [
+        'fixed' => __('Set the VIP price of :count services to :value$?'),
+        'percent' => __('Set the VIP price of :count services to their site price :value%?'),
+        'clear' => __('Clear the fixed VIP price of :count services? They will use the general percentage.'),
+        'unsaved' => __('VIP prices typed in the list and not saved yet will be lost.'),
+    ];
 @endphp
 
 @section('title', __('VIP prices'))
@@ -111,11 +118,45 @@
             </div>
         </form>
 
+        {{-- Bulk change: tick services one by one, a whole category or page, or every service the filters match.
+             The row tick boxes sit in the list below but belong to this form (form="vip-bulk"). --}}
+        <form method="post" action="{{ route('admin.vip-prices.bulk') }}" id="vip-bulk" class="bulk-bar vip-bulk" data-once autocomplete="off">
+            @csrf
+            <input type="hidden" name="scope" value="selected" data-vip-scope>
+            {{-- Filled from the list on submit: which filters "all matching" means, and where to come back to. --}}
+            <input type="hidden" name="q" data-vip-keep="q">
+            <input type="hidden" name="category" data-vip-keep="category">
+            <input type="hidden" name="only" data-vip-keep="only">
+            <input type="hidden" name="page" data-vip-keep="page">
+
+            <label class="vip-check-page">
+                <input type="checkbox" data-vip-check-page> {{ __('Select all on this page') }}
+            </label>
+            <span class="bulk-count" data-vip-count data-template="{{ __(':count selected') }}">{{ __(':count selected', ['count' => 0]) }}</span>
+            <button type="button" class="vip-link" data-vip-select-matching hidden data-template="{{ __('Select all :total matching services') }}"></button>
+            <button type="button" class="vip-link" data-vip-clear-selection hidden>{{ __('Clear selection') }}</button>
+
+            <span class="vip-bulk-action">
+                <label for="vip-bulk-action" class="sr-only">{{ __('Action') }}</label>
+                <select id="vip-bulk-action" name="action" data-vip-action>
+                    <option value="fixed" @selected(old('action') === 'fixed')>{{ __('Set VIP price to ($)') }}</option>
+                    <option value="percent" @selected(old('action') === 'percent')>{{ __('Set VIP price to site price + (%)') }}</option>
+                    <option value="clear" @selected(old('action') === 'clear')>{{ __('Clear: use the general percentage') }}</option>
+                </select>
+                <label for="vip-bulk-value" class="sr-only">{{ __('Value') }}</label>
+                <input type="number" id="vip-bulk-value" name="value" value="{{ old('value') }}" step="0.01" dir="ltr" inputmode="decimal" data-vip-value
+                       data-ph-fixed="{{ __('e.g. 2.50') }}" data-ph-percent="{{ __('e.g. -10') }}">
+                <button class="btn btn-sm btn-primary" type="submit" data-vip-bulk-submit disabled>{{ __('Apply') }}</button>
+            </span>
+            @error('ids') <span class="error-text">{{ $message }}</span> @enderror
+            @error('value') <span class="error-text">{{ $message }}</span> @enderror
+        </form>
+
         <form method="post" action="{{ route('admin.vip-prices.update') }}" id="vip-prices-form" data-once autocomplete="off">
             @csrf
             @method('put')
 
-            <div class="card-body" id="vip-price-list" data-live-results>
+            <div class="card-body" id="vip-price-list" data-live-results data-total="{{ $services->total() }}" data-per-page="{{ $services->count() }}">
                 {{-- Kept on the same page and filters after saving (swapped with the results by the live search). --}}
                 <input type="hidden" name="q" value="{{ $search }}">
                 <input type="hidden" name="category" value="{{ $categoryId ?: '' }}">
@@ -147,11 +188,12 @@
                         </summary>
                         <div class="table-wrap">
                             <table class="price-table">
-                                <thead><tr><th>{{ __('Service') }}</th><th class="right">{{ __('Site price') }}</th><th class="right pt-input">{{ __('VIP price') }}</th></tr></thead>
+                                <thead><tr><th class="pt-check"><input type="checkbox" data-vip-check-group aria-label="{{ __('Select all in :category', ['category' => $category->name]) }}"></th><th>{{ __('Service') }}</th><th class="right">{{ __('Site price') }}</th><th class="right pt-input">{{ __('VIP price') }}</th></tr></thead>
                                 <tbody>
                                     @foreach ($category->services as $service)
                                         @php $fixed = old('prices.' . $service->id, $service->vip_price === null ? '' : rtrim(rtrim($service->vip_price, '0'), '.')); @endphp
                                         <tr>
+                                            <td class="pt-check"><input type="checkbox" name="ids[]" value="{{ $service->id }}" form="vip-bulk" data-vip-check aria-label="{{ __('Select :name', ['name' => $service->name]) }}"></td>
                                             <td class="pt-name">
                                                 <label for="vip-{{ $service->id }}">{{ $service->name }}</label>
                                                 @if ($service->status !== 'active') <span class="badge badge-inactive">{{ __('Inactive') }}</span> @endif
@@ -206,6 +248,17 @@
     .price-table .pt-input { width: 170px; }
     .price-table .pt-input input { max-width: 150px; text-align: right; }
     .price-table .pt-name label { margin: 0; font-size: inherit; font-weight: 500; color: var(--text); }
+    .price-table .pt-check { width: 34px; padding-inline-end: 0; }
+    .price-table .pt-check input, .vip-check-page input { width: 17px; height: 17px; cursor: pointer; accent-color: var(--accent); vertical-align: middle; }
+    .price-table tr.is-picked td { background: var(--accent-soft); }
+    .vip-bulk { margin: 0; padding: 10px 20px; border-top: 1px solid var(--line-soft); }
+    .vip-check-page { display: inline-flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .vip-link { border: 0; background: none; padding: 0; color: var(--blue); font: 600 13px var(--font); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+    .vip-link[hidden] { display: none; }
+    .vip-bulk-action { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-inline-start: auto; }
+    .vip-bulk-action select { min-width: 0; flex: 0 1 290px; }
+    .vip-bulk-action input { width: 120px; min-height: 34px; padding: 6px 10px; }
+    .vip-bulk-action input[hidden] { display: none; }
     .vip-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
     .vip-chips li { display: inline-flex; align-items: center; gap: 2px; padding: 3px 4px 3px 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--panel-2); }
     [dir=rtl] .vip-chips li { padding: 3px 12px 3px 4px; }
@@ -219,9 +272,13 @@
         .price-group { padding: 0 10px; }
         .price-table thead { display: none; }
         .price-table, .price-table tbody { display: block; width: 100%; }
-        .price-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name name" "site input"; gap: 6px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line, rgba(255,255,255,.08)); }
+        .price-table tr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "check name name" "check site input"; gap: 6px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line, rgba(255,255,255,.08)); }
         .price-table tr:last-child { border-bottom: 0; }
         .price-table td { display: block; padding: 0; border: 0; width: auto; }
+        .price-table .pt-check { grid-area: check; align-self: start; padding-top: 2px; }
+        .vip-bulk { padding: 10px 14px; }
+        .vip-bulk-action { margin-inline-start: 0; width: 100%; }
+        .vip-bulk-action select { flex: 1 1 100%; }
         .price-table .pt-name { grid-area: name; overflow-wrap: anywhere; }
         .price-table .pt-site { grid-area: site; text-align: start; font-size: 13px; }
         .price-table .pt-site::before { content: attr(data-label) ": "; color: var(--muted); }
@@ -293,11 +350,112 @@
         filter.addEventListener('live-search:before', function (e) {
             if (unsaved() && !window.confirm(warning)) { e.preventDefault(); }
         });
-        filter.addEventListener('live-search:done', function () { placeholders(); applyHidden(); });
+        filter.addEventListener('live-search:done', function () { placeholders(); applyHidden(); allMatching = false; refreshPicks(); });
+    }
+
+    // ----- Select services: one by one, a category, the page, or every service the filters match -----
+    var bulk = document.getElementById('vip-bulk');
+    var allMatching = false; // true after "Select all N matching services": the action covers every page
+    var checks = function (root) { return Array.prototype.slice.call((root || picker).querySelectorAll('[data-vip-check]')); };
+    var list = function () { return document.getElementById('vip-price-list'); };
+    var total = function () { return parseInt(list().getAttribute('data-total'), 10) || 0; };
+    var picked = function () { return checks().filter(function (c) { return c.checked; }).length; };
+    var tpl = function (el, values) {
+        var text = el.getAttribute('data-template');
+        Object.keys(values).forEach(function (k) { text = text.replace(':' + k, values[k]); });
+        return text;
+    };
+
+    var refreshPicks = function () {
+        if (!bulk) { return; }
+        var all = checks();
+        var n = picked();
+        var count = allMatching ? total() : n;
+
+        // Tick boxes that cover several rows: ticked when all are, half-ticked when some are.
+        var mark = function (box, items) {
+            var on = items.filter(function (c) { return c.checked; }).length;
+            box.checked = on > 0 && on === items.length;
+            box.indeterminate = on > 0 && on < items.length;
+        };
+        picker.querySelectorAll('[data-vip-group]').forEach(function (g) {
+            var box = g.querySelector('[data-vip-check-group]');
+            if (box) { mark(box, checks(g)); }
+        });
+        mark(bulk.querySelector('[data-vip-check-page]'), all);
+        all.forEach(function (c) { c.closest('tr').classList.toggle('is-picked', c.checked); });
+
+        var counter = bulk.querySelector('[data-vip-count]');
+        counter.textContent = tpl(counter, { count: count });
+        bulk.classList.toggle('has-selection', count > 0);
+        bulk.querySelector('[data-vip-bulk-submit]').disabled = count === 0;
+
+        // Every row on this page ticked and more on other pages: offer all matching services.
+        var offer = bulk.querySelector('[data-vip-select-matching]');
+        offer.hidden = allMatching || all.length === 0 || n !== all.length || total() <= all.length;
+        offer.textContent = tpl(offer, { total: total() });
+        bulk.querySelector('[data-vip-clear-selection]').hidden = count === 0;
+        bulk.querySelector('[data-vip-scope]').value = allMatching ? 'all' : 'selected';
+    };
+
+    picker.addEventListener('change', function (e) {
+        var t = e.target;
+        if (t.matches('[data-vip-check-page]')) {
+            checks().forEach(function (c) { c.checked = t.checked; });
+        } else if (t.matches('[data-vip-check-group]')) {
+            checks(t.closest('[data-vip-group]')).forEach(function (c) { c.checked = t.checked; });
+        } else if (!t.matches('[data-vip-check]')) {
+            return;
+        }
+        allMatching = false; // changing the ticks by hand goes back to "only the ticked ones"
+        refreshPicks();
+    });
+    // The category tick box sits in the table head, not in <summary>: clicking it never folds the category.
+    picker.addEventListener('click', function (e) {
+        if (e.target.matches('[data-vip-select-matching]')) {
+            allMatching = true;
+            checks().forEach(function (c) { c.checked = true; });
+            refreshPicks();
+        } else if (e.target.matches('[data-vip-clear-selection]')) {
+            allMatching = false;
+            checks().forEach(function (c) { c.checked = false; });
+            refreshPicks();
+        }
+    });
+
+    if (bulk) {
+        // The value box is not needed for "Clear"; its hint follows the action.
+        var action = bulk.querySelector('[data-vip-action]');
+        var value = bulk.querySelector('[data-vip-value]');
+        var syncAction = function () {
+            value.hidden = action.value === 'clear';
+            value.required = action.value !== 'clear';
+            value.min = action.value === 'percent' ? '-90' : '0';
+            value.max = action.value === 'percent' ? '1000' : '999999.99';
+            value.placeholder = value.getAttribute(action.value === 'percent' ? 'data-ph-percent' : 'data-ph-fixed');
+        };
+        action.addEventListener('change', syncAction);
+        syncAction();
+
+        var texts = @json($bulkTexts);
+        bulk.addEventListener('submit', function () {
+            // The filters of the list shown (they decide "all matching") and the page to come back to.
+            bulk.querySelectorAll('[data-vip-keep]').forEach(function (input) {
+                var src = list().querySelector('input[type=hidden][name="' + input.getAttribute('data-vip-keep') + '"]');
+                input.value = src ? src.value : '';
+            });
+            var n = allMatching ? total() : picked();
+            var v = action.value === 'percent' && parseFloat(value.value) > 0 ? '+' + value.value : value.value;
+            var text = texts[action.value].replace(':count', n).replace(':value', v);
+            if (unsaved()) { text += '\n\n' + texts.unsaved; }
+            // Read by app.js' confirm step, which runs after this listener.
+            bulk.setAttribute('data-confirm', text);
+        });
     }
 
     applyHidden();
     placeholders();
+    refreshPicks();
 })();
 </script>
 @endpush

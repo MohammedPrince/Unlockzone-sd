@@ -93,7 +93,8 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     // VIP prices: what customers marked as VIP pay.
     Route::get('vip-prices', [Admin\VipPriceController::class, 'edit'])->name('vip-prices.edit');
     Route::put('vip-prices', [Admin\VipPriceController::class, 'update'])->name('vip-prices.update');
-    Route::post('vip-prices/customers', [Admin\VipPriceController::class, 'addCustomer'])->name('vip-prices.customers.add');
+    Route::post('vip-prices/bulk', [Admin\VipPriceController::class, 'bulk'])->name('vip-prices.bulk');
+    Route::post('vip-prices/customers',[Admin\VipPriceController::class, 'addCustomer'])->name('vip-prices.customers.add');
     Route::delete('vip-prices/customers/{id}', [Admin\VipPriceController::class, 'removeCustomer'])->whereNumber('id')->name('vip-prices.customers.remove');
 
     Route::get('credits', [Admin\CreditController::class, 'index'])->name('credits.index');

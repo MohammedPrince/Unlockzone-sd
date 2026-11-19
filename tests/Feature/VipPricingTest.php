@@ -173,6 +173,42 @@ class VipPricingTest extends TestCase
         $this->assertNull($customer->fresh()->customer_tag);
     }
 
+    public function test_bulk_change_for_ticked_services_or_every_matching_service(): void
+    {
+        $test1 = Service::where('slug', 'haafedk-test-1')->firstOrFail(); // 5.00
+        $test2 = Service::where('slug', 'haafedk-test-2')->firstOrFail(); // 8.00
+        $category = \App\Models\ServiceCategory::where('slug', 'server-services')->firstOrFail();
+        foreach (range(1, 25) as $i) {
+            $category->services()->create(['name' => "Bulk {$i}", 'slug' => "bulk-{$i}", 'price' => 10, 'status' => 'active']);
+        }
+        $this->actingAs($this->admin());
+        $this->get(route('admin.vip-prices.edit'))->assertOk()->assertSee('data-vip-check', false)->assertSee('id="vip-bulk"', false);
+
+        // Ticked one by one: a fixed price, then site price -10%.
+        $this->post(route('admin.vip-prices.bulk'), ['scope' => 'selected', 'ids' => [$test1->id, $test2->id], 'action' => 'fixed', 'value' => '2.5'])
+            ->assertSessionHasNoErrors()->assertRedirect(route('admin.vip-prices.edit') . '#vip-price-list');
+        $this->assertSame(['2.50', '2.50'], [$test1->fresh()->vip_price, $test2->fresh()->vip_price]);
+        $this->post(route('admin.vip-prices.bulk'), ['scope' => 'selected', 'ids' => [$test2->id], 'action' => 'percent', 'value' => '-10']);
+        $this->assertSame('7.20', $test2->fresh()->vip_price);
+
+        // Every service matching the filters, on every page (25 in the category, more than one page).
+        $this->post(route('admin.vip-prices.bulk'), ['scope' => 'all', 'category' => $category->id, 'action' => 'percent', 'value' => '5', 'page' => 2])
+            ->assertRedirect(route('admin.vip-prices.edit', ['category' => $category->id, 'page' => 2]) . '#vip-price-list');
+        $this->assertSame(25, Service::where('service_category_id', $category->id)->where('vip_price', '10.50')->count());
+        $this->assertSame('2.50', $test1->fresh()->vip_price); // other category untouched
+
+        // Clear the matching ones: back to the general percentage.
+        $this->post(route('admin.vip-prices.bulk'), ['scope' => 'all', 'q' => 'Bulk 1', 'action' => 'clear']); // Bulk 1, 10-19
+        $this->assertSame(11, Service::where('name', 'like', 'Bulk 1%')->whereNull('vip_price')->count());
+        $this->assertNotNull(Service::where('slug', 'bulk-2')->value('vip_price'));
+
+        // Nothing ticked, a missing value, or a percentage out of range are refused.
+        $this->post(route('admin.vip-prices.bulk'), ['scope' => 'selected', 'action' => 'clear'])->assertSessionHasErrors('ids');
+        $this->post(route('admin.vip-prices.bulk'), ['scope' => 'selected', 'ids' => [$test1->id], 'action' => 'fixed'])->assertSessionHasErrors('value');
+        $this->post(route('admin.vip-prices.bulk'), ['scope' => 'selected', 'ids' => [$test1->id], 'action' => 'percent', 'value' => '-95'])->assertSessionHasErrors('value');
+        $this->assertSame('2.50', $test1->fresh()->vip_price);
+    }
+
     public function test_a_save_without_a_service_price_keeps_the_fixed_prices(): void
     {
         $test1 = Service::where('slug', 'haafedk-test-1')->firstOrFail();
