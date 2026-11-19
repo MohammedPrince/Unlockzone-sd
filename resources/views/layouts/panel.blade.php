@@ -18,6 +18,7 @@
             'Services' => [
                 ['admin.categories.index', 'Categories', 'folder', 'admin.categories.*'],
                 ['admin.services.index', 'Services', 'box', 'admin.services.*'],
+                ['admin.vip-prices.edit', 'VIP prices', 'star', 'admin.vip-prices.*'],
                 ['admin.requests.index', 'Service requests', 'list', 'admin.requests.*'],
                 ['admin.providers.index', 'API providers', 'plug', 'admin.providers.*'],
             ],

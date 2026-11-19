@@ -123,6 +123,28 @@
                     </div>
                 </div>
 
+                <div class="card" id="vip-pricing">
+                    <div class="card-head">
+                        <h2>{{ __('VIP prices') }}</h2>
+                        <span class="badge badge-{{ $customer->is_vip ? 'active' : 'inactive' }}">{{ $customer->is_vip ? __('VIP') : __('Normal prices') }}</span>
+                    </div>
+                    <div class="card-body stack">
+                        <p class="muted">
+                            {{ $customer->is_vip
+                                ? __('This customer sees and pays the VIP prices.')
+                                : __('This customer pays the normal site prices. Turn on VIP to give them the VIP prices.') }}
+                            <a href="{{ route('admin.vip-prices.edit') }}">{{ __('Set the VIP prices') }}</a>
+                        </p>
+                        <form method="post" action="{{ route('admin.customers.vip', $customer->id) }}">
+                            @csrf
+                            <input type="hidden" name="vip" value="{{ $customer->is_vip ? 0 : 1 }}">
+                            <button class="btn {{ $customer->is_vip ? '' : 'btn-primary' }}" type="submit">
+                                {{ $customer->is_vip ? __('Back to normal prices') : __('Give VIP prices') }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
                 <div class="card" id="service-access">
                     <div class="card-head">
                         <h2>{{ __('Service access') }}</h2>

@@ -59,6 +59,8 @@ class SettingRepository
         // Empty = the home page contact email.
         'maintenance_email' => '',
         'maintenance_show_visits' => '1',
+        // VIP customers: percentage on the site price for services without a fixed VIP price (-10 = 10% discount).
+        'vip_price_adjust' => '0',
     ];
 
     private ?array $loaded = null;

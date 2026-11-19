@@ -88,6 +88,13 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::post('customers/{id}/services/suspend', [Admin\CustomerController::class, 'suspendServices'])->whereNumber('id')->name('customers.services.suspend');
     Route::post('customers/{id}/services/block', [Admin\CustomerController::class, 'blockService'])->whereNumber('id')->name('customers.services.block');
     Route::delete('customers/{id}/services/block/{serviceId}', [Admin\CustomerController::class, 'unblockService'])->whereNumber(['id', 'serviceId'])->name('customers.services.unblock');
+    Route::post('customers/{id}/vip', [Admin\CustomerController::class, 'vip'])->whereNumber('id')->name('customers.vip');
+
+    // VIP prices: what customers marked as VIP pay.
+    Route::get('vip-prices', [Admin\VipPriceController::class, 'edit'])->name('vip-prices.edit');
+    Route::put('vip-prices', [Admin\VipPriceController::class, 'update'])->name('vip-prices.update');
+    Route::post('vip-prices/customers', [Admin\VipPriceController::class, 'addCustomer'])->name('vip-prices.customers.add');
+    Route::delete('vip-prices/customers/{id}', [Admin\VipPriceController::class, 'removeCustomer'])->whereNumber('id')->name('vip-prices.customers.remove');
 
     Route::get('credits', [Admin\CreditController::class, 'index'])->name('credits.index');
     Route::get('credits/export', [Admin\CreditController::class, 'export'])->name('credits.export');

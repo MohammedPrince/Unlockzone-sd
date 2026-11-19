@@ -959,6 +959,11 @@ body.modal-open { overflow: hidden; }
 .tag-price { display: inline-block; padding: 2px 8px; border-radius: 5px; background: #28a745; color: #fff; font-size: 13px; font-weight: 700; }
 .tag-instant { display: inline-block; padding: 2px 8px; border-radius: 5px; background: #ffc107; color: #1f1600; font-size: 12px; font-weight: 700; vertical-align: middle; }
 .order-price .tag-instant { align-self: center; margin-inline-start: 8px; }
+/* VIP pricing: a purple "VIP" chip next to the customer's price, with the normal price struck through. */
+.tag-vip-price { display: inline-block; padding: 2px 8px; border-radius: 5px; background: #7c3aed; color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .04em; vertical-align: middle; }
+.vip-was { font-size: 12px; vertical-align: middle; }
+.order-price .tag-vip-price, .order-price .vip-was { align-self: center; margin-inline-start: 8px; }
+.order-price .vip-was { font-size: 14px; }
 .pay-kv dd { font-weight: 800; font-size: 17px; }
 .pay-kv .pay-price { color: var(--accent-ink); }
 .pay-kv .pay-balance { color: var(--blue); }

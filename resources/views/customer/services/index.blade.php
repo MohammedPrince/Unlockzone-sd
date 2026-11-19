@@ -45,7 +45,10 @@
         <div class="catalog">
             @foreach ($section['services'] as $service)
                 @php
-                    $affordable = to_cents($balance) >= to_cents($service->price);
+                    // A VIP customer sees the VIP price (with the normal price struck through when it differs).
+                    $unit = $service->priceFor(auth()->user());
+                    $vipDeal = auth()->user()?->is_vip && to_cents($unit) !== to_cents($service->price);
+                    $affordable = to_cents($balance) >= to_cents($unit);
                     $blocked = $servicesSuspended || in_array($service->id, $blockedIds, true);
                 @endphp
                 <a @class(['service-card', 'is-blocked' => $blocked]) href="{{ route('customer.services.show', $service->id) }}">
@@ -56,7 +59,8 @@
                     </h3>
                     <p class="svc-cat" dir="auto">{{ $catalog->firstWhere('id', $service->service_category_id)?->name ?? $section['title'] }}</p>
                     <div class="svc-tags">
-                        <span class="tag-price num">{{ price($service->price) }}</span>
+                        <span class="tag-price num">{{ price($unit) }}</span>
+                        @if ($vipDeal) <span class="tag-vip-price">{{ __('VIP') }}</span> <s class="muted vip-was num">{{ price($service->price) }}</s> @endif
                         @if ($service->is_instant) <span class="tag-instant">{{ __('Instant') }}</span> @endif
                         @if ($service->delivery_time && !$service->is_instant) <span class="tag">{{ $service->delivery_time }}</span> @endif
                     </div>

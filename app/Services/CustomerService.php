@@ -165,6 +165,14 @@ class CustomerService
         $this->logs->log('customer_services', ($suspended ? 'Suspended' : 'Restored') . " all services for {$customer->username}", $customer, [], $adminId);
     }
 
+    /** VIP customers pay the VIP prices (Services > VIP prices). Set only by an administrator. */
+    public function setVip(User $customer, bool $vip, int $adminId): void
+    {
+        $customer->forceFill(['is_vip' => $vip])->save();
+
+        $this->logs->log('customer_vip', ($vip ? 'Enabled' : 'Disabled') . " VIP prices for {$customer->username}", $customer, [], $adminId);
+    }
+
     /** Suspends the customer from one service, or lifts that suspension. */
     public function blockService(User $customer, int $serviceId, bool $blocked, int $adminId): void
     {

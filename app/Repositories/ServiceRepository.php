@@ -104,7 +104,7 @@ class ServiceRepository
             ->where('created_at', '>=', now()->subDays($days))
             ->orderByDesc('id')
             ->limit($limit)
-            ->get(['id', 'name', 'price', 'created_at']);
+            ->get(['id', 'name', 'price', 'vip_price', 'created_at']);
     }
 
     /** Drops removed category fields from every service that still referenced them. */

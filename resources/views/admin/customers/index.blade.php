@@ -65,6 +65,7 @@
                                     <td class="primary">
                                         <a href="{{ route('admin.customers.show', $c->id) }}">{{ $c->name }}</a>
                                         @if ($c->customer_tag) <span class="tag-vip">{{ $c->customer_tag }}</span> @endif
+                                        @if ($c->is_vip) <span class="tag-vip-price" title="{{ __('Pays VIP prices') }}">{{ __('VIP') }}</span> @endif
                                         <span class="sub">{{ '@' . $c->username }}</span>
                                     </td>
                                     <td data-label="{{ __('Contact') }}">{{ $c->email }}<span class="sub">{{ $c->phone ?: '—' }}</span></td>

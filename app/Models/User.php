@@ -31,6 +31,8 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'notifications_seen_at' => 'datetime',
             'services_suspended' => 'boolean',
+            // Set only by an administrator (not fillable): the customer pays VIP prices.
+            'is_vip' => 'boolean',
             'password' => 'hashed',
         ];
     }

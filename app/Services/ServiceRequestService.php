@@ -88,8 +88,9 @@ class ServiceRequestService
         $requestData = $this->validateInputs($service, $inputs);
 
         try {
-            // An API client pays its own price (percentage or fixed price); everyone else the site price.
-            $unitPrice = $apiClient ? $apiClient->priceFor($service) : (string) $service->price;
+            // An API client pays its own price (percentage or fixed price); a VIP customer the VIP price;
+            // everyone else the site price.
+            $unitPrice = $apiClient ? $apiClient->priceFor($service) : $service->priceFor($current);
             $amount = number_format(round((float) $unitPrice * self::quantityOf($requestData), 2), 2, '.', '');
 
             $request = DB::transaction(function () use ($customer, $service, $requestData, $idempotencyKey, $apiClientId, $amount) {

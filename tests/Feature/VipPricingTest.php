@@ -1,0 +1,128 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\CustomerWallet;
+use App\Models\Service;
+use App\Models\ServiceRequest;
+use App\Models\User;
+use App\Services\CreditService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+use Tests\TestCase;
+
+/** VIP customers see and pay VIP prices: a percentage on the site price, or a fixed price per service. */
+class VipPricingTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected bool $seed = true;
+
+    private function admin(): User
+    {
+        return User::where('role', 'admin')->firstOrFail();
+    }
+
+    private function customer(string $username, float $balance = 50): User
+    {
+        $user = new User([
+            'first_name' => ucfirst($username), 'last_name' => 'Test', 'name' => ucfirst($username) . ' Test',
+            'username' => $username, 'email' => "{$username}@example.com", 'password' => 'secret-pass-1',
+        ]);
+        $user->role = 'customer';
+        $user->status = 'active';
+        $user->save();
+        CustomerWallet::create(['user_id' => $user->id, 'balance' => 0]);
+        app(CreditService::class)->recharge($user, $balance, null, 'test', $this->admin()->id);
+
+        return $user;
+    }
+
+    private function order(User $customer, Service $service)
+    {
+        return $this->actingAs($customer)->post(route('customer.services.order', $service->id), [
+            'idempotency_key' => (string) Str::uuid(),
+            'fields' => [$service->fieldIds()[0] => '123456789012345'],
+            'terms' => '1',
+        ]);
+    }
+
+    public function test_admin_sets_vip_prices_and_only_vip_customers_pay_them(): void
+    {
+        $test1 = Service::where('slug', 'haafedk-test-1')->firstOrFail(); // site price 5.00
+        $test2 = Service::where('slug', 'haafedk-test-2')->firstOrFail(); // site price 8.00
+        $vip = $this->customer('vipguy');
+        $normal = $this->customer('normalguy');
+
+        // The page lists the services; 10% off everything, and a fixed 3.00 for test 1.
+        $this->actingAs($this->admin())->get(route('admin.vip-prices.edit'))->assertOk()->assertSee('Haafedk test 1');
+        $this->put(route('admin.vip-prices.update'), [
+            'price_adjust' => '-10',
+            'prices' => [$test1->id => '3', $test2->id => ''],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('admin.vip-prices.edit'));
+        $this->assertSame('3.00', $test1->fresh()->vip_price);
+        $this->assertNull($test2->fresh()->vip_price);
+
+        // Turned on from the customer's profile.
+        $this->post(route('admin.customers.vip', $vip->id), ['vip' => 1])->assertRedirect();
+        $this->assertTrue($vip->fresh()->is_vip);
+        $this->get(route('admin.customers.show', $vip->id))->assertOk()->assertSee('Back to normal prices');
+
+        // The VIP customer sees the VIP price with the normal price struck through; others see the site price.
+        $this->actingAs($vip->fresh())->get(route('customer.services.show', $test2->id))->assertOk()
+            ->assertSee(price('7.20'))->assertSee('tag-vip-price', false);
+        $this->actingAs($normal)->get(route('customer.services.show', $test2->id))->assertOk()
+            ->assertSee(price('8.00'))->assertDontSee(price('7.20'))->assertDontSee('tag-vip-price', false);
+        $this->actingAs($vip->fresh())->get(route('customer.services.index'))->assertOk()->assertSee('tag-vip-price', false);
+
+        // Charged: fixed price wins, otherwise the percentage; a normal customer pays the site price.
+        $this->order($vip->fresh(), $test1)->assertSessionHasNoErrors();
+        $this->order($vip->fresh(), $test2)->assertSessionHasNoErrors();
+        $this->order($normal, $test1)->assertSessionHasNoErrors();
+        $this->assertSame(['3.00', '7.20'], ServiceRequest::where('user_id', $vip->id)->orderBy('id')->pluck('amount')->all());
+        $this->assertSame('5.00', ServiceRequest::where('user_id', $normal->id)->value('amount'));
+        $this->assertSame('39.80', $vip->wallet()->first()->balance);
+
+        // Turned off: back to the site price.
+        $this->actingAs($this->admin())->post(route('admin.customers.vip', $vip->id), ['vip' => 0]);
+        $this->order($vip->fresh(), $test2)->assertSessionHasNoErrors();
+        $this->assertSame('8.00', ServiceRequest::where('user_id', $vip->id)->latest('id')->value('amount'));
+    }
+
+    public function test_admin_adds_and_removes_vip_customers_from_the_vip_prices_page(): void
+    {
+        $customer = $this->customer('newvip');
+
+        // Offered in "Add a VIP customer" while not VIP.
+        $this->actingAs($this->admin())->get(route('admin.vip-prices.edit'))->assertOk()
+            ->assertSee('vip-add-customer', false)->assertSee('newvip — Newvip Test');
+
+        $this->post(route('admin.vip-prices.customers.add'), ['user_id' => $customer->id])
+            ->assertSessionHasNoErrors()->assertRedirect(route('admin.vip-prices.edit'));
+        $this->assertTrue($customer->fresh()->is_vip);
+        $this->get(route('admin.vip-prices.edit'))->assertSee(route('admin.vip-prices.customers.remove', $customer->id), false)
+            ->assertDontSee('newvip — Newvip Test');
+
+        // An administrator cannot be added; nor can an unknown id.
+        $this->post(route('admin.vip-prices.customers.add'), ['user_id' => $this->admin()->id])->assertSessionHasErrors('user_id');
+        $this->post(route('admin.vip-prices.customers.add'), ['user_id' => 999999])->assertSessionHasErrors('user_id');
+        $this->assertFalse((bool) $this->admin()->fresh()->is_vip);
+
+        $this->delete(route('admin.vip-prices.customers.remove', $customer->id))->assertRedirect(route('admin.vip-prices.edit'));
+        $this->assertFalse($customer->fresh()->is_vip);
+    }
+
+    public function test_a_save_without_a_service_price_keeps_the_fixed_prices(): void
+    {
+        $test1 = Service::where('slug', 'haafedk-test-1')->firstOrFail();
+        $test1->forceFill(['vip_price' => '4.00'])->save();
+
+        // The page sends only changed prices, so a missing one must stay as it is.
+        $this->actingAs($this->admin())->put(route('admin.vip-prices.update'), ['price_adjust' => '5'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('4.00', $test1->fresh()->vip_price);
+        $this->assertSame('5', setting('vip_price_adjust'));
+
+        $this->put(route('admin.vip-prices.update'), ['price_adjust' => '-95'])->assertSessionHasErrors('price_adjust');
+    }
+}
