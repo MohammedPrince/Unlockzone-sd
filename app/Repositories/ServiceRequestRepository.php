@@ -15,7 +15,8 @@ class ServiceRequestRepository
             ->when($filters['user_id'] ?? null, fn ($q, $v) => $q->where('user_id', $v))
             ->when($filters['service_id'] ?? null, fn ($q, $v) => $q->where('service_id', $v))
             ->when($filters['status'] ?? null, fn ($q, $v) => $q->where('status', $v))
-            ->when($filters['category'] ?? null, fn ($q, $v) => $q->whereHas('service', fn ($s) => $s->where('service_category_id', (int) $v)))
+            // One category id, or several (a live category plus archived ones folded into it).
+            ->when($filters['category'] ?? null, fn ($q, $v) => $q->whereHas('service', fn ($s) => $s->whereIn('service_category_id', array_map('intval', (array) $v))))
             ->when($filters['from'] ?? null, fn ($q, $v) => $q->whereDate('created_at', '>=', $v))
             ->when($filters['to'] ?? null, fn ($q, $v) => $q->whereDate('created_at', '<=', $v))
             ->when($filters['q'] ?? null, function ($q, $v) {

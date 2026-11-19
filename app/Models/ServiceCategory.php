@@ -21,6 +21,26 @@ class ServiceCategory extends Model
         return __(':category Orders', ['category' => $base !== '' ? $base : $this->name]);
     }
 
+    /**
+     * The categories whose orders "Order history" lists under this one: itself plus any archived
+     * category with the same menu label, so a removed "IMEI Services" folds into the live "IMEI Orders".
+     *
+     * @return int[]
+     */
+    public static function historyIds(int $id): array
+    {
+        $category = static::withTrashed()->find($id, ['id', 'name', 'deleted_at']);
+        if (!$category || $category->trashed()) {
+            return [$id];
+        }
+
+        $label = $category->ordersLabel();
+
+        return static::onlyTrashed()->get(['id', 'name', 'deleted_at'])
+            ->filter(fn ($c) => $c->ordersLabel() === $label)
+            ->pluck('id')->prepend($id)->unique()->values()->all();
+    }
+
     public function services(): HasMany
     {
         return $this->hasMany(Service::class);

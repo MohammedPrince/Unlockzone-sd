@@ -57,7 +57,14 @@ class AppServiceProvider extends ServiceProvider
                         ->orWhereHas('services', fn ($s) => $s->withTrashed()
                             ->whereHas('requests', fn ($r) => $r->where('user_id', $user->id))))
                     ->orderByRaw('deleted_at is not null')->orderBy('sort_order')->orderBy('name')
-                    ->get(['id', 'name', 'deleted_at']));
+                    ->get(['id', 'name', 'deleted_at'])
+                    // An archived category with the same label as a live one ("IMEI Orders") is folded
+                    // into it (see ServiceCategory::historyIds), so only the live entry is shown.
+                    ->pipe(function ($all) {
+                        $live = $all->reject->trashed()->map->ordersLabel()->flip();
+
+                        return $all->reject(fn ($c) => $c->trashed() && $live->has($c->ordersLabel()))->values();
+                    }));
 
                 // "Last login": the sign-in before this one (the newest row is the current session).
                 $view->with('navLastLogin', \App\Models\ActivityLog::where('user_id', $user->id)->where('action', 'login')
