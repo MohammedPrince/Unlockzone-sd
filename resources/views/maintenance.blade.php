@@ -10,13 +10,28 @@
     $logoWideDark = (string) setting('site_logo_wide_dark') ?: $logoWide;
     $logo = (string) setting('site_logo');
 
+    // Launch time (Settings > Maintenance mode > Back online at): countdown + date. Passed in by the middleware.
+    // With a launch time the page is an "opening" page: rocket, big headline, launch message, perks, countdown.
+    $endsAt = isset($endsAt) && $endsAt && $endsAt->isFuture() ? $endsAt : null;
+    $launching = $endsAt !== null;
+
     $badge = trim((string) setting($ar ? 'maintenance_badge_ar' : 'maintenance_badge'));
+    $headline = trim((string) setting($ar ? 'maintenance_headline_ar' : 'maintenance_headline'));
+    if ($headline === '' && $launching) {
+        $headline = $ar ? '🚀 الافتتاح الكبير اقترب!' : '🚀 The Grand Opening Is Almost Here!';
+    }
     $text = trim((string) setting($ar ? 'maintenance_text_ar' : 'maintenance_text'));
     if ($text === '') {
-        $text = $ar
-            ? "نعمل الآن على تحديث {$site} لنخدمك بشكل أفضل.\n\nسنعود قريبًا جدًا. شكرًا لصبرك."
-            : "We are updating {$site} to serve you better.\n\nWe will be back very soon. Thank you for your patience.";
+        $text = match (true) {
+            $launching && $ar => "{$site} يفتح أبوابه بتجربة جديدة كليًا: فك أسرع، تسليم فوري، وأفضل الأسعار في السوق.\n\nاحفظ الموعد وكن من أوائل من يطلب لحظة الإطلاق!",
+            $launching => "{$site} is opening its doors with a brand-new experience: faster unlocking, instant delivery and the best prices in the market.\n\nMark the date and be among the first to order the moment we go live!",
+            $ar => "نعمل الآن على تحديث {$site} لنخدمك بشكل أفضل.\n\nسنعود قريبًا جدًا. شكرًا لصبرك.",
+            default => "We are updating {$site} to serve you better.\n\nWe will be back very soon. Thank you for your patience.",
+        };
     }
+    $perks = $ar
+        ? ['⚡ تسليم فوري', '💰 أفضل الأسعار', '🛡️ آمن وموثوق', '🕐 دعم 24/7']
+        : ['⚡ Instant delivery', '💰 Best prices', '🛡️ Safe & trusted', '🕐 24/7 support'];
     $email = trim((string) (setting('maintenance_email') ?: setting('contact_email')));
     $visits = setting('maintenance_show_visits') === '1'
         ? (app(\App\Repositories\VisitRepository::class)->footerCounts()['total'] ?? null)
@@ -79,6 +94,36 @@
             font-weight: 700; font-size: 14px;
         }
         .text { margin: 26px 0 0; white-space: pre-line; font-size: 17px; }
+        /* Countdown to the launch time */
+        .launch { margin-top: 30px; }
+        .launch-label { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+        .launch-date { margin-top: 4px; font-size: 19px; font-weight: 700; color: var(--heading); font-variant-numeric: tabular-nums; }
+        .count { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; max-width: 460px; margin: 18px auto 0; direction: ltr; }
+        .count div { padding: 14px 6px 10px; border-radius: 18px; background: var(--icon-bg); border: 1px solid var(--langs-line); }
+        .count b { display: block; font-size: 34px; line-height: 1.1; color: var(--orange); font-variant-numeric: tabular-nums; }
+        .count span { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+        :root[dir=rtl] .count span, [dir=rtl] .count span { letter-spacing: 0; }
+        .launch-live { margin-top: 18px; font-size: 18px; font-weight: 700; color: var(--orange); }
+        /* Opening page (a launch time is set) */
+        .headline {
+            margin: 22px 0 0; font-size: clamp(28px, 5vw, 42px); line-height: 1.15; font-weight: 900; letter-spacing: -.01em;
+            background: linear-gradient(90deg, #fff 0%, #fdba74 45%, #f97316 75%, #fbbf24 100%);
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        :root[data-theme=light] .headline { background-image: linear-gradient(90deg, #0b2545 0%, #c2410c 55%, #f97316 100%); }
+        .headline .emoji { -webkit-text-fill-color: initial; color: initial; }
+        .launching .card { border-color: rgba(249, 115, 22, .55); animation: card-glow 3s ease-in-out infinite; }
+        @keyframes card-glow {
+            0%, 100% { box-shadow: var(--shadow), 0 0 0 0 rgba(249, 115, 22, 0); }
+            50% { box-shadow: var(--shadow), 0 0 60px -6px rgba(249, 115, 22, .45); }
+        }
+        .launching .icon { background: linear-gradient(135deg, rgba(239, 68, 68, .25), rgba(249, 115, 22, .3)); animation: lift 2.4s ease-in-out infinite; font-size: 42px; }
+        @keyframes lift { 50% { transform: translateY(-6px); } }
+        .perks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 22px; padding: 0; list-style: none; }
+        .perks li { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--langs-line); background: var(--icon-bg); color: var(--heading); font-size: 14px; font-weight: 700; }
+        .launching .launch { margin-top: 28px; padding: 22px 16px 20px; border-radius: 22px; border: 1px solid rgba(249, 115, 22, .35); background: linear-gradient(180deg, rgba(249, 115, 22, .08), transparent); }
+        .launching .launch-label { color: #f87171; font-weight: 800; }
+        @media (prefers-reduced-motion: reduce) { .launching .card, .launching .icon { animation: none; } }
         .help { margin-top: 30px; font-size: 15px; }
         .help a { color: var(--orange); font-weight: 700; }
         .langs { display: inline-flex; gap: 4px; margin-top: 22px; padding: 5px; border: 1px solid var(--langs-line); border-radius: 14px; }
@@ -96,10 +141,10 @@
         .theme svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
         .theme .moon, :root[data-theme=light] .theme .sun { display: none; }
         :root[data-theme=light] .theme .moon { display: block; }
-        @media (max-width: 520px) { .card { padding: 40px 20px 26px; border-radius: 24px; } .text { font-size: 16px; } .theme { top: 12px; inset-inline-end: 12px; } }
+        @media (max-width: 520px) { .card { padding: 40px 20px 26px; border-radius: 24px; } .text { font-size: 16px; } .count { gap: 8px; } .count b { font-size: 26px; } .count span { font-size: 10px; } .theme { top: 12px; inset-inline-end: 12px; } }
     </style>
 </head>
-<body>
+<body @class(['launching' => $launching])>
     <main class="card">
         <button type="button" class="theme" data-theme-toggle title="{{ $ar ? 'فاتح / داكن' : 'Switch light / dark' }}" aria-label="{{ $ar ? 'فاتح / داكن' : 'Switch light / dark' }}">
             <svg class="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
@@ -118,15 +163,47 @@
         </div>
 
         <div class="icon" aria-hidden="true">
+            @if ($launching)
+                🚀
+            @else
             {{-- A gear: "work in progress". --}}
             <svg viewBox="0 0 24 24" fill="#f5b400" stroke="#0b2545" stroke-width="1.4" stroke-linejoin="round"><path d="M10.3 2.5h3.4l.5 2.6 1.6.7 2.2-1.5 2.4 2.4-1.5 2.2.7 1.6 2.6.5v3.4l-2.6.5-.7 1.6 1.5 2.2-2.4 2.4-2.2-1.5-1.6.7-.5 2.6h-3.4l-.5-2.6-1.6-.7-2.2 1.5-2.4-2.4 1.5-2.2-.7-1.6-2.6-.5v-3.4l2.6-.5.7-1.6-1.5-2.2 2.4-2.4 2.2 1.5 1.6-.7z"/><circle cx="12" cy="12" r="3.2" fill="#fff"/></svg>
+            @endif
         </div>
 
         @if ($badge !== '')
             <div class="badge">{{ $badge }}</div>
         @endif
 
+        @if ($headline !== '')
+            {{-- Emoji keep their own colours inside the gradient text. --}}
+            <h1 class="headline">{!! preg_replace('/(\p{Extended_Pictographic}\x{FE0F}?)/u', '<span class="emoji">$1</span>', e($headline)) !!}</h1>
+        @endif
+
         <p class="text">{{ $text }}</p>
+
+        @if ($launching)
+            <ul class="perks">
+                @foreach ($perks as $perk) <li>{{ $perk }}</li> @endforeach
+            </ul>
+        @endif
+
+        @if ($endsAt)
+            @php $left = max(0, (int) now()->diffInSeconds($endsAt, false)); @endphp
+            {{-- Server-side numbers are right on first paint; the script below keeps them ticking and shows the
+                 date in the visitor's own time zone. At zero the page reloads and the site is open again. --}}
+            <section class="launch" data-launch="{{ $endsAt->toIso8601String() }}" data-left="{{ $left }}">
+                <div class="launch-label">{{ $ar ? 'سيكون الموقع متاحًا في' : 'Will be live on' }}</div>
+                <div class="launch-date" dir="ltr" data-launch-date>{{ $endsAt->format('m/d/Y h:i A') }} (GMT{{ $endsAt->format('P') }})</div>
+                <div class="count" role="timer" aria-live="off">
+                    <div><b data-unit="d">{{ sprintf('%02d', intdiv($left, 86400)) }}</b><span>{{ $ar ? 'يوم' : 'Days' }}</span></div>
+                    <div><b data-unit="h">{{ sprintf('%02d', intdiv($left % 86400, 3600)) }}</b><span>{{ $ar ? 'ساعة' : 'Hours' }}</span></div>
+                    <div><b data-unit="m">{{ sprintf('%02d', intdiv($left % 3600, 60)) }}</b><span>{{ $ar ? 'دقيقة' : 'Minutes' }}</span></div>
+                    <div><b data-unit="s">{{ sprintf('%02d', $left % 60) }}</b><span>{{ $ar ? 'ثانية' : 'Seconds' }}</span></div>
+                </div>
+                <div class="launch-live" data-launch-live hidden>{{ $ar ? 'الموقع متاح الآن! جارٍ التحميل…' : 'We are live! Loading…' }}</div>
+            </section>
+        @endif
 
         @if ($email !== '')
             <p class="help">{{ $ar ? 'تحتاج مساعدة؟ راسلنا على' : 'Need help? Email us at' }} <a href="mailto:{{ $email }}" dir="ltr">{{ $email }}</a></p>
@@ -150,6 +227,40 @@
             if (light) { document.documentElement.setAttribute('data-theme', 'light'); } else { document.documentElement.removeAttribute('data-theme'); }
             try { localStorage.setItem('theme', light ? 'light' : 'dark'); } catch (e) { /* storage blocked */ }
         });
+
+        // Countdown to the launch time; at zero the page reloads and the server lets the visitor in.
+        (function () {
+            var box = document.querySelector('[data-launch]');
+            if (!box) { return; }
+            // Counted from the server's "seconds left", so a visitor whose clock is wrong still sees the right time.
+            var end = Date.now() + parseInt(box.getAttribute('data-left'), 10) * 1000;
+            if (isNaN(end)) { return; }
+            // The date in the visitor's own time zone, e.g. "11/21/2026, 12:00 AM GMT+2".
+            try {
+                box.querySelector('[data-launch-date]').textContent = new Date(box.getAttribute('data-launch')).toLocaleString('en-US', {
+                    month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZoneName: 'short'
+                });
+            } catch (e) { /* keep the server's text */ }
+            var units = {};
+            ['d', 'h', 'm', 's'].forEach(function (u) { units[u] = box.querySelector('[data-unit="' + u + '"]'); });
+            var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+            var timer;
+            var tick = function () {
+                var left = Math.max(0, Math.floor((end - Date.now()) / 1000));
+                units.d.textContent = pad(Math.floor(left / 86400));
+                units.h.textContent = pad(Math.floor(left % 86400 / 3600));
+                units.m.textContent = pad(Math.floor(left % 3600 / 60));
+                units.s.textContent = pad(left % 60);
+                if (left === 0) {
+                    clearInterval(timer);
+                    box.querySelector('[data-launch-live]').hidden = false;
+                    // A moment's grace for clocks that run slightly fast; the server decides when it opens.
+                    setTimeout(function () { location.reload(); }, 3000);
+                }
+            };
+            timer = setInterval(tick, 1000);
+            tick();
+        })();
     </script>
 </body>
 </html>

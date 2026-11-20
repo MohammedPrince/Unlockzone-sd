@@ -40,6 +40,24 @@ class ServerToolsPageTest extends TestCase
         return User::where('role', 'admin')->firstOrFail();
     }
 
+    public function test_stage_comes_from_the_address_not_the_environment(): void
+    {
+        $this->app['env'] = 'production'; // both hostings run as production
+
+        $this->assertSame('DEV', \App\Services\ServerToolService::stage('dev.unlock-sd.com'));
+        $this->assertSame('DEV', \App\Services\ServerToolService::stage('DEV.Unlock-SD.com'));
+        $this->assertSame('PROD', \App\Services\ServerToolService::stage('unlock-sd.com'));
+        $this->assertSame('PROD', \App\Services\ServerToolService::stage('www.unlock-sd.com'));
+        $this->assertSame('DEV', \App\Services\ServerToolService::stage('localhost'));
+
+        // The page reads the address it was opened at.
+        $this->actingAs($this->admin())->get('https://dev.unlock-sd.com/admin/tools')->assertOk()->assertSee('stage-badge">DEV', false);
+        $this->actingAs($this->admin())->get('https://unlock-sd.com/admin/tools')->assertOk()->assertSee('stage-badge prod">PROD', false);
+
+        $this->app['env'] = 'local';
+        $this->assertSame('DEV', \App\Services\ServerToolService::stage('unlock-sd.com'));
+    }
+
     public function test_page_shows_summary_details_and_log_newest_first_with_errors_marked(): void
     {
         file_put_contents($this->log, implode("\n", [

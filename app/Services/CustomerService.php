@@ -15,8 +15,8 @@ use Illuminate\Support\Facades\DB;
 class CustomerService
 {
     private const PROFILE_FIELDS = [
+        // The address columns (address1, address2, country, state, city, zip_code) are no longer asked for anywhere.
         'first_name', 'last_name', 'username', 'email', 'phone',
-        'address1', 'address2', 'country', 'state', 'city', 'zip_code',
     ];
 
     public function __construct(
@@ -58,6 +58,9 @@ class CustomerService
         if (setting('allow_registration') !== '1') {
             throw new WorkflowException('Registration is currently closed.');
         }
+
+        // Sign-up does not ask for a name: the first name starts as the username, editable later in My profile.
+        $data['first_name'] = filled($data['first_name'] ?? null) ? $data['first_name'] : $data['username'];
 
         $customer = $this->store($data, 'pending');
 
@@ -105,7 +108,17 @@ class CustomerService
         }
 
         $tag = trim((string) $data['customer_tag']);
-        $customer->forceFill(['customer_tag' => $tag !== '' ? mb_substr($tag, 0, 30) : null])->save();
+        $wasVipTag = User::isVipTag($customer->customer_tag);
+        $customer->forceFill(['customer_tag' => $tag !== '' ? mb_substr($tag, 0, 30) : null]);
+
+        // The "VIP" tag and VIP prices go together: adding the tag gives VIP prices, removing it takes them away.
+        if (User::isVipTag($tag)) {
+            $customer->forceFill(['is_vip' => true]);
+        } elseif ($wasVipTag) {
+            $customer->forceFill(['is_vip' => false]);
+        }
+
+        $customer->save();
     }
 
     /** Creates the user and their empty wallet together. */
@@ -165,6 +178,21 @@ class CustomerService
         $this->logs->log('customer_services', ($suspended ? 'Suspended' : 'Restored') . " all services for {$customer->username}", $customer, [], $adminId);
     }
 
+    /** VIP customers pay the VIP prices (Services > VIP prices). Set only by an administrator. */
+    public function setVip(User $customer, bool $vip, int $adminId): void
+    {
+        $customer->forceFill(['is_vip' => $vip]);
+
+        // A "VIP" tag would say VIP while they pay normal prices: removing VIP removes that tag too.
+        if (!$vip && User::isVipTag($customer->customer_tag)) {
+            $customer->forceFill(['customer_tag' => null]);
+        }
+
+        $customer->save();
+
+        $this->logs->log('customer_vip', ($vip ? 'Enabled' : 'Disabled') . " VIP prices for {$customer->username}", $customer, [], $adminId);
+    }
+
     /** Suspends the customer from one service, or lifts that suspension. */
     public function blockService(User $customer, int $serviceId, bool $blocked, int $adminId): void
     {
@@ -201,11 +229,11 @@ class CustomerService
 
     public function exportRows(array $filters): \Generator
     {
-        yield ['ID', 'Name', 'Username', 'Email', 'Phone', 'Country', 'City', 'Status', 'Balance', 'Requests', 'Registered', 'Last login'];
+        yield ['ID', 'Name', 'Username', 'Email', 'Phone', 'Status', 'Balance', 'Requests', 'Registered', 'Last login'];
 
         foreach ($this->customers->cursor($filters) as $c) {
             yield [
-                $c->id, $c->name, $c->username, $c->email, $c->phone, $c->country, $c->city, $c->status,
+                $c->id, $c->name, $c->username, $c->email, $c->phone, $c->status,
                 $c->wallet->balance ?? '0.00', $c->service_requests_count,
                 $c->created_at->format('Y-m-d'), $c->last_login_at?->format('Y-m-d H:i'),
             ];

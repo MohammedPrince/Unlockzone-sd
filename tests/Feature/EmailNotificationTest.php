@@ -80,8 +80,8 @@ class EmailNotificationTest extends TestCase
     {
         $this->post('/register', [
             'username' => 'newuser', 'email' => 'new@example.com', 'password' => 'secret-pass-1', 'password_confirmation' => 'secret-pass-1',
-            'first_name' => 'New', 'last_name' => 'User', 'address1' => '1 Main St', 'country' => 'Sudan', 'state' => 'Khartoum',
-            'city' => 'Khartoum', 'zip_code' => '11111', 'phone' => '+249912345678', 'terms' => '1',
+            'first_name' => 'New', 'last_name' => 'User',
+            'phone' => '+249912345678', 'terms' => '1',
         ])->assertRedirect(route('login'));
 
         Mail::assertSent(SiteMail::class, fn (SiteMail $m) => $m->hasTo('boss@example.com') && $m->hasTo('second@example.com')
@@ -92,8 +92,8 @@ class EmailNotificationTest extends TestCase
     {
         $this->post('/register', [
             'username' => 'newuser', 'email' => 'new@example.com', 'password' => 'secret-pass-1', 'password_confirmation' => 'secret-pass-1',
-            'first_name' => 'New', 'last_name' => 'User', 'address1' => '1 Main St', 'country' => 'Sudan', 'state' => 'Khartoum',
-            'city' => 'Khartoum', 'zip_code' => '11111', 'phone' => '+249912345678', 'terms' => '1',
+            'first_name' => 'New', 'last_name' => 'User',
+            'phone' => '+249912345678', 'terms' => '1',
         ])->assertRedirect(route('login'));
 
         return User::where('username', 'newuser')->firstOrFail();

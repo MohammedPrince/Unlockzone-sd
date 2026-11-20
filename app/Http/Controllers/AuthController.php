@@ -42,7 +42,7 @@ class AuthController extends Controller
     {
         abort_unless(setting('allow_registration') === '1', 403, 'Registration is currently closed.');
 
-        return view('auth.register', ['countries' => config('countries')]);
+        return view('auth.register');
     }
 
     public function register(RegisterRequest $request)

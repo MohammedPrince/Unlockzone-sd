@@ -29,12 +29,6 @@ class CustomerRequest extends FormRequest
             'status' => [$id ? 'nullable' : 'required', Rule::in(User::STATUSES)],
             // Free label such as VIP or Reseller; empty means a normal customer.
             'customer_tag' => ['nullable', 'string', 'max:30', 'regex:/^[\pL\pN _\-+]+$/u'],
-            'address1' => ['nullable', 'string', 'max:255'],
-            'address2' => ['nullable', 'string', 'max:255'],
-            'country' => ['nullable', Rule::in(config('countries'))],
-            'state' => ['nullable', 'string', 'max:100'],
-            'city' => ['nullable', 'string', 'max:100'],
-            'zip_code' => ['nullable', 'string', 'max:20'],
         ];
     }
 }

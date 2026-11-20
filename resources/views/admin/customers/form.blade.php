@@ -39,7 +39,7 @@
                     <label for="customer_tag">{{ __('Customer tag') }} <span class="muted">({{ __('optional') }})</span></label>
                     <input type="text" id="customer_tag" name="customer_tag" value="{{ old('customer_tag', $customer->customer_tag ?? '') }}" maxlength="30" list="customer-tags" placeholder="VIP">
                     <datalist id="customer-tags"><option value="VIP"><option value="Gold"><option value="Reseller"><option value="Dealer"></datalist>
-                    <p class="help">{{ __('Shown as "(VIP) email" in the customer\'s menu. Leave empty for a normal customer.') }}</p>
+                    <p class="help">{{ __('Shown as "(VIP) email" in the customer\'s menu. Leave empty for a normal customer.') }} {{ __('The tag "VIP" also gives VIP prices; removing it takes them away.') }}</p>
                     @error('customer_tag') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
                 @unless ($editing)
@@ -56,7 +56,7 @@
         </div>
 
         <div class="card">
-            <div class="card-head"><h2>{{ __('Billing information') }}</h2></div>
+            <div class="card-head"><h2>{{ __('Personal details') }}</h2></div>
             <div class="card-body form-grid">
                 <div>
                     <label for="first_name">{{ __('First name') }}</label>
@@ -66,35 +66,6 @@
                 <div>
                     <label for="last_name">{{ __('Last name') }}</label>
                     <input type="text" id="last_name" name="last_name" value="{{ old('last_name', $customer->last_name ?? '') }}" maxlength="100">
-                </div>
-                <div class="full">
-                    <label for="address1">{{ __('Address 1') }}</label>
-                    <input type="text" id="address1" name="address1" value="{{ old('address1', $customer->address1 ?? '') }}" maxlength="255">
-                </div>
-                <div class="full">
-                    <label for="address2">{{ __('Address 2') }}</label>
-                    <input type="text" id="address2" name="address2" value="{{ old('address2', $customer->address2 ?? '') }}" maxlength="255">
-                </div>
-                <div>
-                    <label for="country">{{ __('Country') }}</label>
-                    <select id="country" name="country">
-                        <option value="">{{ __('Select') }}</option>
-                        @foreach ($countries as $country)
-                            <option value="{{ $country }}" @selected(old('country', $customer->country ?? '') === $country)>{{ $country }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label for="state">{{ __('State') }}</label>
-                    <input type="text" id="state" name="state" value="{{ old('state', $customer->state ?? '') }}" maxlength="100">
-                </div>
-                <div>
-                    <label for="city">{{ __('City') }}</label>
-                    <input type="text" id="city" name="city" value="{{ old('city', $customer->city ?? '') }}" maxlength="100">
-                </div>
-                <div>
-                    <label for="zip_code">{{ __('Zip code / post code') }}</label>
-                    <input type="text" id="zip_code" name="zip_code" value="{{ old('zip_code', $customer->zip_code ?? '') }}" maxlength="20">
                 </div>
                 <div>
                     <label for="phone">{{ __('Mobile') }}</label>

@@ -14,7 +14,8 @@
     $offerOn = setting('home_offer_enabled') === '1' && setting('home_offer_title');
     $offerEnds = null;
     if ($offerOn && setting('home_offer_ends_at')) {
-        try { $offerEnds = \Illuminate\Support\Carbon::parse(setting('home_offer_ends_at')); } catch (\Throwable) { $offerEnds = null; }
+        // Read in the admin's time zone (saved with the time), like the maintenance launch time.
+        $offerEnds = \App\Support\MaintenanceSchedule::parse(setting('home_offer_ends_at'), setting('home_offer_ends_tz'));
         // An offer whose end time has passed is hidden automatically.
         if ($offerEnds && $offerEnds->isPast()) { $offerOn = false; }
     }
@@ -69,16 +70,26 @@
 
 <main class="home-wrap home-main">
     @if ($offerOn)
+        {{-- Flash offer: glowing card with a pulsing tag, big title, live countdown boxes and a button. --}}
         <section class="home-offer" aria-label="{{ __('Offer') }}">
-            <div>
-                <p class="home-kicker">{{ __('Today flash offer') }}</p>
+            <div class="home-offer-body">
+                <p class="home-offer-tag"><i aria-hidden="true"></i> <span aria-hidden="true">⚡</span> {{ __('Today flash offer') }}</p>
                 <h2 dir="auto">{{ setting('home_offer_title') }}</h2>
-                @if (setting('home_offer_text')) <p class="muted" dir="auto">{{ setting('home_offer_text') }}</p> @endif
+                @if (setting('home_offer_text')) <p class="home-offer-text" dir="auto">{{ setting('home_offer_text') }}</p> @endif
+                <a class="btn btn-primary home-offer-cta" href="{{ $canRegister ? route('register') : route('login') }}">
+                    {{ $canRegister ? __('Get the offer now') : __('Sign in to order') }} <span aria-hidden="true">→</span>
+                </a>
             </div>
             @if ($offerEnds)
-                <div class="home-countdown" data-countdown="{{ $offerEnds->toIso8601String() }}">
-                    <small>{{ __('Ends in') }}</small>
-                    <b class="num" data-countdown-text>--:--:--</b>
+                @php $left = max(0, (int) now()->diffInSeconds($offerEnds, false)); @endphp
+                <div class="home-countdown" data-countdown="{{ $offerEnds->toIso8601String() }}" data-left="{{ $left }}" role="timer">
+                    <small>{{ __('Hurry, ends in') }}</small>
+                    <div class="home-countdown-units">
+                        <div><b data-unit="d">{{ sprintf('%02d', intdiv($left, 86400)) }}</b><span>{{ __('Days') }}</span></div>
+                        <div><b data-unit="h">{{ sprintf('%02d', intdiv($left % 86400, 3600)) }}</b><span>{{ __('Hours') }}</span></div>
+                        <div><b data-unit="m">{{ sprintf('%02d', intdiv($left % 3600, 60)) }}</b><span>{{ __('Min') }}</span></div>
+                        <div><b data-unit="s">{{ sprintf('%02d', $left % 60) }}</b><span>{{ __('Sec') }}</span></div>
+                    </div>
                 </div>
             @endif
         </section>

@@ -49,16 +49,27 @@ class SettingRepository
         'home_offer_title' => '',
         'home_offer_text' => '',
         'home_offer_ends_at' => '',
+        // Time zone of home_offer_ends_at (the admin's browser); empty = the app's time zone.
+        'home_offer_ends_tz' => '',
         // Maintenance mode: visitors and customers see only the maintenance page; admins see the site.
         'maintenance_enabled' => '0',
         'maintenance_badge' => 'We are preparing a better experience for you',
         'maintenance_badge_ar' => 'نجهّز لك تجربة أفضل',
-        // Empty = a standard "back soon" message in each language.
+        // Big headline on the maintenance page. Empty = none, or "The Grand Opening Is Almost Here!" when a launch time is set.
+        'maintenance_headline' => '',
+        'maintenance_headline_ar' => '',
+        // Empty = a standard "back soon" message in each language (an opening message when a launch time is set).
         'maintenance_text' => '',
         'maintenance_text_ar' => '',
         // Empty = the home page contact email.
         'maintenance_email' => '',
         'maintenance_show_visits' => '1',
+        // Optional launch time ("Y-m-d\TH:i", in maintenance_ends_tz): the page counts down to it and the site
+        // reopens by itself once it has passed. Empty = no countdown, maintenance stays on until turned off.
+        'maintenance_ends_at' => '',
+        'maintenance_ends_tz' => '',
+        // VIP customers: percentage on the site price for services without a fixed VIP price (-10 = 10% discount).
+        'vip_price_adjust' => '0',
     ];
 
     private ?array $loaded = null;

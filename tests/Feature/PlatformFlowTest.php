@@ -94,14 +94,16 @@ class PlatformFlowTest extends TestCase
     {
         $this->post('/register', [
             'username' => 'newuser', 'email' => 'new@example.com', 'password' => 'secret-pass-1', 'password_confirmation' => 'secret-pass-1',
-            'first_name' => 'New', 'last_name' => 'User', 'address1' => '1 Main St', 'country' => 'Sudan', 'state' => 'Khartoum',
-            'city' => 'Khartoum', 'zip_code' => '11111', 'phone' => '+249912345678', 'terms' => '1',
+            'phone' => '+249912345678', 'terms' => '1',
             'role' => 'admin', 'status' => 'active', // must be ignored
         ])->assertRedirect(route('login'));
 
+        // One-page sign-up without a name: the first name starts as the username.
         $user = User::where('username', 'newuser')->firstOrFail();
         $this->assertSame('customer', $user->role);
-        $this->assertSame('New User', $user->name);
+        $this->assertSame('newuser', $user->first_name);
+        $this->assertSame('newuser', $user->name);
+        $this->assertSame('+249912345678', $user->phone);
         $this->assertSame('0.00', $user->wallet->balance);
     }
 

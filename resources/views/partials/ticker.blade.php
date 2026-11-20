@@ -22,7 +22,7 @@
                         @endif
                     @endforeach
                     @foreach ($newServices as $service)
-                        <a class="ticker-item tk-green" href="{{ route('customer.services.show', $service->id) }}" @if ($copy) tabindex="-1" @endif><span class="new-tag">{{ __('New') }}</span>{{ $service->name }}<span class="ticker-price num">{{ price($service->price) }}</span></a>
+                        <a class="ticker-item tk-green" href="{{ route('customer.services.show', $service->id) }}" @if ($copy) tabindex="-1" @endif><span class="new-tag">{{ __('New') }}</span>{{ $service->name }}<span class="ticker-price num">{{ price($service->priceFor(auth()->user())) }}</span></a>
                     @endforeach
                 </div>
             @endforeach

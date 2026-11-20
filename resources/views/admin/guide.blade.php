@@ -92,6 +92,13 @@
             '<b>عناوين IP المسموحة</b> (اختياري): إذا كتبتها لا يُقبل المفتاح إلا من هذه العناوين.',
             'إيقاف العميل من خدمة أو من كل الخدمات في ملفه ينطبق على الـ API أيضاً.',
         ]],
+        ['vip-prices', 'أسعار VIP', [
+            'افتح <b>الخدمات ← أسعار VIP</b>. <b>سعر VIP لكل الخدمات (%)</b>: 0 = نفس سعر الموقع، ‎-10 = خصم 10%، 5 = زيادة 5%.',
+            'لتحديد سعر VIP خاص لخدمة معيّنة، اكتبه في خانة <b>سعر VIP</b> بجانب تلك الخدمة. هذا السعر يحل محل النسبة لتلك الخدمة. اترك الخانة فارغة لاستخدام النسبة. استخدم مربع البحث للعثور على الخدمة.',
+            'لجعل العميل VIP اختره من <b>إضافة عميل VIP</b> في نفس الصفحة واضغط <b>إضافة إلى VIP</b> (علامة × بجانب الاسم تزيله)، أو افتح ملفه واضغط <b>منح أسعار VIP</b>. زر <b>العودة للأسعار العادية</b> يلغي ذلك. يظهر لعملاء VIP وسم <b>VIP</b> بنفسجي في قائمة العملاء.',
+            'يرى عميل VIP سعر VIP الخاص به والسعر العادي مشطوبًا، ويُخصم منه سعر VIP. بقية العملاء يدفعون سعر الموقع العادي.',
+            '<b>وسم العميل</b> في نموذج التعديل مجرد تسمية ولا يغيّر الأسعار. عملاء الـ API يحتفظون بخانة <b>السعر لهذا العميل</b> الخاصة بهم.',
+        ]],
         ['site', 'شريط الإعلانات والإعدادات', [
             '<b>شريط الإعلانات</b>: سطر متحرك أعلى صفحات العملاء. أضف رسالة، أو أخفها مؤقتاً، أو أوقف الشريط كله، ويمكن عرض الخدمات الجديدة فيه تلقائياً.',
             '<b>الإعدادات ← عام</b>: اسم المنصة، الشعار (يُستخدم أيضاً كأيقونة المتصفح)، وسيلة التواصل، والتنبيه الثابت.',
@@ -200,6 +207,13 @@
             '<b>Suspend</b> refuses all their calls at once until you tap <b>Resume</b>. <b>New key</b> stops the old key immediately. <b>Delete</b> removes API access only; the customer account, credit and orders stay.',
             '<b>Allowed IP addresses</b> (optional): when filled in, the key only works from those addresses.',
             'Suspending the customer from a service, or from all services, on their profile applies to the API too.',
+        ]],
+        ['vip-prices', 'VIP prices', [
+            'Open <b>Services → VIP prices</b>. <b>VIP price for every service (%)</b>: 0 = same as the site, -10 = 10% discount, 5 = 5% more.',
+            'To give one service its own VIP price, type it in the <b>VIP price</b> box next to that service. It replaces the percentage for that service. Leave the box empty to use the percentage. Use the search box to find a service.',
+            'To make a customer VIP, pick them under <b>Add a VIP customer</b> on the same page and tap <b>Add to VIP</b> (the × next to a name removes them), or open their profile and tap <b>Give VIP prices</b>. <b>Back to normal prices</b> turns it off. VIP customers have a purple <b>VIP</b> tag in the customer list.',
+            'VIP customers see their VIP price, with the normal price struck through, and are charged that price. Everyone else pays the normal site price.',
+            'The <b>Customer tag</b> on the edit form is only a label. It does not change prices. API clients keep their own <b>Price for this client</b>.',
         ]],
         ['site', 'Announcement bar and Settings', [
             '<b>Announcement bar</b>: a scrolling line at the top of customer pages. Add a message, hide it for later, or turn the whole bar off. New services can be listed in it automatically.',

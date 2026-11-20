@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\SettingService;
+use App\Support\MaintenanceSchedule;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,20 +20,33 @@ class MaintenanceMode
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (setting('maintenance_enabled') !== '1' || $request->is(...self::OPEN) || $request->user()?->isAdmin()) {
+        if (setting('maintenance_enabled') !== '1') {
             return $next($request);
         }
 
+        // The launch time set in Settings has passed: the site reopens by itself, for this request too.
+        if (app(SettingService::class)->endMaintenanceIfDue()) {
+            return $next($request);
+        }
+
+        if ($request->is(...self::OPEN) || $request->user()?->isAdmin()) {
+            return $next($request);
+        }
+
+        // Tells browsers and search engines when to come back: the launch time when set, otherwise in 10 minutes.
+        $endsAt = MaintenanceSchedule::endsAt();
+        $retry = (string) ($endsAt ? max(60, (int) now()->diffInSeconds($endsAt, false)) : 600);
+
         // Background calls from pages that were already open (live order status etc.).
         if ($request->expectsJson() || $request->ajax()) {
-            return response()->json(['message' => 'The site is under maintenance. Please try again later.'], 503, ['Retry-After' => '600']);
+            return response()->json(['message' => 'The site is under maintenance. Please try again later.'], 503, ['Retry-After' => $retry]);
         }
 
         // Link-preview bots (WhatsApp, Telegram ...) skip pages that answer with an error, so they get the same
         // page with 200 and a shared link still shows its title and logo. Everyone else, search engines included, gets 503.
         $status = $this->isLinkPreviewBot($request) ? 200 : 503;
 
-        return response()->view('maintenance', [], $status, ['Retry-After' => '600']);
+        return response()->view('maintenance', ['endsAt' => $endsAt], $status, ['Retry-After' => $retry]);
     }
 
     private function isLinkPreviewBot(Request $request): bool

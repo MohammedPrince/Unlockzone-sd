@@ -317,11 +317,30 @@ class ServerToolService
         return 'Copied to ' . $real . "\n" . implode("\n", $lines);
     }
 
+    /**
+     * DEV or PROD, from the address the site is opened at: dev.unlock-sd.com (any "dev." address) is DEV,
+     * unlock-sd.com is PROD. Both hostings run with APP_ENV=production, so the environment cannot tell them apart.
+     * A local copy (APP_ENV=local, localhost) is DEV too.
+     */
+    public static function stage(?string $host = null): string
+    {
+        // Without an address (artisan commands) the site's APP_URL decides.
+        $host = strtolower($host ?? (string) parse_url((string) config('app.url'), PHP_URL_HOST));
+
+        $dev = !app()->environment('production')
+            || str_starts_with($host, 'dev.')
+            || in_array($host, ['localhost', '127.0.0.1', '::1'], true)
+            || str_ends_with($host, '.test') || str_ends_with($host, '.local');
+
+        return $dev ? 'DEV' : 'PROD';
+    }
+
     /** The strip at the top of the page: which site this is and whether the tools are on. */
     public function summary(): array
     {
         return [
-            'stage' => app()->environment('production') ? 'PROD' : 'DEV',
+            // The address this page was opened at.
+            'stage' => self::stage(request()->getHost()),
             'address' => rtrim((string) config('app.url'), '/'),
             'folder' => basename(base_path()),
             'enabled' => $this->enabled(),

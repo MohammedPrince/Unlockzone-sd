@@ -15,7 +15,7 @@ class ProfileController extends Controller
 
     public function edit(Request $request)
     {
-        return view('shared.profile', ['user' => $request->user(), 'countries' => config('countries'), 'action' => route('customer.profile.update')]);
+        return view('shared.profile', ['user' => $request->user(), 'action' => route('customer.profile.update')]);
     }
 
     public function update(ProfileRequest $request)

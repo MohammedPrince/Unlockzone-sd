@@ -4,7 +4,11 @@
     // With a quantity field (e.g. "QTY") the total is price x quantity; app.js keeps these numbers live.
     $qtyField = $service->quantityField($fields);
     $qty = $qtyField ? max(1, min(\App\Models\Service::MAX_QUANTITY, (int) old('fields.' . $qtyField->id, 1))) : 1;
-    $total = $service->totalFor($qty);
+    $customer = auth()->user();
+    // A VIP customer sees (and is charged) the VIP price; the site price is shown struck through when it differs.
+    $unit = $service->priceFor($customer);
+    $vipDeal = $customer?->is_vip && to_cents($unit) !== to_cents($service->price);
+    $total = $service->totalFor($qty, $customer);
     $enough = to_cents($balance) >= to_cents($total);
     $after = from_cents(to_cents($balance) - to_cents($total));
     $inputTypes = ['email' => 'email', 'number' => 'number'];
@@ -30,7 +34,7 @@
                     <form method="post" action="{{ route('customer.services.order', $service->id) }}" data-once class="stack"
                           data-confirm="{{ __('Order :service for :price? This amount will be deducted from your balance.', ['service' => $service->name, 'price' => price($total)]) }}"
                           @if ($qtyField)
-                              data-qty-form data-unit-price="{{ $service->price }}" data-balance="{{ $balance }}"
+                              data-qty-form data-unit-price="{{ $unit }}" data-balance="{{ $balance }}"
                               data-confirm-template="{{ __('Order :service for :price? This amount will be deducted from your balance.', ['service' => $service->name, 'price' => '__PRICE__']) }}"
                           @endif>
                         @csrf
@@ -44,7 +48,7 @@
                                     <input type="number" id="field-{{ $field->id }}" name="fields[{{ $field->id }}]" value="{{ $qty }}"
                                            min="1" max="{{ \App\Models\Service::MAX_QUANTITY }}" step="1" inputmode="numeric" dir="ltr" required data-qty
                                            class="{{ $errors->has('fields.' . $field->id) ? 'is-invalid' : '' }}">
-                                    <p class="help">{{ __(':price each. The total is the price times the quantity.', ['price' => price($service->price)]) }}</p>
+                                    <p class="help">{{ __(':price each. The total is the price times the quantity.', ['price' => price($unit)]) }}</p>
                                     @error('fields.' . $field->id) <p class="error-text">{{ $message }}</p> @enderror
                                 </div>
                                 @continue
@@ -95,9 +99,10 @@
 
                     <div class="order-price" aria-label="{{ __('Price') }}">
                         {{-- With a quantity field the big number is the total; app.js keeps it in step with QTY. --}}
-                        <small>$</small><b @if ($qtyField) data-qty-amount @endif>{{ amount($qtyField ? $total : $service->price) }}</b>
-                        @if ($qtyField) <span class="muted" style="font-size: .85rem" dir="ltr">{{ price($service->price) }} × <span data-qty-count>{{ $qty }}</span></span> @endif
+                        <small>$</small><b @if ($qtyField) data-qty-amount @endif>{{ amount($qtyField ? $total : $unit) }}</b>
+                        @if ($qtyField) <span class="muted" style="font-size: .85rem" dir="ltr">{{ price($unit) }} × <span data-qty-count>{{ $qty }}</span></span> @endif
                         @if ($service->is_instant) <span class="tag-instant">{{ __('Instant') }}</span> @endif
+                        @if ($vipDeal) <span class="tag-vip-price" title="{{ __('Your VIP price') }}">{{ __('VIP') }}</span> <s class="muted vip-was num" title="{{ __('Normal price') }}">{{ price($service->price) }}</s> @endif
                     </div>
 
                     @if ($service->delivery_time)
@@ -131,10 +136,10 @@
             <div class="card-body stack">
                 <dl class="kv pay-kv">
                     @if ($qtyField)
-                        <dt>{{ __('Price') }}</dt><dd class="num">{{ price($service->price) }} × <span data-qty-count>{{ $qty }}</span></dd>
+                        <dt>{{ __('Price') }}</dt><dd class="num">{{ price($unit) }} × <span data-qty-count>{{ $qty }}</span></dd>
                         <dt>{{ __('Total') }}</dt><dd class="num pay-price" data-qty-total>{{ price($total) }}</dd>
                     @else
-                        <dt>{{ __('Price') }}</dt><dd class="num pay-price">{{ price($service->price) }}</dd>
+                        <dt>{{ __('Price') }}</dt><dd class="num pay-price">{{ price($unit) }}</dd>
                     @endif
                     <dt>{{ __('Your balance') }}</dt><dd class="num pay-balance">{{ money($balance) }}</dd>
                     @if ($enough || $qtyField)
@@ -152,7 +157,7 @@
                     <p class="muted" data-qty-ok @unless ($enough) hidden @endunless>{{ __('If the request fails or is cancelled, the full amount is refunded to your balance.') }}</p>
                 @elseif (!$enough)
                     <div class="alert alert-error" style="margin: 0">
-                        {{ __('You need :amount more to order this service.', ['amount' => money(from_cents(to_cents($service->price) - to_cents($balance)))]) }}
+                        {{ __('You need :amount more to order this service.', ['amount' => money(from_cents(to_cents($unit) - to_cents($balance)))]) }}
                         {{ setting('support_contact') ? __('Contact :contact to recharge.', ['contact' => setting('support_contact')]) : __('Contact the administrator to recharge.') }}
                     </div>
                 @else

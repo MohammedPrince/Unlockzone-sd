@@ -35,7 +35,7 @@ class CustomerController extends Controller
 
     public function create()
     {
-        return view('admin.customers.form', ['customer' => null, 'countries' => config('countries')]);
+        return view('admin.customers.form', ['customer' => null]);
     }
 
     public function store(CustomerRequest $request)
@@ -52,7 +52,7 @@ class CustomerController extends Controller
 
     public function edit(int $id)
     {
-        return view('admin.customers.form', ['customer' => $this->customers->find($id), 'countries' => config('countries')]);
+        return view('admin.customers.form', ['customer' => $this->customers->find($id)]);
     }
 
     public function update(CustomerRequest $request, int $id)
@@ -82,6 +82,15 @@ class CustomerController extends Controller
         $this->customers->suspendAllServices($this->customers->find($id), $suspended, $request->user()->id);
 
         return back()->with('success', $suspended ? __('The customer is suspended from all services.') : __('The customer can order services again.'));
+    }
+
+    /** Turns VIP pricing on or off for the customer. */
+    public function vip(Request $request, int $id)
+    {
+        $vip = $request->boolean('vip');
+        $this->customers->setVip($this->customers->find($id), $vip, $request->user()->id);
+
+        return back()->with('success', $vip ? __('The customer now pays VIP prices.') : __('The customer now pays the normal site prices.'));
     }
 
     /** Suspend the customer from one service. */

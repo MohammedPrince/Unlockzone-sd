@@ -123,6 +123,28 @@
                     </div>
                 </div>
 
+                <div class="card" id="vip-pricing">
+                    <div class="card-head">
+                        <h2>{{ __('VIP prices') }}</h2>
+                        <span class="badge badge-{{ $customer->is_vip ? 'active' : 'inactive' }}">{{ $customer->is_vip ? __('VIP') : __('Normal prices') }}</span>
+                    </div>
+                    <div class="card-body stack">
+                        <p class="muted">
+                            {{ $customer->is_vip
+                                ? __('This customer sees and pays the VIP prices.')
+                                : __('This customer pays the normal site prices. Turn on VIP to give them the VIP prices.') }}
+                            <a href="{{ route('admin.vip-prices.edit') }}">{{ __('Set the VIP prices') }}</a>
+                        </p>
+                        <form method="post" action="{{ route('admin.customers.vip', $customer->id) }}">
+                            @csrf
+                            <input type="hidden" name="vip" value="{{ $customer->is_vip ? 0 : 1 }}">
+                            <button class="btn {{ $customer->is_vip ? '' : 'btn-primary' }}" type="submit">
+                                {{ $customer->is_vip ? __('Back to normal prices') : __('Give VIP prices') }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
                 <div class="card" id="service-access">
                     <div class="card-head">
                         <h2>{{ __('Service access') }}</h2>
@@ -168,7 +190,7 @@
                                 @csrf
                                 <div class="field">
                                     <label for="block-service">{{ __('Suspend from one service') }}</label>
-                                    <select id="block-service" name="service_id" required>
+                                    <select id="block-service" name="service_id" required data-search="{{ __('Search by service name...') }}" data-search-empty="{{ __('No service matches.') }}">
                                         <option value="">{{ __('Choose a service') }}</option>
                                         @foreach ($blockable as $option)
                                             <option value="{{ $option->id }}">{{ $option->name }}</option>
@@ -187,10 +209,6 @@
                         <dl class="kv">
                             <dt>{{ __('Email') }}</dt><dd>{{ $customer->email }}</dd>
                             <dt>{{ __('Mobile') }}</dt><dd>{{ $customer->phone ?: '—' }}</dd>
-                            <dt>{{ __('Address') }}</dt><dd>{{ collect([$customer->address1, $customer->address2])->filter()->implode(', ') ?: '—' }}</dd>
-                            <dt>{{ __('City / State') }}</dt><dd>{{ collect([$customer->city, $customer->state])->filter()->implode(', ') ?: '—' }}</dd>
-                            <dt>{{ __('Country') }}</dt><dd>{{ $customer->country ?: '—' }}</dd>
-                            <dt>{{ __('Zip code') }}</dt><dd>{{ $customer->zip_code ?: '—' }}</dd>
                             <dt>{{ __('Last sign-in') }}</dt><dd>{{ $customer->last_login_at?->translatedFormat('M j, Y H:i') ?? __('Never') }}</dd>
                         </dl>
                     </div>

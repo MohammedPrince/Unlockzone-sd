@@ -31,6 +31,8 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'notifications_seen_at' => 'datetime',
             'services_suspended' => 'boolean',
+            // Set only by an administrator (not fillable): the customer pays VIP prices.
+            'is_vip' => 'boolean',
             'password' => 'hashed',
         ];
     }
@@ -78,6 +80,12 @@ class User extends Authenticatable
     public function canOrder(int $serviceId): bool
     {
         return !$this->services_suspended && !$this->blockedServices()->whereKey($serviceId)->exists();
+    }
+
+    /** True for the customer tag "VIP" (any case): that tag also gives VIP prices. */
+    public static function isVipTag(?string $tag): bool
+    {
+        return strcasecmp(trim((string) $tag), 'VIP') === 0;
     }
 
     public function isAdmin(): bool

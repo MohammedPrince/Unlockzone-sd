@@ -31,21 +31,28 @@
         // Favourites first (page 1 only), then this page's services under their category headings.
         $sections = $sections->map(fn ($s) => $s + ['star' => false]);
         if ($favorites->isNotEmpty()) {
-            $sections = $sections->prepend(['title' => __('Frequently used'), 'note' => null, 'services' => $favorites, 'total' => $favorites->count(), 'star' => true]);
+            $sections = $sections->prepend(['key' => 'favorites', 'title' => __('Frequently used'), 'note' => null, 'services' => $favorites, 'total' => $favorites->count(), 'star' => true]);
         }
     @endphp
 
+    {{-- Infinite scroll: the next 20 are appended here. A section with the same data-infinite-key as the last one
+         (its category continues) has its cards added to that section's [data-infinite-merge] grid instead. --}}
+    <div data-infinite-items>
     @foreach ($sections as $section)
+        <section data-infinite-key="{{ $section['key'] }}">
         <div class="section-title">
             <h2>@if ($section['star'])<span class="fav-star">@include('partials.icon', ['name' => 'star'])</span> @endif{{ $section['title'] }}</h2>
             <span class="muted">{{ trans_choice('{1} :count service|[2,*] :count services', $section['total'], ['count' => $section['total']]) }}</span>
         </div>
         @if ($section['note']) <p class="muted" style="margin: -6px 0 12px">{{ $section['note'] }}</p> @endif
 
-        <div class="catalog">
+        <div class="catalog" data-infinite-merge>
             @foreach ($section['services'] as $service)
                 @php
-                    $affordable = to_cents($balance) >= to_cents($service->price);
+                    // A VIP customer sees the VIP price (with the normal price struck through when it differs).
+                    $unit = $service->priceFor(auth()->user());
+                    $vipDeal = auth()->user()?->is_vip && to_cents($unit) !== to_cents($service->price);
+                    $affordable = to_cents($balance) >= to_cents($unit);
                     $blocked = $servicesSuspended || in_array($service->id, $blockedIds, true);
                 @endphp
                 <a @class(['service-card', 'is-blocked' => $blocked]) href="{{ route('customer.services.show', $service->id) }}">
@@ -56,7 +63,8 @@
                     </h3>
                     <p class="svc-cat" dir="auto">{{ $catalog->firstWhere('id', $service->service_category_id)?->name ?? $section['title'] }}</p>
                     <div class="svc-tags">
-                        <span class="tag-price num">{{ price($service->price) }}</span>
+                        <span class="tag-price num">{{ price($unit) }}</span>
+                        @if ($vipDeal) <span class="tag-vip-price">{{ __('VIP') }}</span> <s class="muted vip-was num">{{ price($service->price) }}</s> @endif
                         @if ($service->is_instant) <span class="tag-instant">{{ __('Instant') }}</span> @endif
                         @if ($service->delivery_time && !$service->is_instant) <span class="tag">{{ $service->delivery_time }}</span> @endif
                     </div>
@@ -71,10 +79,10 @@
                 </a>
             @endforeach
         </div>
+        </section>
     @endforeach
+    </div>
 
-    @if ($paginator->hasPages())
-        <div class="card catalog-pages">{{ $paginator->links() }}</div>
-    @endif
+    @include('partials.load-more', ['paginator' => $paginator])
     </div>
 @endsection

@@ -96,10 +96,32 @@ class Service extends Model
             ->first(fn (CategoryField $f) => in_array($f->input_type, ['number', 'text'], true) && self::isQuantityLabel($f->label));
     }
 
-    /** What an order costs for $quantity units, in the database's decimal format. */
-    public function totalFor(int $quantity): string
+    /** True when a VIP customer pays something other than the site price for this service. */
+    public function hasVipPrice(): bool
     {
-        return number_format(round((float) $this->price * max(1, $quantity), 2), 2, '.', '');
+        return $this->vip_price !== null || (float) setting('vip_price_adjust', 0) != 0;
+    }
+
+    /** The VIP price: the fixed VIP price when set, otherwise the site price with the VIP percentage. Never below zero. */
+    public function vipPrice(): string
+    {
+        $price = $this->vip_price !== null
+            ? (float) $this->vip_price
+            : (float) $this->price * (1 + (float) setting('vip_price_adjust', 0) / 100);
+
+        return number_format(max(0, round($price, 2)), 2, '.', '');
+    }
+
+    /** What $customer pays for one unit: the VIP price for a VIP customer, the site price for everyone else. */
+    public function priceFor(?User $customer): string
+    {
+        return $customer?->is_vip ? $this->vipPrice() : number_format((float) $this->price, 2, '.', '');
+    }
+
+    /** What an order costs for $quantity units ($customer's price), in the database's decimal format. */
+    public function totalFor(int $quantity, ?User $customer = null): string
+    {
+        return number_format(round((float) $this->priceFor($customer) * max(1, $quantity), 2), 2, '.', '');
     }
 
     /** A customer can order it only when both the service and its category are active. */

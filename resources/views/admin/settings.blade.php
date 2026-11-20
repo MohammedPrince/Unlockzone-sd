@@ -24,6 +24,10 @@
         <div class="alert alert-error">
             <b>{{ __('Maintenance mode is on.') }}</b>
             {{ __('Visitors and customers only see the maintenance page. You see the site normally because you are signed in as admin.') }}
+            @php $launchAt = \App\Support\MaintenanceSchedule::endsAt(); @endphp
+            @if ($launchAt && $launchAt->isFuture())
+                {{ __('It opens again by itself on :date.', ['date' => $launchAt->format('m/d/Y h:i A') . ' (GMT' . $launchAt->format('P') . ')']) }}
+            @endif
         </div>
     @endif
 
@@ -57,6 +61,44 @@
                     <input type="hidden" name="maintenance_enabled" value="0">
                     <label class="check"><input type="checkbox" name="maintenance_enabled" value="1" @checked(old('maintenance_enabled', $settings['maintenance_enabled']) == '1')> <span><b>{{ __('Site under maintenance') }}</b><br><span class="muted">{{ __('Visitors and customers see the maintenance page instead of the site.') }}</span></span></label>
                 </div>
+                <div class="full">
+                    @php $launch = \App\Support\MaintenanceSchedule::endsAt(); @endphp
+                    <label for="maintenance_ends_at">{{ __('Back online at') }} <span class="muted">({{ __('optional') }})</span></label>
+                    <input type="datetime-local" id="maintenance_ends_at" name="maintenance_ends_at" value="{{ old('maintenance_ends_at', $settings['maintenance_ends_at']) }}" dir="ltr" style="max-width: 280px"
+                           data-local-time="maintenance_ends_tz" @if (!old('maintenance_ends_at') && $launch) data-instant="{{ $launch->toIso8601String() }}" @endif>
+                    {{-- Your browser's time zone, filled in below, so the time means your local time. --}}
+                    <input type="hidden" name="maintenance_ends_tz" id="maintenance_ends_tz" value="{{ old('maintenance_ends_tz', $settings['maintenance_ends_tz']) }}">
+                    <p class="help">
+                        {{ __('The maintenance page shows this date with a countdown, and the site opens again by itself at this time. Leave empty to keep maintenance on until you turn it off.') }}
+                        <span data-tz-note>{{ __('Time zone: :tz', ['tz' => \App\Support\MaintenanceSchedule::zone($settings['maintenance_ends_tz'])]) }}</span>
+                        @if ($launch && $launch->isFuture() && $maintenance)
+                            <br><b>{{ __('Opens again in :time.', ['time' => now()->diffForHumans($launch, ['syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE, 'parts' => 2])]) }}</b>
+                        @endif
+                    </p>
+                    @error('maintenance_ends_at') <p class="error-text">{{ $message }}</p> @enderror
+                    <script>
+                        // Date fields marked data-local-time="<hidden tz field>": the time typed is this browser's local
+                        // time, so its time zone is sent along; a saved time is shown converted to local time.
+                        document.addEventListener('DOMContentLoaded', function () {
+                            try {
+                                var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                                if (!tz) { return; }
+                                var p = function (n) { return (n < 10 ? '0' : '') + n; };
+                                document.querySelectorAll('input[data-local-time]').forEach(function (input) {
+                                    var field = document.getElementById(input.getAttribute('data-local-time'));
+                                    if (!field) { return; }
+                                    field.value = tz;
+                                    var at = input.getAttribute('data-instant') ? new Date(input.getAttribute('data-instant')) : null;
+                                    if (at && !isNaN(at.getTime())) {
+                                        input.value = at.getFullYear() + '-' + p(at.getMonth() + 1) + '-' + p(at.getDate()) + 'T' + p(at.getHours()) + ':' + p(at.getMinutes());
+                                    }
+                                });
+                                var note = document.querySelector('[data-tz-note]');
+                                if (note) { note.textContent = @json(__('Time zone: :tz', ['tz' => '__TZ__'])).replace('__TZ__', tz); }
+                            } catch (e) { /* old browser: the saved or server time zone is used */ }
+                        });
+                    </script>
+                </div>
                 <div>
                     <label for="maintenance_badge">{{ __('Badge (English)') }}</label>
                     <input type="text" id="maintenance_badge" name="maintenance_badge" value="{{ old('maintenance_badge', $settings['maintenance_badge']) }}" maxlength="80">
@@ -64,6 +106,17 @@
                 <div>
                     <label for="maintenance_badge_ar">{{ __('Badge (Arabic)') }}</label>
                     <input type="text" id="maintenance_badge_ar" name="maintenance_badge_ar" value="{{ old('maintenance_badge_ar', $settings['maintenance_badge_ar']) }}" maxlength="80" dir="rtl">
+                </div>
+                <div>
+                    <label for="maintenance_headline">{{ __('Headline (English)') }} <span class="muted">({{ __('optional') }})</span></label>
+                    <input type="text" id="maintenance_headline" name="maintenance_headline" value="{{ old('maintenance_headline', $settings['maintenance_headline']) }}" maxlength="120" placeholder="🚀 The Grand Opening Is Almost Here!">
+                </div>
+                <div>
+                    <label for="maintenance_headline_ar">{{ __('Headline (Arabic)') }} <span class="muted">({{ __('optional') }})</span></label>
+                    <input type="text" id="maintenance_headline_ar" name="maintenance_headline_ar" value="{{ old('maintenance_headline_ar', $settings['maintenance_headline_ar']) }}" maxlength="120" dir="rtl" placeholder="🚀 الافتتاح الكبير اقترب!">
+                </div>
+                <div class="full">
+                    <p class="help" style="margin: 0">{{ __('With a "Back online at" time the page becomes an opening page: rocket, big headline, opening message, perks and the countdown. Empty headline and message fields use the opening texts shown as examples.') }}</p>
                 </div>
                 <div>
                     <label for="maintenance_text">{{ __('Message (English)') }} <span class="muted">({{ __('optional') }})</span></label>
@@ -227,7 +280,11 @@
                 </div>
                 <div>
                     <label for="home_offer_ends_at">{{ __('Offer ends at') }} <span class="muted">({{ __('optional') }})</span></label>
-                    <input type="datetime-local" id="home_offer_ends_at" name="home_offer_ends_at" value="{{ old('home_offer_ends_at', $settings['home_offer_ends_at']) }}" dir="ltr">
+                    @php $offerAt = \App\Support\MaintenanceSchedule::parse($settings['home_offer_ends_at'], $settings['home_offer_ends_tz'] ?? null); @endphp
+                    <input type="datetime-local" id="home_offer_ends_at" name="home_offer_ends_at" value="{{ old('home_offer_ends_at', $settings['home_offer_ends_at']) }}" dir="ltr"
+                           data-local-time="home_offer_ends_tz" @if (!old('home_offer_ends_at') && $offerAt) data-instant="{{ $offerAt->toIso8601String() }}" @endif>
+                    <input type="hidden" name="home_offer_ends_tz" id="home_offer_ends_tz" value="{{ old('home_offer_ends_tz', $settings['home_offer_ends_tz'] ?? '') }}">
+                    <p class="help">{{ __('Your local time. The box hides itself when the time is up.') }}</p>
                     @error('home_offer_ends_at') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
                 <div class="full">
@@ -340,6 +397,39 @@ $42.5 Instant</pre>
         </div>
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{{ __('Read the file') }}</button>
+        </div>
+    </form>
+
+    <form method="post" action="{{ route('admin.settings.catalog.import') }}" class="stack" id="catalog-transfer" data-once enctype="multipart/form-data" style="margin-top: 24px"
+          data-confirm="{{ __('Import this catalog into this site? Missing categories and services are added; nothing is deleted.') }}">
+        @csrf
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <h2>{{ __('Export / Import all categories and services') }}</h2>
+                    <p>{{ __('Copy the whole catalog to another site, e.g. from DEV to PROD: export it here, then import the file on the other site.') }}</p>
+                </div>
+            </div>
+            <div class="card-body form-grid">
+                <div>
+                    <span class="label">{{ __('Export') }}</span>
+                    <p><a href="{{ route('admin.settings.catalog.export') }}" class="btn">{{ __('Download export file') }} (.json)</a></p>
+                    <p class="help">{{ __('Every category with its input fields, and every service with its prices, VIP price, delivery time and API connection. Archived items are left out.') }}</p>
+                </div>
+                <div>
+                    <label for="catalog_file">{{ __('Import an export file') }} (.json)</label>
+                    <input type="file" id="catalog_file" name="catalog_file" accept=".json,application/json" required>
+                    @error('catalog_file') <p class="error-text">{{ $message }}</p> @enderror
+                    <label class="check" style="margin-top: 10px">
+                        <input type="checkbox" name="update_existing" value="1" checked>
+                        <span>{{ __('Update categories and services that already exist') }}<br><span class="muted">{{ __('Matched by name. When off, they are left as they are and only missing ones are added.') }}</span></span>
+                    </label>
+                    <p class="help">{{ __('API connections are matched to this site\'s providers by URL or name; add the providers here first.') }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ __('Import catalog') }}</button>
         </div>
     </form>
 @endsection

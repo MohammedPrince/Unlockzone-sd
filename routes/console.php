@@ -15,3 +15,13 @@ Artisan::command('providers:sync-orders {--limit=100}', function () {
 })->purpose('Fetch results for orders that were sent to connected providers');
 
 \Illuminate\Support\Facades\Schedule::command('providers:sync-orders')->everyMinute()->withoutOverlapping();
+
+// Maintenance mode with a "Back online at" time: switched off at that minute even if nobody visits the site.
+// (Any request after the launch time switches it off too, so this is only a backstop.)
+Artisan::command('maintenance:check-launch', function () {
+    $this->info(app(\App\Services\SettingService::class)->endMaintenanceIfDue()
+        ? 'Launch time reached: maintenance mode is now off.'
+        : 'Nothing to do.');
+})->purpose('Turn maintenance mode off once its launch time has passed');
+
+\Illuminate\Support\Facades\Schedule::command('maintenance:check-launch')->everyMinute();

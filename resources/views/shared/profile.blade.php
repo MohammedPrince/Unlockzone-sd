@@ -31,35 +31,6 @@
                     <input type="tel" id="phone" name="phone" value="{{ old('phone', $user->phone) }}" maxlength="30">
                     @error('phone') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
-                <div class="full">
-                    <label for="address1">{{ __('Address 1') }}</label>
-                    <input type="text" id="address1" name="address1" value="{{ old('address1', $user->address1) }}" maxlength="255">
-                </div>
-                <div class="full">
-                    <label for="address2">{{ __('Address 2') }}</label>
-                    <input type="text" id="address2" name="address2" value="{{ old('address2', $user->address2) }}" maxlength="255">
-                </div>
-                <div>
-                    <label for="country">{{ __('Country') }}</label>
-                    <select id="country" name="country">
-                        <option value="">{{ __('Select') }}</option>
-                        @foreach ($countries as $country)
-                            <option value="{{ $country }}" @selected(old('country', $user->country) === $country)>{{ $country }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label for="state">{{ __('State') }}</label>
-                    <input type="text" id="state" name="state" value="{{ old('state', $user->state) }}" maxlength="100">
-                </div>
-                <div>
-                    <label for="city">{{ __('City') }}</label>
-                    <input type="text" id="city" name="city" value="{{ old('city', $user->city) }}" maxlength="100">
-                </div>
-                <div>
-                    <label for="zip_code">{{ __('Zip code / post code') }}</label>
-                    <input type="text" id="zip_code" name="zip_code" value="{{ old('zip_code', $user->zip_code) }}" maxlength="20">
-                </div>
             </div>
         </div>
 

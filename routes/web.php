@@ -88,6 +88,14 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::post('customers/{id}/services/suspend', [Admin\CustomerController::class, 'suspendServices'])->whereNumber('id')->name('customers.services.suspend');
     Route::post('customers/{id}/services/block', [Admin\CustomerController::class, 'blockService'])->whereNumber('id')->name('customers.services.block');
     Route::delete('customers/{id}/services/block/{serviceId}', [Admin\CustomerController::class, 'unblockService'])->whereNumber(['id', 'serviceId'])->name('customers.services.unblock');
+    Route::post('customers/{id}/vip', [Admin\CustomerController::class, 'vip'])->whereNumber('id')->name('customers.vip');
+
+    // VIP prices: what customers marked as VIP pay.
+    Route::get('vip-prices', [Admin\VipPriceController::class, 'edit'])->name('vip-prices.edit');
+    Route::put('vip-prices', [Admin\VipPriceController::class, 'update'])->name('vip-prices.update');
+    Route::post('vip-prices/bulk', [Admin\VipPriceController::class, 'bulk'])->name('vip-prices.bulk');
+    Route::post('vip-prices/customers',[Admin\VipPriceController::class, 'addCustomer'])->name('vip-prices.customers.add');
+    Route::delete('vip-prices/customers/{id}', [Admin\VipPriceController::class, 'removeCustomer'])->whereNumber('id')->name('vip-prices.customers.remove');
 
     Route::get('credits', [Admin\CreditController::class, 'index'])->name('credits.index');
     Route::get('credits/export', [Admin\CreditController::class, 'export'])->name('credits.export');
@@ -172,6 +180,8 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::get('settings/import', [Admin\ServiceImportController::class, 'show'])->name('settings.import.show');
     Route::post('settings/import/confirm', [Admin\ServiceImportController::class, 'store'])->name('settings.import.store');
     Route::delete('settings/import', [Admin\ServiceImportController::class, 'cancel'])->name('settings.import.cancel');
+    Route::get('settings/catalog/export', [Admin\CatalogTransferController::class, 'export'])->name('settings.catalog.export');
+    Route::post('settings/catalog/import', [Admin\CatalogTransferController::class, 'import'])->middleware('throttle:10,1')->name('settings.catalog.import');
     Route::get('profile', [Admin\SettingController::class, 'profile'])->name('profile');
     Route::put('profile', [Admin\SettingController::class, 'updateProfile'])->name('profile.update');
 });

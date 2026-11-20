@@ -10,7 +10,8 @@ use Illuminate\Support\Str;
 
 class ServiceRepository
 {
-    public function paginate(array $filters, int $perPage = 15): LengthAwarePaginator
+    /** The admin list, loaded 20 at a time as the admin scrolls. */
+    public function paginate(array $filters, int $perPage = 20): LengthAwarePaginator
     {
         return Service::with(['category', 'provider'])
             ->withCount('requests')
@@ -104,7 +105,7 @@ class ServiceRepository
             ->where('created_at', '>=', now()->subDays($days))
             ->orderByDesc('id')
             ->limit($limit)
-            ->get(['id', 'name', 'price', 'created_at']);
+            ->get(['id', 'name', 'price', 'vip_price', 'created_at']);
     }
 
     /** Drops removed category fields from every service that still referenced them. */
