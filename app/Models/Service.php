@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Support\PriceTier;
 use Illuminate\Support\Collection;
 
 class Service extends Model
@@ -43,6 +44,25 @@ class Service extends Model
     public function usesProvider(): bool
     {
         return $this->api_provider_id !== null && filled($this->remote_service_id);
+    }
+
+    /**
+     * The customer catalog's group for a service name: the part before the first "|"
+     * ("AldazRActivator Premium HELLO A12/A13 | iPhone XR" → "AldazRActivator Premium HELLO A12/A13"),
+     * or the category name when there is no "|" (or nothing before it).
+     */
+    public static function groupOf(string $name, string $categoryName): string
+    {
+        $pos = mb_strpos($name, '|');
+        $head = $pos === false ? '' : trim(preg_replace('/\s+/u', ' ', mb_substr($name, 0, $pos)));
+
+        return $head !== '' ? $head : $categoryName;
+    }
+
+    /** Short, stable id for a group in the address (?group=…); case and spacing do not matter. */
+    public static function groupKey(string $group): string
+    {
+        return substr(md5(mb_strtolower(preg_replace('/\s+/u', ' ', trim($group)))), 0, 10);
     }
 
     /** Shows the "New" tag for the number of days chosen in Settings (0 turns the tag off). */
@@ -105,17 +125,26 @@ class Service extends Model
     /** The VIP price: the fixed VIP price when set, otherwise the site price with the VIP percentage. Never below zero. */
     public function vipPrice(): string
     {
-        $price = $this->vip_price !== null
-            ? (float) $this->vip_price
-            : (float) $this->price * (1 + (float) setting('vip_price_adjust', 0) / 100);
+        return $this->tierPrice(PriceTier::VIP);
+    }
+
+    /** A price level's price (VIP / Web Owner): its fixed price when set, otherwise the site price with its percentage. */
+    public function tierPrice(string $tier): string
+    {
+        $fixed = $this->getAttribute(PriceTier::priceColumn($tier));
+        $price = $fixed !== null
+            ? (float) $fixed
+            : (float) $this->price * (1 + (float) setting(PriceTier::adjustKey($tier), 0) / 100);
 
         return number_format(max(0, round($price, 2)), 2, '.', '');
     }
 
-    /** What $customer pays for one unit: the VIP price for a VIP customer, the site price for everyone else. */
+    /** What $customer pays for one unit: their level's price (VIP or Web Owner), the site price for everyone else. */
     public function priceFor(?User $customer): string
     {
-        return $customer?->is_vip ? $this->vipPrice() : number_format((float) $this->price, 2, '.', '');
+        $tier = $customer?->priceTier();
+
+        return $tier ? $this->tierPrice($tier) : number_format((float) $this->price, 2, '.', '');
     }
 
     /** What an order costs for $quantity units ($customer's price), in the database's decimal format. */

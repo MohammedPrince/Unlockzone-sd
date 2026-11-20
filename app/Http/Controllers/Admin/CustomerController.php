@@ -6,6 +6,7 @@ use App\Exceptions\WorkflowException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CustomerRequest;
 use App\Services\CustomerService;
+use App\Support\PriceTier;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -84,13 +85,22 @@ class CustomerController extends Controller
         return back()->with('success', $suspended ? __('The customer is suspended from all services.') : __('The customer can order services again.'));
     }
 
-    /** Turns VIP pricing on or off for the customer. */
+    /**
+     * The customer's price level: "vip", "owner" (Web Owner) or "" for normal prices. One level at a time.
+     * The older form field vip=1/0 still works.
+     */
     public function vip(Request $request, int $id)
     {
-        $vip = $request->boolean('vip');
-        $this->customers->setVip($this->customers->find($id), $vip, $request->user()->id);
+        $tier = $request->has('tier')
+            ? (in_array($request->input('tier'), PriceTier::all(), true) ? $request->input('tier') : null)
+            : ($request->boolean('vip') ? PriceTier::VIP : null);
+        $this->customers->setTier($this->customers->find($id), $tier, $request->user()->id);
 
-        return back()->with('success', $vip ? __('The customer now pays VIP prices.') : __('The customer now pays the normal site prices.'));
+        return back()->with('success', match ($tier) {
+            PriceTier::VIP => __('The customer now pays VIP prices.'),
+            PriceTier::OWNER => __('The customer now pays Web Owner prices.'),
+            default => __('The customer now pays the normal site prices.'),
+        });
     }
 
     /** Suspend the customer from one service. */

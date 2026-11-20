@@ -33,6 +33,8 @@ class User extends Authenticatable
             'services_suspended' => 'boolean',
             // Set only by an administrator (not fillable): the customer pays VIP prices.
             'is_vip' => 'boolean',
+            // Set only by an administrator: the customer pays Web Owner prices. Never together with is_vip.
+            'is_web_owner' => 'boolean',
             'password' => 'hashed',
         ];
     }
@@ -86,6 +88,16 @@ class User extends Authenticatable
     public static function isVipTag(?string $tag): bool
     {
         return strcasecmp(trim((string) $tag), 'VIP') === 0;
+    }
+
+    /** The customer's special price level (PriceTier::VIP / PriceTier::OWNER), or null for normal prices. */
+    public function priceTier(): ?string
+    {
+        return match (true) {
+            (bool) $this->is_web_owner => \App\Support\PriceTier::OWNER,
+            (bool) $this->is_vip => \App\Support\PriceTier::VIP,
+            default => null,
+        };
     }
 
     public function isAdmin(): bool

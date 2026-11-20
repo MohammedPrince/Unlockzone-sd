@@ -64,9 +64,11 @@
                                 <tr>
                                     <td class="primary">
                                         <a href="{{ route('admin.customers.show', $c->id) }}">{{ $c->name }}</a>
-                                        {{-- One VIP badge: the purple one when they pay VIP prices; a "VIP" tag is not shown twice. --}}
-                                        @if ($c->customer_tag && !($c->is_vip && \App\Models\User::isVipTag($c->customer_tag))) <span class="tag-vip">{{ $c->customer_tag }}</span> @endif
-                                        @if ($c->is_vip) <span class="tag-vip-price" title="{{ __('Pays VIP prices') }}">{{ __('VIP') }}</span> @endif
+                                        {{-- One badge per level: the coloured one when they pay VIP / Web Owner prices; the same tag is not shown twice. --}}
+                                        @php $level = $c->priceTier(); @endphp
+                                        @if ($c->customer_tag && !($level && \App\Support\PriceTier::forTag($c->customer_tag) === $level)) <span class="tag-vip">{{ $c->customer_tag }}</span> @endif
+                                        @if ($level === \App\Support\PriceTier::VIP) <span class="tag-vip-price" title="{{ __('Pays VIP prices') }}">{{ __('VIP') }}</span> @endif
+                                        @if ($level === \App\Support\PriceTier::OWNER) <span class="tag-owner-price" title="{{ __('Pays Web Owner prices') }}">{{ __('Web Owner') }}</span> @endif
                                         <span class="sub">{{ '@' . $c->username }}</span>
                                     </td>
                                     <td data-label="{{ __('Contact') }}">{{ $c->email }}<span class="sub">{{ $c->phone ?: '—' }}</span></td>

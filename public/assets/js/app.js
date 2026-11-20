@@ -5,6 +5,24 @@
     var $ = function (sel, root) { return (root || document).querySelector(sel); };
     var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
 
+    // ----- Number boxes stay inside their min/max -----
+    // While typing, a value past the far end is pulled back at once (e.g. -84546 → -100 when min is -100).
+    // Only the side that cannot block typing is clamped live; both sides are checked when the box is left.
+    var clampNumber = function (input, full) {
+        if (input.value === '' || isNaN(input.valueAsNumber)) { return; }
+        var v = input.valueAsNumber;
+        var min = input.min !== '' ? parseFloat(input.min) : null;
+        var max = input.max !== '' ? parseFloat(input.max) : null;
+        if (max !== null && v > max && (full || max >= 0)) { input.value = max; }
+        else if (min !== null && v < min && (full || min <= 0)) { input.value = min; }
+    };
+    document.addEventListener('input', function (e) {
+        if (e.target.matches && e.target.matches('input[type="number"]')) { clampNumber(e.target, false); }
+    });
+    document.addEventListener('change', function (e) {
+        if (e.target.matches && e.target.matches('input[type="number"]')) { clampNumber(e.target, true); }
+    }, true);
+
     // ----- Light / dark theme (dark is the default; the choice is remembered in this browser) -----
     $$('[data-theme-toggle]').forEach(function (btn) {
         btn.addEventListener('click', function () {

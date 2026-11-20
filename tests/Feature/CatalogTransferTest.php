@@ -34,7 +34,7 @@ class CatalogTransferTest extends TestCase
             'status' => 'active', 'delivery_time' => '1-3 Hours', 'is_instant' => true,
             'configuration' => ['field_ids' => [$email->id], 'execution' => 'manual'],
         ]);
-        Service::whereKey($manual->id)->update(['vip_price' => '10.00']);
+        Service::whereKey($manual->id)->update(['vip_price' => '10.00', 'owner_price' => '9.00']);
 
         Service::create([
             'service_category_id' => $category->id, 'name' => 'Transfer Api', 'slug' => 'transfer-api', 'price' => '5.00',
@@ -75,6 +75,7 @@ class CatalogTransferTest extends TestCase
         $manual = Service::where('name', 'Transfer Manual')->firstOrFail();
         $this->assertSame('12.50', $manual->price);
         $this->assertSame('10.00', $manual->vip_price);
+        $this->assertSame('9.00', $manual->owner_price);
         $this->assertTrue($manual->is_instant);
         $this->assertSame(['Email'], $manual->inputFields()->pluck('label')->all());
 

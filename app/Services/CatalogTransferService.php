@@ -73,6 +73,7 @@ class CatalogTransferService
                             'description' => $s->description,
                             'price' => number_format((float) $s->price, 2, '.', ''),
                             'vip_price' => $s->vip_price !== null ? number_format((float) $s->vip_price, 2, '.', '') : null,
+                            'owner_price' => $s->owner_price !== null ? number_format((float) $s->owner_price, 2, '.', '') : null,
                             'status' => $s->status,
                             'delivery_time' => $s->delivery_time,
                             'is_instant' => (bool) $s->is_instant,
@@ -145,6 +146,9 @@ class CatalogTransferService
                     'description' => filled($s['description'] ?? null) ? HtmlSanitizer::clean((string) $s['description']) : null,
                     'price' => number_format(max(0, (float) $s['price']), 2, '.', ''),
                     'vip_price' => is_numeric($s['vip_price'] ?? null) ? number_format(max(0, (float) $s['vip_price']), 2, '.', '') : null,
+                    // Files made before Web Owner prices have no owner_price: the site keeps its own ("keep").
+                    'owner_price' => !array_key_exists('owner_price', $s) ? 'keep'
+                        : (is_numeric($s['owner_price']) ? number_format(max(0, (float) $s['owner_price']), 2, '.', '') : null),
                     'status' => ($s['status'] ?? '') === 'inactive' ? 'inactive' : 'active',
                     'delivery_time' => filled($s['delivery_time'] ?? null) ? mb_substr((string) $s['delivery_time'], 0, 60) : null,
                     'is_instant' => (bool) ($s['is_instant'] ?? false),
@@ -275,9 +279,12 @@ class CatalogTransferService
                     $result['services_created']++;
                 }
 
-                // vip_price is not mass assignable (it is managed on the VIP prices page).
+                // vip_price / owner_price are not mass assignable (they are managed on the VIP prices page).
                 if ((string) $service->vip_price !== (string) $s['vip_price']) {
                     Service::whereKey($service->id)->update(['vip_price' => $s['vip_price']]);
+                }
+                if ($s['owner_price'] !== 'keep' && (string) $service->owner_price !== (string) $s['owner_price']) {
+                    Service::whereKey($service->id)->update(['owner_price' => $s['owner_price']]);
                 }
             }
         }

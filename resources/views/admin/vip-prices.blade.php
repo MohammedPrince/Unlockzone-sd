@@ -1,42 +1,56 @@
 @extends('layouts.panel')
 
 @php
+    // The same page serves VIP and Web Owner prices: on the Web Owner tab, "VIP" in the texts reads "Web Owner".
+    $T = fn (string $text, array $replace = []) => $tier === \App\Support\PriceTier::VIP
+        ? __($text, $replace)
+        : str_replace('VIP', __('Web Owner'), __($text, $replace));
     $adjustValue = old('price_adjust', rtrim(rtrim(number_format($adjust, 2, '.', ''), '0'), '.'));
     // Confirm texts for the bulk change (the page script fills in :count and :value).
     $bulkTexts = [
-        'fixed' => __('Set the VIP price of :count services to :value$?'),
-        'percent' => __('Set the VIP price of :count services to their site price :value%?'),
-        'clear' => __('Clear the fixed VIP price of :count services? They will use the general percentage.'),
-        'unsaved' => __('VIP prices typed in the list and not saved yet will be lost.'),
+        'fixed' => $T('Set the VIP price of :count services to :value$?'),
+        'percent' => $T('Set the VIP price of :count services to their site price :value%?'),
+        'clear' => $T('Clear the fixed VIP price of :count services? They will use the general percentage.'),
+        'unsaved' => $T('VIP prices typed in the list and not saved yet will be lost.'),
     ];
 @endphp
 
-@section('title', __('VIP prices'))
+@section('title', $T('VIP prices'))
 @section('eyebrow', __('Services'))
-@section('page-title', __('VIP prices'))
-@section('page-description', __('Customers you mark as VIP see and pay these prices. Everyone else keeps the normal site price.'))
+@section('page-title', $T('VIP prices'))
+@section('page-description', $T('Customers you mark as VIP see and pay these prices. Everyone else keeps the normal site price.'))
 
 @section('content')
+    {{-- Price levels: a customer is VIP or Web Owner (never both), each level with its own prices. --}}
+    <div class="tabs" style="margin-bottom: 18px">
+        @foreach (\App\Support\PriceTier::all() as $t)
+            <a href="{{ route('admin.vip-prices.edit', $t === \App\Support\PriceTier::VIP ? [] : ['tier' => $t]) }}" @class(['active' => $tier === $t])>
+                {{ __(\App\Support\PriceTier::label($t)) }}<span>{{ number_format($levelCounts[$t] ?? 0) }}</span>
+            </a>
+        @endforeach
+    </div>
+
     {{-- Its own card (not inside the prices form below): adding and removing customers are separate forms. --}}
     <div class="card" id="vip-customers" style="margin-bottom: 18px">
         <div class="card-head">
-            <h2>{{ __('VIP customers') }}</h2>
+            <h2>{{ $T('VIP customers') }}</h2>
             <span class="badge badge-active">{{ $vipCustomers->count() }}</span>
         </div>
         <div class="card-body form-grid">
             <div>
-                <span class="label">{{ __('Customers paying VIP prices') }}</span>
+                <span class="label">{{ $T('Customers paying VIP prices') }}</span>
                 @if ($vipCustomers->isEmpty())
-                    <p class="muted">{{ __('None yet. Add a customer here, or open a customer\'s profile and tap "Give VIP prices".') }}</p>
+                    <p class="muted">{{ $T('None yet. Add a customer here, or open a customer\'s profile and tap "Give VIP prices".') }}</p>
                 @else
                     <ul class="vip-chips">
                         @foreach ($vipCustomers as $vip)
                             <li>
                                 <a href="{{ route('admin.customers.show', $vip->id) }}" title="{{ $vip->name }}">{{ $vip->username }}</a>
                                 <form method="post" action="{{ route('admin.vip-prices.customers.remove', $vip->id) }}"
-                                      data-confirm="{{ __('Remove :name from VIP customers? They will pay the normal site prices.', ['name' => $vip->username]) }}">
+                                      data-confirm="{{ $T('Remove :name from VIP customers? They will pay the normal site prices.', ['name' => $vip->username]) }}">
                                     @csrf @method('delete')
-                                    <button type="submit" class="vip-chip-x" aria-label="{{ __('Remove :name from VIP customers', ['name' => $vip->username]) }}" title="{{ __('Remove from VIP') }}">&times;</button>
+                                    <input type="hidden" name="tier" value="{{ $tier }}">
+                                    <button type="submit" class="vip-chip-x" aria-label="{{ $T('Remove :name from VIP customers', ['name' => $vip->username]) }}" title="{{ $T('Remove from VIP') }}">&times;</button>
                                 </form>
                             </li>
                         @endforeach
@@ -45,21 +59,22 @@
             </div>
             <div>
                 @if ($otherCustomers->isEmpty())
-                    <span class="label">{{ __('Add a VIP customer') }}</span>
-                    <p class="muted">{{ __('Every customer already pays VIP prices.') }}</p>
+                    <span class="label">{{ $T('Add a VIP customer') }}</span>
+                    <p class="muted">{{ $T('Every customer already pays VIP prices.') }}</p>
                 @else
                     <form method="post" action="{{ route('admin.vip-prices.customers.add') }}" class="inline-form" data-once>
                         @csrf
+                        <input type="hidden" name="tier" value="{{ $tier }}">
                         <div class="field">
-                            <label for="vip-add-customer">{{ __('Add a VIP customer') }}</label>
+                            <label for="vip-add-customer">{{ $T('Add a VIP customer') }}</label>
                             <select id="vip-add-customer" name="user_id" required data-search="{{ __('Search by name or username...') }}" data-search-empty="{{ __('No customer matches.') }}">
                                 <option value="">{{ __('Choose a customer') }}</option>
                                 @foreach ($otherCustomers as $other)
-                                    <option value="{{ $other->id }}">{{ $other->username }} — {{ $other->name }}@if ($other->status !== 'active') ({{ __($other->status) }})@endif</option>
+                                    <option value="{{ $other->id }}">{{ $other->username }} — {{ $other->name }}{{ $other->status !== 'active' ? ' (' . __($other->status) . ')' : '' }}{{ $other->priceTier() ? ' — ' . __('now :level, will be moved', ['level' => __(\App\Support\PriceTier::label($other->priceTier()))]) : '' }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <button class="btn btn-primary" type="submit">{{ __('Add to VIP') }}</button>
+                        <button class="btn btn-primary" type="submit">{{ $T('Add to VIP') }}</button>
                     </form>
                     @error('user_id') <p class="error-text">{{ $message }}</p> @enderror
                 @endif
@@ -70,12 +85,12 @@
     {{-- The percentage and the Save button belong to the prices form further down (form="vip-prices-form"):
          the filter form sits between them, and forms cannot be nested. --}}
     <div class="card" style="margin-bottom: 18px">
-        <div class="card-head"><h2>{{ __('VIP percentage') }}</h2></div>
+        <div class="card-head"><h2>{{ $T('VIP percentage') }}</h2></div>
         <div class="card-body">
             <div style="max-width: 520px">
-                <label for="price_adjust">{{ __('VIP price for every service') }} (%)</label>
-                <input type="number" id="price_adjust" name="price_adjust" form="vip-prices-form" value="{{ $adjustValue }}" min="-90" max="1000" step="0.01" dir="ltr" required data-price-adjust>
-                <p class="help">{{ __('Applied to the site price. 0 = same as the site, -10 = 10% discount, 5 = 5% more. A VIP price typed next to a service below replaces it for that service.') }}</p>
+                <label for="price_adjust">{{ $T('VIP price for every service') }} (%)</label>
+                <input type="number" id="price_adjust" name="price_adjust" form="vip-prices-form" value="{{ $adjustValue }}" min="-100" max="1000" step="0.01" dir="ltr" required data-price-adjust>
+                <p class="help">{{ $T('Applied to the site price. 0 = same as the site, -10 = 10% discount, 5 = 5% more. A VIP price typed next to a service below replaces it for that service.') }}</p>
                 @error('price_adjust') <p class="error-text">{{ $message }}</p> @enderror
             </div>
         </div>
@@ -85,12 +100,13 @@
         <div class="card-head">
             <div>
                 <h2>{{ __('Price per service') }}</h2>
-                <p>{{ __('Leave a VIP price empty to use the percentage above. The grey number shows what the percentage gives.') }}</p>
+                <p>{{ $T('Leave a VIP price empty to use the percentage above. The grey number shows what the percentage gives.') }}</p>
             </div>
         </div>
 
         {{-- Results follow what is typed (data-live-search); Enter / Filter still work without JavaScript. --}}
         <form class="filters" method="get" action="{{ route('admin.vip-prices.edit') }}" id="vip-filter" data-live-search="#vip-price-list">
+            @if ($tierQuery) <input type="hidden" name="tier" value="{{ $tier }}"> @endif
             <div class="field grow">
                 <label for="vip-q">{{ __('Quick search') }}</label>
                 <input type="search" id="vip-q" name="q" value="{{ $search }}" placeholder="{{ __('Search by service name...') }}" autocomplete="off">
@@ -108,13 +124,13 @@
                 <label for="vip-only">{{ __('Show') }}</label>
                 <select id="vip-only" name="only">
                     <option value="">{{ __('All services') }}</option>
-                    <option value="fixed" @selected($only === 'fixed')>{{ __('With a fixed VIP price') }}</option>
+                    <option value="fixed" @selected($only === 'fixed')>{{ $T('With a fixed VIP price') }}</option>
                     <option value="percent" @selected($only === 'percent')>{{ __('Using the percentage') }}</option>
                 </select>
             </div>
             <div class="btns">
                 <button class="btn btn-primary" type="submit">{{ __('Filter') }}</button>
-                <a class="btn" href="{{ route('admin.vip-prices.edit') }}">{{ __('Reset') }}</a>
+                <a class="btn" href="{{ route('admin.vip-prices.edit', $tierQuery) }}">{{ __('Reset') }}</a>
             </div>
         </form>
 
@@ -123,6 +139,7 @@
         <form method="post" action="{{ route('admin.vip-prices.bulk') }}" id="vip-bulk" class="bulk-bar vip-bulk" data-once autocomplete="off">
             @csrf
             <input type="hidden" name="scope" value="selected" data-vip-scope>
+            <input type="hidden" name="tier" value="{{ $tier }}">
             {{-- Filled from the list on submit: which filters "all matching" means, and where to come back to. --}}
             <input type="hidden" name="q" data-vip-keep="q">
             <input type="hidden" name="category" data-vip-keep="category">
@@ -139,8 +156,8 @@
             <span class="vip-bulk-action">
                 <label for="vip-bulk-action" class="sr-only">{{ __('Action') }}</label>
                 <select id="vip-bulk-action" name="action" data-vip-action>
-                    <option value="fixed" @selected(old('action') === 'fixed')>{{ __('Set VIP price to ($)') }}</option>
-                    <option value="percent" @selected(old('action') === 'percent')>{{ __('Set VIP price to site price + (%)') }}</option>
+                    <option value="fixed" @selected(old('action') === 'fixed')>{{ $T('Set VIP price to ($)') }}</option>
+                    <option value="percent" @selected(old('action') === 'percent')>{{ $T('Set VIP price to site price + (%)') }}</option>
                     <option value="clear" @selected(old('action') === 'clear')>{{ __('Clear: use the general percentage') }}</option>
                 </select>
                 <label for="vip-bulk-value" class="sr-only">{{ __('Value') }}</label>
@@ -155,6 +172,7 @@
         <form method="post" action="{{ route('admin.vip-prices.update') }}" id="vip-prices-form" data-once autocomplete="off">
             @csrf
             @method('put')
+            <input type="hidden" name="tier" value="{{ $tier }}">
 
             <div class="card-body" id="vip-price-list" data-live-results data-total="{{ $services->total() }}" data-per-page="{{ $services->count() }}">
                 {{-- Kept on the same page and filters after saving (swapped with the results by the live search). --}}
@@ -165,7 +183,7 @@
 
                 <div class="vip-toolbar">
                     <span class="muted">
-                        {{ __(':count services with a fixed VIP price', ['count' => $fixedCount]) }}
+                        {{ $T(':count services with a fixed VIP price', ['count' => $fixedCount]) }}
                         @if ($services->total() > 0) · {{ __('Showing :from–:to of :total', ['from' => $services->firstItem(), 'to' => $services->lastItem(), 'total' => $services->total()]) }} @endif
                     </span>
                     @if ($categories->isNotEmpty())
@@ -188,10 +206,10 @@
                         </summary>
                         <div class="table-wrap">
                             <table class="price-table">
-                                <thead><tr><th class="pt-check"><input type="checkbox" data-vip-check-group aria-label="{{ __('Select all in :category', ['category' => $category->name]) }}"></th><th>{{ __('Service') }}</th><th class="right">{{ __('Site price') }}</th><th class="right pt-input">{{ __('VIP price') }}</th></tr></thead>
+                                <thead><tr><th class="pt-check"><input type="checkbox" data-vip-check-group aria-label="{{ __('Select all in :category', ['category' => $category->name]) }}"></th><th>{{ __('Service') }}</th><th class="right">{{ __('Site price') }}</th><th class="right pt-input">{{ $T('VIP price') }}</th></tr></thead>
                                 <tbody>
                                     @foreach ($category->services as $service)
-                                        @php $fixed = old('prices.' . $service->id, $service->vip_price === null ? '' : rtrim(rtrim($service->vip_price, '0'), '.')); @endphp
+                                        @php $fixed = old('prices.' . $service->id, $service->tier_price === null ? '' : rtrim(rtrim($service->tier_price, '0'), '.')); @endphp
                                         <tr>
                                             <td class="pt-check"><input type="checkbox" name="ids[]" value="{{ $service->id }}" form="vip-bulk" data-vip-check aria-label="{{ __('Select :name', ['name' => $service->name]) }}"></td>
                                             <td class="pt-name">
@@ -199,9 +217,9 @@
                                                 @if ($service->status !== 'active') <span class="badge badge-inactive">{{ __('Inactive') }}</span> @endif
                                             </td>
                                             <td class="right num pt-site" data-label="{{ __('Site price') }}">{{ money($service->price) }}</td>
-                                            <td class="right pt-input" data-label="{{ __('VIP price') }}">
+                                            <td class="right pt-input" data-label="{{ $T('VIP price') }}">
                                                 <input type="number" id="vip-{{ $service->id }}" name="prices[{{ $service->id }}]" value="{{ $fixed }}" min="0" step="0.01" dir="ltr" inputmode="decimal"
-                                                       data-vip-price data-base="{{ (float) $service->price }}" data-orig="{{ $service->vip_price === null ? '' : rtrim(rtrim($service->vip_price, '0'), '.') }}" aria-label="{{ __('VIP price') }}: {{ $service->name }}">
+                                                       data-vip-price data-base="{{ (float) $service->price }}" data-orig="{{ $service->tier_price === null ? '' : rtrim(rtrim($service->tier_price, '0'), '.') }}" aria-label="{{ $T('VIP price') }}: {{ $service->name }}">
                                             </td>
                                         </tr>
                                     @endforeach
@@ -225,7 +243,7 @@
     </div>
 
     <div class="form-actions">
-        <button type="submit" form="vip-prices-form" class="btn btn-primary">{{ __('Save VIP prices') }}</button>
+        <button type="submit" form="vip-prices-form" class="btn btn-primary">{{ $T('Save VIP prices') }}</button>
     </div>
 @endsection
 
@@ -340,7 +358,7 @@
     var unsaved = function () {
         return priceInputs().some(function (input) { return input.value.trim() !== input.getAttribute('data-orig'); });
     };
-    var warning = @json(__('You have VIP prices that are not saved. Leave this page without saving them?'));
+    var warning = @json($T('You have VIP prices that are not saved. Leave this page without saving them?'));
     picker.addEventListener('click', function (e) {
         var link = e.target.closest('[data-vip-pages] a');
         if (link && unsaved() && !window.confirm(warning)) { e.preventDefault(); }
@@ -430,7 +448,7 @@
         var syncAction = function () {
             value.hidden = action.value === 'clear';
             value.required = action.value !== 'clear';
-            value.min = action.value === 'percent' ? '-90' : '0';
+            value.min = action.value === 'percent' ? '-100' : '0';
             value.max = action.value === 'percent' ? '1000' : '999999.99';
             value.placeholder = value.getAttribute(action.value === 'percent' ? 'data-ph-percent' : 'data-ph-fixed');
         };
