@@ -178,6 +178,8 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::post('tools/{tool}', [Admin\ServerToolController::class, 'run'])->where('tool', '[a-z\-]+')->middleware('throttle:20,1')->name('tools.run');
     Route::get('tools/log/download', [Admin\ServerToolController::class, 'downloadLog'])->name('tools.log.download');
     Route::delete('tools/log', [Admin\ServerToolController::class, 'clearLog'])->name('tools.log.clear');
+    // The backup list lives on the Server Tools page.
+    Route::get('tools/backups', fn () => redirect()->to(route('admin.tools.index') . '#backups'))->name('tools.backups.index');
     Route::get('tools/backups/{file}', [Admin\ServerToolController::class, 'download'])->where('file', 'backup-[0-9\-]+\.sql')->name('tools.backups.download');
     Route::delete('tools/backups/{file}', [Admin\ServerToolController::class, 'destroy'])->where('file', 'backup-[0-9\-]+\.sql')->name('tools.backups.destroy');
 

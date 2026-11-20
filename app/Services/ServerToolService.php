@@ -151,48 +151,94 @@ class ServerToolService
     }
 
     /**
-     * Writes every table (structure and rows) to a .sql file, without needing mysqldump on the server.
+     * Writes this site's tables (structure and rows) to backup-YYYY-MM-DD-HHMMSS.sql, without needing mysqldump.
+     * Used by the "Database backup" button and by the weekly scheduled `php artisan db:backup`.
+     * Downloadable at /admin/tools/backups/{name} (admins only). Restore: phpMyAdmin > Import.
      */
-    private function backup(): string
+    public function backup(): string
     {
         $dir = storage_path(self::BACKUP_DIR);
         if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
             throw new RuntimeException('Could not create the backup folder.');
         }
+        // In case the project sits inside public_html: the web server refuses the folder (downloads go through the admin page).
+        if (!is_file($dir . '/.htaccess')) {
+            @file_put_contents($dir . '/.htaccess', "Require all denied\nDeny from all\n");
+        }
 
-        $file = $dir . DIRECTORY_SEPARATOR . 'backup-' . now()->format('Y-m-d-His') . '.sql';
+        // Named on the site owner's clock (config/backup.php), so the weekly 00:00 backup reads 00:00.
+        $stamp = now()->timezone((string) config('backup.timezone', config('app.timezone')));
+        $file = $dir . DIRECTORY_SEPARATOR . 'backup-' . $stamp->format('Y-m-d-His') . '.sql';
+        for ($i = 1; is_file($file); $i++) { // two backups in the same second
+            $file = $dir . DIRECTORY_SEPARATOR . 'backup-' . $stamp->format('Y-m-d-His') . "-{$i}.sql";
+        }
+        $tmp = $file . '.part';
+
         $pdo = DB::connection()->getPdo();
-        $out = fopen($file, 'wb');
+        $prefix = (string) DB::connection()->getTablePrefix();
+        $out = fopen($tmp, 'wb') ?: throw new RuntimeException('Could not write the backup file.');
+        $write = function (string $sql) use ($out) {
+            if (fwrite($out, $sql) === false) {
+                throw new RuntimeException('Writing the backup failed (is the disk full?).');
+            }
+        };
 
         try {
-            fwrite($out, "-- " . setting('site_name') . " database backup\n-- " . now()->toDateTimeString() . "\n\nSET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\n\n");
+            $write("-- " . setting('site_name') . " database backup\n-- " . $stamp->toDateTimeString() . ' ' . $stamp->format('T') . "\n"
+                . "-- Restore: phpMyAdmin > Import, or: mysql -u USER -p DATABASE < this-file.sql\n\n"
+                . "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\nSET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n\n");
 
-            $tables = array_map(fn ($row) => array_values((array) $row)[0], DB::select('SHOW TABLES'));
+            // Real tables only (no views), and only this site's when the database is shared with something else.
+            $tables = collect($pdo->query('SHOW FULL TABLES')->fetchAll(\PDO::FETCH_NUM))
+                ->filter(fn ($r) => ($r[1] ?? 'BASE TABLE') === 'BASE TABLE' && ($prefix === '' || str_starts_with($r[0], $prefix)))
+                ->map(fn ($r) => $r[0])->values()->all();
+            if (!$tables) {
+                throw new RuntimeException('No tables found to back up.');
+            }
             $rows = 0;
 
             foreach ($tables as $table) {
-                $create = (array) DB::selectOne("SHOW CREATE TABLE `{$table}`");
-                fwrite($out, "DROP TABLE IF EXISTS `{$table}`;\n" . ($create['Create Table'] ?? array_values($create)[1]) . ";\n\n");
+                $q = '`' . str_replace('`', '``', $table) . '`';
+                $write("DROP TABLE IF EXISTS {$q};\n" . $pdo->query("SHOW CREATE TABLE {$q}")->fetch(\PDO::FETCH_NUM)[1] . ";\n\n");
 
-                $stmt = $pdo->query("SELECT * FROM `{$table}`");
-                $batch = [];
-                while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-                    $batch[] = '(' . implode(',', array_map(fn ($v) => $v === null ? 'NULL' : $pdo->quote((string) $v), $row)) . ')';
-                    $rows++;
-                    if (count($batch) === 200) {
-                        fwrite($out, "INSERT INTO `{$table}` VALUES\n" . implode(",\n", $batch) . ";\n");
-                        $batch = [];
+                // Row by row from the server, so a big table never has to fit in memory.
+                $buffered = $pdo->getAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY);
+                $pdo->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, false);
+                try {
+                    $stmt = $pdo->query("SELECT * FROM {$q}");
+                    $batch = [];
+                    $columns = null;
+                    while (($row = $stmt->fetch(\PDO::FETCH_ASSOC)) !== false) {
+                        $columns ??= '(' . implode(',', array_map(fn ($c) => '`' . str_replace('`', '``', $c) . '`', array_keys($row))) . ')';
+                        $batch[] = '(' . implode(',', array_map(fn ($v) => $v === null ? 'NULL' : $pdo->quote((string) $v), $row)) . ')';
+                        $rows++;
+                        if (count($batch) === 200) {
+                            $write("INSERT INTO {$q} {$columns} VALUES\n" . implode(",\n", $batch) . ";\n");
+                            $batch = [];
+                        }
                     }
+                    if ($batch) {
+                        $write("INSERT INTO {$q} {$columns} VALUES\n" . implode(",\n", $batch) . ";\n");
+                    }
+                    $stmt->closeCursor();
+                } finally {
+                    $pdo->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, $buffered);
                 }
-                if ($batch) {
-                    fwrite($out, "INSERT INTO `{$table}` VALUES\n" . implode(",\n", $batch) . ";\n");
-                }
-                fwrite($out, "\n");
+                $write("\n");
             }
 
-            fwrite($out, "SET FOREIGN_KEY_CHECKS = 1;\n");
-        } finally {
+            $write("SET FOREIGN_KEY_CHECKS = 1;\n-- End of backup\n");
+        } catch (Throwable $e) {
             fclose($out);
+            @unlink($tmp);
+            throw $e;
+        }
+        fclose($out);
+
+        // Only a finished file gets the .sql name, so a half-written backup is never listed.
+        if (!rename($tmp, $file)) {
+            @unlink($tmp);
+            throw new RuntimeException('Could not finish the backup file.');
         }
 
         $this->pruneBackups();

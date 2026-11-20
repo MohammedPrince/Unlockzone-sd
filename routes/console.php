@@ -25,3 +25,17 @@ Artisan::command('maintenance:check-launch', function () {
 })->purpose('Turn maintenance mode off once its launch time has passed');
 
 \Illuminate\Support\Facades\Schedule::command('maintenance:check-launch')->everyMinute();
+
+// Database backup: the same as Admin > Server Tools > "Database backup". The file is listed there and
+// downloads from /admin/tools/backups/backup-YYYY-MM-DD-HHMMSS.sql (admins only), on DEV and PROD alike.
+Artisan::command('db:backup', function () {
+    $this->info(app(\App\Services\ServerToolService::class)->backup());
+    app(\App\Repositories\ActivityLogRepository::class)->log('server_tool', 'Weekly database backup', null, ['tool' => 'backup', 'scheduled' => true]);
+})->purpose('Back up the database (listed in Admin > Server Tools)');
+
+// Once a week, at 00:00 (Sunday by default, on the BACKUP_TIMEZONE clock).
+\Illuminate\Support\Facades\Schedule::command('db:backup')
+    ->weeklyOn((int) config('backup.day'), (string) config('backup.time'))
+    ->timezone((string) config('backup.timezone'))
+    ->withoutOverlapping(120)
+    ->onFailure(fn () => \Illuminate\Support\Facades\Log::error('Weekly database backup failed (php artisan db:backup).'));
