@@ -91,8 +91,13 @@ class ApiProviderService
         return $info;
     }
 
-    /** Downloads the provider's price list into provider_services. Returns the number of services. */
-    public function syncServices(ApiProvider $provider, int $adminId): int
+    /**
+     * Downloads the provider's price list into provider_services, then brings the required inputs of the
+     * services already imported from it up to date.
+     *
+     * @return array{services: int, fields_updated: int}
+     */
+    public function syncServices(ApiProvider $provider, int $adminId): array
     {
         try {
             $list = $provider->client()->serviceList();
@@ -118,9 +123,36 @@ class ApiProviderService
         });
 
         $provider->forceFill(['services_synced_at' => now(), 'last_checked_at' => now(), 'last_error' => null])->save();
-        $this->logs->log('provider_synced', "Synced " . count($list) . " services from {$provider->name}", $provider, [], $adminId);
 
-        return count($list);
+        // Services already imported from this provider: their required inputs follow the fresh list.
+        $fieldsUpdated = $this->syncImportedFields($provider);
+
+        $this->logs->log('provider_synced', "Synced " . count($list) . " services from {$provider->name}, {$fieldsUpdated} imported service(s) got new required inputs", $provider, [
+            'fields_updated' => $fieldsUpdated,
+        ], $adminId);
+
+        return ['services' => count($list), 'fields_updated' => $fieldsUpdated];
+    }
+
+    /**
+     * Every service imported from the provider gets the provider's required inputs (IMEI and its own fields)
+     * when they no longer match. Returns how many services changed.
+     */
+    private function syncImportedFields(ApiProvider $provider): int
+    {
+        $rows = $provider->remoteServices()->get()->keyBy('remote_id');
+        $changed = 0;
+
+        DB::transaction(function () use ($provider, $rows, &$changed) {
+            foreach (Service::where('api_provider_id', $provider->id)->whereNotNull('remote_service_id')->with('category.fields')->get() as $service) {
+                $row = $rows->get((string) $service->remote_service_id);
+                if ($row && $service->category && $this->syncFieldsFromProvider($service, $row)) {
+                    $changed++;
+                }
+            }
+        });
+
+        return $changed;
     }
 
     public function remoteServices(ApiProvider $provider, array $filters, int $perPage = 50): LengthAwarePaginator
@@ -177,7 +209,8 @@ class ApiProviderService
             $byName = Service::get(['id', 'name', 'service_category_id', 'api_provider_id', 'remote_service_id', 'configuration'])
                 ->keyBy(fn ($s) => ServiceImportService::key($s->name));
             $categories = [];
-            $result = ['created' => 0, 'linked' => 0, 'skipped' => 0, 'categories' => 0];
+            $result = ['created' => 0, 'linked' => 0, 'skipped' => 0, 'categories' => 0, 'fields_updated' => 0];
+            $touched = [];
 
             foreach ($rows as $row) {
                 // Names are stored cut to 150 characters, so compare the cut name (very long provider names).
@@ -187,6 +220,12 @@ class ApiProviderService
                 $delivery = $row->delivery_time ? mb_substr($row->delivery_time, 0, 60) : null;
 
                 if (isset($linked[$row->remote_id])) {
+                    // Already imported: price, name and the rest stay as the admin set them, but the required
+                    // inputs follow the provider. When they no longer match, they are replaced by the provider's.
+                    $existing = isset($touched[$linked[$row->remote_id]]) ? null : Service::with('category.fields')->find($linked[$row->remote_id]);
+                    if ($existing && $existing->category && $this->syncFieldsFromProvider($existing, $row)) {
+                        $result['fields_updated']++;
+                    }
                     $result['skipped']++;
                     continue;
                 }
@@ -199,11 +238,16 @@ class ApiProviderService
                     }
 
                     $category = ServiceCategory::with('fields')->findOrFail($same->service_category_id);
+                    $newFields = $this->fieldIdsFor($category, $row);
+                    if (!$this->sameFields($same->fieldIds(), $newFields)) {
+                        $result['fields_updated']++;
+                    }
+                    $touched[$same->id] = true;
                     $same->update([
                         'price' => $price,
                         'delivery_time' => $delivery,
                         'configuration' => array_merge($same->configuration ?? [], [
-                            'field_ids' => $this->fieldIdsFor($category, $row),
+                            'field_ids' => $newFields,
                             'execution' => 'api',
                         ]),
                         'api_provider_id' => $provider->id,
@@ -230,12 +274,13 @@ class ApiProviderService
                     'remote_service_id' => $row->remote_id,
                 ]);
                 $linked[$row->remote_id] = $service->id;
+                $touched[$service->id] = true;
                 $byName->put($key, $service);
                 $result['created']++;
             }
 
-            $this->logs->log('provider_import', "Imported from {$provider->name}: {$result['created']} new, {$result['linked']} existing switched to the API, {$result['categories']} new categories", $provider, [
-                'margin' => $margin, 'skipped' => $result['skipped'], 'category' => $target?->name ?? 'provider groups',
+            $this->logs->log('provider_import', "Imported from {$provider->name}: {$result['created']} new, {$result['linked']} existing switched to the API, {$result['fields_updated']} with new required inputs, {$result['categories']} new categories", $provider, [
+                'margin' => $margin, 'skipped' => $result['skipped'], 'fields_updated' => $result['fields_updated'], 'category' => $target?->name ?? 'provider groups',
             ], $adminId);
 
             return $result;
@@ -318,6 +363,32 @@ class ApiProviderService
         ], $adminId);
 
         return $result;
+    }
+
+    /** Replaces the service's required inputs by the provider's when they differ. True when it changed something. */
+    private function syncFieldsFromProvider(Service $service, ProviderService $row): bool
+    {
+        $need = $this->fieldIdsFor($service->category, $row);
+        if ($this->sameFields($service->fieldIds(), $need)) {
+            return false;
+        }
+
+        $config = $service->configuration ?? [];
+        $config['field_ids'] = $need;
+        $service->update(['configuration' => $config]);
+
+        return true;
+    }
+
+    /** Same inputs, whatever the order. */
+    private function sameFields(array $a, array $b): bool
+    {
+        $a = array_values(array_unique(array_map('intval', $a)));
+        $b = array_values(array_unique(array_map('intval', $b)));
+        sort($a);
+        sort($b);
+
+        return $a === $b;
     }
 
     private function fieldIdsFor(ServiceCategory $category, ProviderService $row): array

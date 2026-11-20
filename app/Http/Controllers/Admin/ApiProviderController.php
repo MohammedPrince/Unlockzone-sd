@@ -71,12 +71,17 @@ class ApiProviderController extends Controller
     public function sync(Request $request, int $id)
     {
         try {
-            $count = $this->providers->syncServices($this->providers->find($id), $request->user()->id);
+            $synced = $this->providers->syncServices($this->providers->find($id), $request->user()->id);
         } catch (ProviderException $e) {
             return back()->withErrors(['provider' => __('The provider answered: :message', ['message' => $e->getMessage()])]);
         }
 
-        return redirect()->route('admin.providers.services', $id)->with('success', __(':count services loaded from the provider.', ['count' => $count]));
+        $message = __(':count services loaded from the provider.', ['count' => $synced['services']]);
+        if ($synced['fields_updated'] > 0) {
+            $message .= ' ' . trans_choice('{1} 1 existing service got its required inputs updated from the API.|[2,*] :count existing services got their required inputs updated from the API.', $synced['fields_updated'], ['count' => $synced['fields_updated']]);
+        }
+
+        return redirect()->route('admin.providers.services', $id)->with('success', $message);
     }
 
     /** The provider's price list, with tick boxes to import lines as local services. */
@@ -134,6 +139,9 @@ class ApiProviderController extends Controller
         }
         if ($result['skipped']) {
             $message .= ' ' . __(':count were already imported.', ['count' => $result['skipped']]);
+        }
+        if ($result['fields_updated'] ?? 0) {
+            $message .= ' ' . trans_choice('{1} 1 existing service got its required inputs updated from the API.|[2,*] :count existing services got their required inputs updated from the API.', $result['fields_updated'], ['count' => $result['fields_updated']]);
         }
 
         return back()->with('success', $message);

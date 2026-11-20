@@ -91,6 +91,50 @@ class ProviderImportTest extends TestCase
         $this->assertSame(3, Service::whereNotNull('remote_service_id')->count());
     }
 
+    public function test_sync_and_import_update_the_required_inputs_of_existing_services_when_the_api_changes(): void
+    {
+        // The provider's list, changeable between syncs: Mi removal starts with an IMEI only.
+        $custom = [];
+        Http::fake(function ($r) use (&$custom) {
+            return match ($r['action']) {
+                'accountinfo' => Http::response(['SUCCESS' => [['AccoutInfo' => ['credit' => '10', 'currency' => 'USD']]]]),
+                'imeiservicelist' => Http::response(['SUCCESS' => [['LIST' => [
+                    'Xiaomi' => ['GROUPNAME' => 'Xiaomi', 'GROUPTYPE' => 'IMEI', 'SERVICES' => [
+                        '30092' => ['SERVICEID' => 30092, 'SERVICENAME' => 'Mi Account Removal', 'CREDIT' => '20', 'TIME' => '5 Minutes', 'Requires.Custom' => $custom],
+                    ]],
+                ]]]]),
+            };
+        });
+        $this->actingAs($this->admin())->post(route('admin.providers.store'), [
+            'name' => 'AmrService', 'url' => 'https://provider.test', 'username' => 'me', 'api_key' => 'K', 'status' => 'active',
+        ])->assertSessionHasNoErrors();
+        $provider = ApiProvider::sole();
+        $this->post(route('admin.providers.sync', $provider->id))->assertSessionHasNoErrors();
+        $this->post(route('admin.providers.import', $provider->id), ['scope' => 'all', 'service_category_id' => '', 'margin' => 0, 'status' => 'active'])
+            ->assertSessionHasNoErrors();
+
+        $mi = Service::where('remote_service_id', '30092')->sole();
+        $category = $mi->category;
+        $imei = $category->fields()->where('input_type', 'imei')->sole();
+        $this->assertSame([$imei->id], $mi->fieldIds());
+
+        // Its inputs got lost on the site (e.g. the IMEI field unticked): syncing again puts the provider's back.
+        $mi->update(['configuration' => ['field_ids' => [], 'execution' => 'api']]);
+        $this->post(route('admin.providers.sync', $provider->id))
+            ->assertSessionHas('success', fn ($m) => str_contains($m, '1 existing service got its required inputs updated from the API'));
+        $this->assertSame([$imei->id], $mi->fresh()->fieldIds());
+
+        // The provider now also asks for a lock code: the next sync adds it.
+        $custom = [['fieldname' => 'Lock code', 'required' => '1']];
+        $this->post(route('admin.providers.sync', $provider->id))->assertSessionHasNoErrors();
+        $lock = $category->fields()->where('label', 'Lock code')->sole();
+        $this->assertSame([$imei->id, $lock->id], $mi->fresh()->fieldIds());
+
+        // Already matching: nothing changes, and the message does not mention it.
+        $this->post(route('admin.providers.sync', $provider->id))
+            ->assertSessionHas('success', fn ($m) => !str_contains($m, 'required inputs updated'));
+    }
+
     public function test_linked_services_count_opens_the_services_list_for_that_provider(): void
     {
         $provider = $this->syncedProvider();
