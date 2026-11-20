@@ -19,6 +19,8 @@
     <form method="post" action="{{ $editing ? route('admin.categories.update', $category->id) : route('admin.categories.store') }}" class="stack" data-once>
         @csrf
         @if ($editing) @method('put') @endif
+        {{-- Near the top on purpose: if PHP cuts a very long form short, this still arrives and the server refuses the save. --}}
+        <input type="hidden" name="fields_total" value="{{ count($rows) }}" data-fields-total>
 
         <div class="card">
             <div class="card-head"><h2>{{ __('Category') }}</h2></div>
@@ -56,8 +58,9 @@
                 <button type="button" class="btn btn-sm" data-add-field>@include('partials.icon', ['name' => 'plus']) {{ __('Add field') }}</button>
             </div>
             <div class="card-body">
-                <div id="field-rows">@foreach ($rows as $i => $field)@include('admin.categories.field-row', ['i' => $i, 'field' => $field])@endforeach</div>
-                <p class="help">{{ __('Removing a field also removes it from the services that use it. Past requests keep the values they were submitted with.') }}</p>
+                <div id="field-rows">@foreach ($rows as $i => $field)@include('admin.categories.field-row', ['i' => $i, 'field' => $field, 'used' => $usage[$field['id'] ?? 0] ?? 0])@endforeach</div>
+                <p class="help">{{ __('Removing a field also removes it from the services that use it, all at once when you save. Past requests keep the values they were submitted with.') }} {{ __('Up to :max fields.', ['max' => \App\Http\Requests\Admin\CategoryRequest::MAX_FIELDS]) }}</p>
+                @error('fields') <p class="error-text">{{ $message }}</p> @enderror
                 @error('fields.*') <p class="error-text">{{ $message }}</p> @enderror
             </div>
         </div>

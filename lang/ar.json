@@ -1422,5 +1422,10 @@
     ":name is :level now. Move them to the new price level?": ":name حاليًا :level. هل تريد نقله إلى مستوى الأسعار الجديد؟",
     "Pays Web Owner prices": "يدفع أسعار مالك الموقع",
     "Your Web Owner price": "سعرك كمالك للموقع",
-    "The tag \"VIP\" gives VIP prices and \"Web Owner\" gives Web Owner prices (one or the other); removing the tag takes them away.": "الوسم \"VIP\" يمنح أسعار VIP والوسم \"Web Owner\" يمنح أسعار مالك الموقع (أحدهما فقط)؛ وحذف الوسم يلغيها."
+    "The tag \"VIP\" gives VIP prices and \"Web Owner\" gives Web Owner prices (one or the other); removing the tag takes them away.": "الوسم \"VIP\" يمنح أسعار VIP والوسم \"Web Owner\" يمنح أسعار مالك الموقع (أحدهما فقط)؛ وحذف الوسم يلغيها.",
+    "The server received only part of the form, so nothing was saved (no field was removed). Ask the hosting to raise max_input_vars, or use fewer fields.": "استلم الخادم جزءًا من النموذج فقط، لذلك لم يُحفظ شيء (لم يُحذف أي حقل). اطلب من الاستضافة رفع max_input_vars، أو استخدم حقولًا أقل.",
+    "Removing a field also removes it from the services that use it, all at once when you save. Past requests keep the values they were submitted with.": "حذف حقل يحذفه أيضًا من كل الخدمات التي تستخدمه دفعة واحدة عند الحفظ. الطلبات السابقة تحتفظ بالقيم التي أُرسلت بها.",
+    "Up to :max fields.": "حتى :max حقلًا.",
+    "{1} Used by 1 service|[2,*] Used by :count services": "{1} تستخدمه خدمة واحدة|[2,*] تستخدمه :count خدمة",
+    "{1} Remove \":label\"? 1 service uses it; it is removed from that service too when you save.|[2,*] Remove \":label\"? :count services use it; it is removed from all of them too when you save.": "{1} حذف \":label\"؟ تستخدمه خدمة واحدة؛ وسيُحذف منها أيضًا عند الحفظ.|[2,*] حذف \":label\"؟ تستخدمه :count خدمة؛ وسيُحذف منها كلها أيضًا عند الحفظ."
 }

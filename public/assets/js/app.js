@@ -618,8 +618,15 @@
         $$('[data-add-field]').forEach(function (b) { b.addEventListener('click', add); });
         rows.addEventListener('click', function (e) {
             var btn = e.target.closest('[data-remove-field]');
+            // A field used by services: say so first (saving removes it from them too).
+            if (btn && btn.hasAttribute('data-confirm-remove') && !window.confirm(btn.getAttribute('data-confirm-remove'))) { return; }
             if (btn) { btn.closest('.field-row').remove(); }
         });
+        // How many rows were sent, checked by the server: a form cut short by PHP is refused, not saved.
+        var total = $('[data-fields-total]');
+        if (total) {
+            total.form.addEventListener('submit', function () { total.value = String(rows.querySelectorAll('.field-row').length); });
+        }
     }
 
     // ----- Service form: show only the fields of the chosen category -----
