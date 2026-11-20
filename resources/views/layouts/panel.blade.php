@@ -29,6 +29,7 @@
             'Platform' => [
                 ['admin.announcements.index', 'Announcement bar', 'megaphone', 'admin.announcements.*'],
                 ['admin.settings', 'Settings', 'cog', 'admin.settings'],
+                ['admin.admins.index', 'Administrators', 'lock', 'admin.admins.*'],
                 ['admin.tools.index', 'Server Tools', 'tool', 'admin.tools.*'],
                 ['admin.guide', 'Admin manual', 'book', 'admin.guide'],
             ],

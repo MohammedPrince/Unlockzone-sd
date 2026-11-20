@@ -90,6 +90,12 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::delete('customers/{id}/services/block/{serviceId}', [Admin\CustomerController::class, 'unblockService'])->whereNumber(['id', 'serviceId'])->name('customers.services.unblock');
     Route::post('customers/{id}/vip', [Admin\CustomerController::class, 'vip'])->whereNumber('id')->name('customers.vip');
 
+    // Administrators: add, suspend or remove other admins (never yourself, never the last active one).
+    Route::get('admins', [Admin\AdministratorController::class, 'index'])->name('admins.index');
+    Route::post('admins', [Admin\AdministratorController::class, 'store'])->middleware('throttle:10,1')->name('admins.store');
+    Route::post('admins/{id}/status', [Admin\AdministratorController::class, 'status'])->whereNumber('id')->name('admins.status');
+    Route::delete('admins/{id}', [Admin\AdministratorController::class, 'destroy'])->whereNumber('id')->name('admins.destroy');
+
     // VIP prices: what customers marked as VIP pay.
     Route::get('vip-prices', [Admin\VipPriceController::class, 'edit'])->name('vip-prices.edit');
     Route::put('vip-prices', [Admin\VipPriceController::class, 'update'])->name('vip-prices.update');
