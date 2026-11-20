@@ -124,6 +124,7 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::get('services/{id}/edit', [Admin\ServiceController::class, 'edit'])->whereNumber('id')->name('services.edit');
     Route::put('services/{id}', [Admin\ServiceController::class, 'update'])->whereNumber('id')->name('services.update');
     Route::post('services/move', [Admin\ServiceController::class, 'move'])->name('services.move');
+    Route::post('services/{id}/provider-fields', [Admin\ServiceController::class, 'providerFields'])->whereNumber('id')->middleware('throttle:10,1')->name('services.provider-fields');
     Route::post('services/{id}/toggle', [Admin\ServiceController::class, 'toggle'])->whereNumber('id')->name('services.toggle');
     Route::delete('services/{id}', [Admin\ServiceController::class, 'destroy'])->whereNumber('id')->name('services.destroy');
     Route::post('uploads/image', [Admin\UploadController::class, 'image'])->middleware('throttle:30,1')->name('uploads.image');
@@ -140,6 +141,8 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::get('providers', [Admin\ApiProviderController::class, 'index'])->name('providers.index');
     Route::get('providers/create', [Admin\ApiProviderController::class, 'create'])->name('providers.create');
     Route::post('providers', [Admin\ApiProviderController::class, 'store'])->name('providers.store');
+    Route::post('providers/update-fields', [Admin\ApiProviderController::class, 'updateAllFields'])->middleware('throttle:5,1')->name('providers.update-fields');
+    Route::post('providers/repair-fields', [Admin\ApiProviderController::class, 'repairFields'])->name('providers.repair-fields');
     Route::post('providers/sync-orders', [Admin\ApiProviderController::class, 'syncOrders'])->name('providers.sync-orders');
     Route::get('providers/{id}/edit', [Admin\ApiProviderController::class, 'edit'])->whereNumber('id')->name('providers.edit');
     Route::put('providers/{id}', [Admin\ApiProviderController::class, 'update'])->whereNumber('id')->name('providers.update');

@@ -259,6 +259,9 @@ select { appearance: none; padding-inline-end: 34px; background-image: url("data
 .form-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; padding-top: 4px; }
 .field-row { display: grid; gap: 10px; grid-template-columns: 1.3fr 1fr 1.3fr auto auto; align-items: end; padding: 12px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--sunken); }
 .field-row + .field-row { margin-top: 10px; }
+/* Remove button with "Used by N services" under it. */
+.field-used { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.field-used .muted { font-size: 11px; white-space: nowrap; }
 .pick { display: flex; flex-wrap: wrap; gap: 8px; }
 .pick label { margin: 0; display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--input-bg); cursor: pointer; font-weight: 500; font-size: 13px; color: var(--text); }
 .pick input { accent-color: var(--accent); }

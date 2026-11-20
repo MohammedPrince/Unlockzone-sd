@@ -91,8 +91,13 @@ class ApiProviderService
         return $info;
     }
 
-    /** Downloads the provider's price list into provider_services. Returns the number of services. */
-    public function syncServices(ApiProvider $provider, int $adminId): int
+    /**
+     * Downloads the provider's price list into provider_services, then brings the required inputs of the
+     * services already imported from it up to date.
+     *
+     * @return array{services: int, fields_updated: int}
+     */
+    public function syncServices(ApiProvider $provider, int $adminId): array
     {
         try {
             $list = $provider->client()->serviceList();
@@ -118,9 +123,84 @@ class ApiProviderService
         });
 
         $provider->forceFill(['services_synced_at' => now(), 'last_checked_at' => now(), 'last_error' => null])->save();
-        $this->logs->log('provider_synced', "Synced " . count($list) . " services from {$provider->name}", $provider, [], $adminId);
 
-        return count($list);
+        // Services already imported from this provider: their required inputs follow the fresh list.
+        $fieldsUpdated = $this->syncImportedFields($provider);
+
+        $this->logs->log('provider_synced', "Synced " . count($list) . " services from {$provider->name}, {$fieldsUpdated} imported service(s) got new required inputs", $provider, [
+            'fields_updated' => $fieldsUpdated,
+        ], $adminId);
+
+        return ['services' => count($list), 'fields_updated' => $fieldsUpdated];
+    }
+
+    /**
+     * "Update required inputs from the API" for all services: every active provider that has imported services
+     * is synced (fresh list), and each of its services gets the inputs the API asks for when they differ.
+     * A provider that does not answer is reported and skipped; the others still run.
+     *
+     * Returns ['providers' => int synced, 'fields_updated' => int, 'failed' => [provider name => error]].
+     */
+    public function updateAllFields(int $adminId): array
+    {
+        @set_time_limit(600);
+        $result = ['providers' => 0, 'fields_updated' => 0, 'failed' => []];
+
+        $providers = ApiProvider::where('status', 'active')
+            ->whereHas('services', fn ($q) => $q->whereNotNull('remote_service_id'))->orderBy('name')->get();
+
+        foreach ($providers as $provider) {
+            try {
+                $synced = $this->syncServices($provider, $adminId);
+                $result['providers']++;
+                $result['fields_updated'] += $synced['fields_updated'];
+            } catch (\Throwable $e) {
+                report($e);
+                $result['failed'][$provider->name] = mb_substr($e->getMessage(), 0, 200);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * "Update required inputs from the API" on one service: reloads its provider's list (which also brings
+     * every other service of that provider up to date) and returns this service's result:
+     * ['changed' => bool, 'found' => bool (the provider still lists it), 'labels' => [field labels now asked]].
+     */
+    public function updateServiceFields(Service $service, int $adminId): array
+    {
+        $provider = $this->find((int) $service->api_provider_id);
+        $before = $service->fieldIds();
+        $this->syncServices($provider, $adminId);
+
+        $service->refresh()->load('category.fields');
+        $found = $provider->remoteServices()->where('remote_id', (string) $service->remote_service_id)->exists();
+        $labels = $service->category?->fields->whereIn('id', $service->fieldIds())
+            ->sortBy(fn ($f) => array_search($f->id, $service->fieldIds(), true))->pluck('label')->values()->all() ?? [];
+
+        return ['changed' => $before !== $service->fieldIds(), 'found' => $found, 'labels' => $labels];
+    }
+
+    /**
+     * Every service imported from the provider gets the provider's required inputs (IMEI and its own fields)
+     * when they no longer match. Returns how many services changed.
+     */
+    private function syncImportedFields(ApiProvider $provider): int
+    {
+        $rows = $provider->remoteServices()->get()->keyBy('remote_id');
+        $changed = 0;
+
+        DB::transaction(function () use ($provider, $rows, &$changed) {
+            foreach (Service::where('api_provider_id', $provider->id)->whereNotNull('remote_service_id')->with('category.fields')->get() as $service) {
+                $row = $rows->get((string) $service->remote_service_id);
+                if ($row && $service->category && $this->syncFieldsFromProvider($service, $row)) {
+                    $changed++;
+                }
+            }
+        });
+
+        return $changed;
     }
 
     public function remoteServices(ApiProvider $provider, array $filters, int $perPage = 50): LengthAwarePaginator
@@ -158,7 +238,7 @@ class ApiProviderService
      * - A service already linked to that provider line is skipped.
      * - A service with the same name already on the site (typed in by hand, imported from a text file or
      *   from another provider) is not duplicated: it is switched to this API service. It keeps its id,
-     *   category, status, description and order history; its price, delivery time and inputs come from the API.
+     *   category, status, description, price, delivery time and order history; only its required inputs come from the API.
      *
      * Returns ['created' => int, 'linked' => int, 'skipped' => int, 'categories' => int].
      */
@@ -177,7 +257,8 @@ class ApiProviderService
             $byName = Service::get(['id', 'name', 'service_category_id', 'api_provider_id', 'remote_service_id', 'configuration'])
                 ->keyBy(fn ($s) => ServiceImportService::key($s->name));
             $categories = [];
-            $result = ['created' => 0, 'linked' => 0, 'skipped' => 0, 'categories' => 0];
+            $result = ['created' => 0, 'linked' => 0, 'skipped' => 0, 'categories' => 0, 'fields_updated' => 0];
+            $touched = [];
 
             foreach ($rows as $row) {
                 // Names are stored cut to 150 characters, so compare the cut name (very long provider names).
@@ -187,6 +268,12 @@ class ApiProviderService
                 $delivery = $row->delivery_time ? mb_substr($row->delivery_time, 0, 60) : null;
 
                 if (isset($linked[$row->remote_id])) {
+                    // Already imported: price, name and the rest stay as the admin set them, but the required
+                    // inputs follow the provider. When they no longer match, they are replaced by the provider's.
+                    $existing = isset($touched[$linked[$row->remote_id]]) ? null : Service::with('category.fields')->find($linked[$row->remote_id]);
+                    if ($existing && $existing->category && $this->syncFieldsFromProvider($existing, $row)) {
+                        $result['fields_updated']++;
+                    }
                     $result['skipped']++;
                     continue;
                 }
@@ -199,11 +286,15 @@ class ApiProviderService
                     }
 
                     $category = ServiceCategory::with('fields')->findOrFail($same->service_category_id);
+                    $newFields = $this->fieldIdsFor($category, $row);
+                    if (!$this->sameFields($same->fieldIds(), $newFields)) {
+                        $result['fields_updated']++;
+                    }
+                    $touched[$same->id] = true;
+                    // Only the link and the required inputs change: the price (and delivery time) set by the admin stay.
                     $same->update([
-                        'price' => $price,
-                        'delivery_time' => $delivery,
                         'configuration' => array_merge($same->configuration ?? [], [
-                            'field_ids' => $this->fieldIdsFor($category, $row),
+                            'field_ids' => $newFields,
                             'execution' => 'api',
                         ]),
                         'api_provider_id' => $provider->id,
@@ -230,12 +321,13 @@ class ApiProviderService
                     'remote_service_id' => $row->remote_id,
                 ]);
                 $linked[$row->remote_id] = $service->id;
+                $touched[$service->id] = true;
                 $byName->put($key, $service);
                 $result['created']++;
             }
 
-            $this->logs->log('provider_import', "Imported from {$provider->name}: {$result['created']} new, {$result['linked']} existing switched to the API, {$result['categories']} new categories", $provider, [
-                'margin' => $margin, 'skipped' => $result['skipped'], 'category' => $target?->name ?? 'provider groups',
+            $this->logs->log('provider_import', "Imported from {$provider->name}: {$result['created']} new, {$result['linked']} existing switched to the API, {$result['fields_updated']} with new required inputs, {$result['categories']} new categories", $provider, [
+                'margin' => $margin, 'skipped' => $result['skipped'], 'fields_updated' => $result['fields_updated'], 'category' => $target?->name ?? 'provider groups',
             ], $adminId);
 
             return $result;
@@ -271,14 +363,115 @@ class ApiProviderService
     }
 
     /** Finds (or adds to the category) the input fields a provider service needs. */
+    /**
+     * Gives every API service back the inputs its provider asks for (IMEI and the provider's own fields),
+     * e.g. after a field was removed from the category and so from the services. Only adds what is missing:
+     * fields the admin ticked themselves are kept. Uses the price list saved by the last "Sync services".
+     *
+     * Returns ['checked' => int, 'fixed' => int, 'unknown' => int] (unknown = no saved provider line to go by).
+     */
+    public function repairFields(int $adminId): array
+    {
+        $result = ['checked' => 0, 'fixed' => 0, 'unknown' => 0];
+        $fixed = [];
+
+        $services = Service::whereNotNull('api_provider_id')->whereNotNull('remote_service_id')
+            ->with('category.fields')->get(['id', 'name', 'service_category_id', 'api_provider_id', 'remote_service_id', 'configuration']);
+        $rows = ProviderService::whereIn('api_provider_id', $services->pluck('api_provider_id')->unique())->get()
+            ->keyBy(fn ($r) => $r->api_provider_id . ':' . $r->remote_id);
+
+        DB::transaction(function () use ($services, $rows, &$result, &$fixed) {
+            foreach ($services as $service) {
+                $result['checked']++;
+                $row = $rows->get($service->api_provider_id . ':' . $service->remote_service_id);
+                if (!$row || !$service->category) {
+                    $result['unknown']++;
+                    continue;
+                }
+
+                $have = $service->fieldIds();
+                $need = $this->fieldIdsFor($service->category, $row);
+                $missing = array_values(array_diff($need, $have));
+                if (!$missing) {
+                    continue;
+                }
+
+                // The provider's inputs first (IMEI on top, as on import), then the admin's other ticks.
+                $config = $service->configuration ?? [];
+                $config['field_ids'] = array_values(array_unique([...$need, ...$have]));
+                $service->update(['configuration' => $config]);
+                $result['fixed']++;
+                $fixed[] = $service->name;
+            }
+        });
+
+        $this->logs->log('provider_fields', "Fixed missing inputs on {$result['fixed']} API service(s)", null, $result + [
+            'services' => array_slice($fixed, 0, 50),
+        ], $adminId);
+
+        return $result;
+    }
+
+    /** Replaces the service's required inputs by the provider's when they differ. True when it changed something. */
+    private function syncFieldsFromProvider(Service $service, ProviderService $row): bool
+    {
+        $need = $this->fieldIdsFor($service->category, $row);
+        if ($this->sameFields($service->fieldIds(), $need)) {
+            return false;
+        }
+
+        $config = $service->configuration ?? [];
+        $config['field_ids'] = $need;
+        $service->update(['configuration' => $config]);
+
+        return true;
+    }
+
+    /** Same inputs, whatever the order. */
+    private function sameFields(array $a, array $b): bool
+    {
+        $a = array_values(array_unique(array_map('intval', $a)));
+        $b = array_values(array_unique(array_map('intval', $b)));
+        sort($a);
+        sort($b);
+
+        return $a === $b;
+    }
+
+    /**
+     * The provider's own name for the IMEI box (a field flagged "imei" that is not simply called IMEI / SN),
+     * e.g. "Lock Code"; null for a plain IMEI box. Also used when an order is sent, to know which value is the IMEI.
+     */
+    public static function imeiBoxName(array $remoteFields): ?string
+    {
+        foreach ($remoteFields as $f) {
+            $name = trim((string) ($f['name'] ?? ''));
+            if (!empty($f['imei']) && $name !== '' && !preg_match('/^(imei|imei\s*\/\s*sn|sn|serial(\s*number)?)$/i', $name)) {
+                return $name;
+            }
+        }
+
+        return null;
+    }
+
     private function fieldIdsFor(ServiceCategory $category, ProviderService $row): array
     {
         $ids = [];
         $category->load('fields');
 
         if ($row->needs_imei) {
-            $field = $category->fields->firstWhere('input_type', 'imei')
-                ?? $category->fields()->create(['label' => 'IMEI', 'input_type' => 'imei', 'placeholder' => '15-digit IMEI', 'is_required' => true, 'sort_order' => 0]);
+            // The provider may have renamed its IMEI box ("Lock Code", "Email"…): then the customer is asked for
+            // that (a field of that name, sent as the IMEI), not for a 15-digit IMEI.
+            $boxName = self::imeiBoxName($row->fields ?? []);
+            $field = $boxName !== null
+                ? ($category->fields->first(fn (CategoryField $f) => mb_strtolower($f->label) === mb_strtolower($boxName))
+                    ?? $category->fields()->create([
+                        'label' => $boxName,
+                        'input_type' => str_contains(mb_strtolower($boxName), 'mail') ? 'email' : 'text',
+                        'placeholder' => null, 'is_required' => true, 'sort_order' => 0,
+                    ]))
+                : ($category->fields->firstWhere('input_type', 'imei')
+                    ?? $category->fields()->create(['label' => 'IMEI', 'input_type' => 'imei', 'placeholder' => '15-digit IMEI', 'is_required' => true, 'sort_order' => 0]));
             $ids[] = $field->id;
         }
 

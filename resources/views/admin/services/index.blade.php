@@ -6,6 +6,13 @@
 @section('page-description', __('What customers can order, what each one costs, and whether it is on sale.'))
 
 @section('page-actions')
+    @if (\App\Models\Service::whereNotNull('api_provider_id')->whereNotNull('remote_service_id')->exists())
+        <form method="post" action="{{ route('admin.providers.update-fields') }}" class="inline" data-once
+              data-confirm="{{ __('Reload every provider’s list and give all imported services (IMEI, server, rent…) the required input fields the API asks for? Fields that differ are replaced. This can take a minute.') }}">
+            @csrf
+            <button class="btn" type="submit">{{ __('Update all inputs from the API') }}</button>
+        </form>
+    @endif
     <a class="btn btn-primary" href="{{ route('admin.services.create') }}">@include('partials.icon', ['name' => 'plus']) {{ __('New service') }}</a>
 @endsection
 

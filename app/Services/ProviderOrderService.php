@@ -223,6 +223,8 @@ class ProviderOrderService
     {
         $remote = ProviderService::where('api_provider_id', $providerId)->where('remote_id', $remoteId)->first();
         $names = collect($remote?->fields ?? [])->pluck('name')->mapWithKeys(fn ($n) => [mb_strtolower($n) => $n]);
+        // The provider renamed its IMEI box ("Lock Code", "Email"…): the field with that name is sent as the IMEI.
+        $boxName = mb_strtolower((string) ApiProviderService::imeiBoxName($remote?->fields ?? []));
 
         $imei = null;
         $custom = [];
@@ -244,7 +246,8 @@ class ProviderOrderService
                 continue;
             }
 
-            if ($imei === null && in_array($item['type'] ?? '', ['imei', 'sn'], true)) {
+            $isBox = $boxName !== '' && mb_strtolower((string) ($item['label'] ?? '')) === $boxName;
+            if ($imei === null && ($isBox || ($boxName === '' && in_array($item['type'] ?? '', ['imei', 'sn'], true)))) {
                 $imei = $value;
                 continue;
             }

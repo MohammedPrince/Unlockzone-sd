@@ -21,5 +21,10 @@
         <input type="hidden" name="fields[{{ $i }}][is_required]" value="0">
         <input type="checkbox" name="fields[{{ $i }}][is_required]" value="1" @checked($field['is_required'] ?? true)> {{ __('Required') }}
     </label>
-    <button type="button" class="btn btn-sm btn-danger" data-remove-field style="margin-bottom: 4px">{{ __('Remove') }}</button>
+    @php $used = (int) ($used ?? 0); @endphp
+    <span class="field-used">
+        <button type="button" class="btn btn-sm btn-danger" data-remove-field style="margin-bottom: 4px"
+                @if ($used > 0) data-confirm-remove="{{ trans_choice('{1} Remove ":label"? 1 service uses it; it is removed from that service too when you save.|[2,*] Remove ":label"? :count services use it; it is removed from all of them too when you save.', $used, ['count' => $used, 'label' => $field['label'] ?? '']) }}" @endif>{{ __('Remove') }}</button>
+        @if ($used > 0) <span class="muted">{{ trans_choice('{1} Used by 1 service|[2,*] Used by :count services', $used, ['count' => $used]) }}</span> @endif
+    </span>
 </div>

@@ -71,12 +71,17 @@ class ApiProviderController extends Controller
     public function sync(Request $request, int $id)
     {
         try {
-            $count = $this->providers->syncServices($this->providers->find($id), $request->user()->id);
+            $synced = $this->providers->syncServices($this->providers->find($id), $request->user()->id);
         } catch (ProviderException $e) {
             return back()->withErrors(['provider' => __('The provider answered: :message', ['message' => $e->getMessage()])]);
         }
 
-        return redirect()->route('admin.providers.services', $id)->with('success', __(':count services loaded from the provider.', ['count' => $count]));
+        $message = __(':count services loaded from the provider.', ['count' => $synced['services']]);
+        if ($synced['fields_updated'] > 0) {
+            $message .= ' ' . trans_choice('{1} 1 existing service got its required inputs updated from the API.|[2,*] :count existing services got their required inputs updated from the API.', $synced['fields_updated'], ['count' => $synced['fields_updated']]);
+        }
+
+        return redirect()->route('admin.providers.services', $id)->with('success', $message);
     }
 
     /** The provider's price list, with tick boxes to import lines as local services. */
@@ -135,11 +140,45 @@ class ApiProviderController extends Controller
         if ($result['skipped']) {
             $message .= ' ' . __(':count were already imported.', ['count' => $result['skipped']]);
         }
+        if ($result['fields_updated'] ?? 0) {
+            $message .= ' ' . trans_choice('{1} 1 existing service got its required inputs updated from the API.|[2,*] :count existing services got their required inputs updated from the API.', $result['fields_updated'], ['count' => $result['fields_updated']]);
+        }
 
         return back()->with('success', $message);
     }
 
     /** Asks the providers about every open order right now (the scheduler does the same every minute). */
+    /** "Update all inputs from the API": every provider's list is reloaded and every imported service follows it. */
+    public function updateAllFields(Request $request)
+    {
+        $r = $this->providers->updateAllFields($request->user()->id);
+
+        $message = trans_choice('{0} No provider with imported services to update.|{1} 1 provider checked.|[2,*] :count providers checked.', $r['providers'], ['count' => $r['providers']]);
+        $message .= ' ' . trans_choice('{0} Every API service already asks for what the API needs.|{1} 1 service got its required inputs updated from the API.|[2,*] :count services got their required inputs updated from the API.', $r['fields_updated'], ['count' => $r['fields_updated']]);
+
+        $back = back()->with('success', $message);
+        if ($r['failed']) {
+            $back->withErrors(['provider' => __('Not updated (the provider did not answer): :list', [
+                'list' => collect($r['failed'])->map(fn ($error, $name) => "{$name}: {$error}")->implode(' · '),
+            ])]);
+        }
+
+        return $back;
+    }
+
+    /** "Fix missing inputs": API services get back the inputs their provider asks for. */
+    public function repairFields(Request $request)
+    {
+        $r = $this->providers->repairFields($request->user()->id);
+
+        $message = trans_choice('{0} Every API service already asks for what its provider needs.|{1} 1 API service got its missing inputs back.|[2,*] :count API services got their missing inputs back.', $r['fixed'], ['count' => $r['fixed']]);
+        if ($r['unknown'] > 0) {
+            $message .= ' ' . trans_choice('{1} 1 service could not be checked: use "Sync services" on its provider first.|[2,*] :count services could not be checked: use "Sync services" on their provider first.', $r['unknown'], ['count' => $r['unknown']]);
+        }
+
+        return back()->with('success', $message);
+    }
+
     public function syncOrders()
     {
         $checked = $this->orders->syncOpen(100);

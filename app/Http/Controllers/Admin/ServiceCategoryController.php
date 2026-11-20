@@ -22,7 +22,7 @@ class ServiceCategoryController extends Controller
 
     public function create()
     {
-        return view('admin.categories.form', ['category' => null, 'types' => CategoryField::TYPES]);
+        return view('admin.categories.form', ['category' => null, 'types' => CategoryField::TYPES, 'usage' => []]);
     }
 
     public function store(CategoryRequest $request)
@@ -34,7 +34,17 @@ class ServiceCategoryController extends Controller
 
     public function edit(int $id)
     {
-        return view('admin.categories.form', ['category' => $this->categories->find($id), 'types' => CategoryField::TYPES]);
+        $category = $this->categories->find($id);
+
+        // How many services ask for each field, shown next to its Remove button.
+        $usage = [];
+        foreach (\App\Models\Service::where('service_category_id', $category->id)->get(['id', 'configuration']) as $service) {
+            foreach (array_unique($service->fieldIds()) as $fieldId) {
+                $usage[$fieldId] = ($usage[$fieldId] ?? 0) + 1;
+            }
+        }
+
+        return view('admin.categories.form', ['category' => $category, 'types' => CategoryField::TYPES, 'usage' => $usage]);
     }
 
     public function update(CategoryRequest $request, int $id)

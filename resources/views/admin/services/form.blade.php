@@ -122,7 +122,13 @@
                         <h2>{{ __('Automatic processing through a provider') }} <span class="muted">({{ __('optional') }})</span></h2>
                         <p>{{ __('Link this service to a connected provider and its orders are forwarded there automatically. Leave empty to handle orders yourself.') }}</p>
                     </div>
-                    <a class="btn btn-sm" href="{{ route('admin.providers.index') }}">{{ __('API providers') }}</a>
+                    <span class="btns">
+                        {{-- Its own form below (forms cannot be nested): reloads the provider's list and takes this service's inputs from it. --}}
+                        @if ($editing && $service->api_provider_id && $service->remote_service_id)
+                            <button type="submit" form="provider-fields-form" class="btn btn-sm btn-primary">{{ __('Update required inputs from the API') }}</button>
+                        @endif
+                        <a class="btn btn-sm" href="{{ route('admin.providers.index') }}">{{ __('API providers') }}</a>
+                    </span>
                 </div>
                 <div class="card-body form-grid">
                     <div>
@@ -150,5 +156,12 @@
                 <button type="submit" class="btn btn-primary">{{ $editing ? __('Save changes') : __('Create service') }}</button>
             </div>
         </form>
+
+        @if ($editing && $service->api_provider_id && $service->remote_service_id)
+            <form method="post" action="{{ route('admin.services.provider-fields', $service->id) }}" id="provider-fields-form" data-once
+                  data-confirm="{{ __('Load the provider’s list again and replace the required input fields of this service with what the API asks for? Unsaved changes on this page are lost.') }}">
+                @csrf
+            </form>
+        @endif
     @endif
 @endsection
