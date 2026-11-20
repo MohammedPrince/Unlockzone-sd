@@ -65,6 +65,29 @@ class ServiceController extends Controller
         return redirect()->route('admin.services.index')->with('success', 'Service updated.');
     }
 
+    /** "Update required inputs from the API": the service asks for what its provider's list says. */
+    public function providerFields(Request $request, int $id)
+    {
+        $service = $this->services->find($id);
+        abort_if(!$service->api_provider_id || !$service->remote_service_id, 404);
+
+        try {
+            $r = $this->providers->updateServiceFields($service, $request->user()->id);
+        } catch (\App\Exceptions\ProviderException $e) {
+            return back()->withErrors(['provider' => __('The provider answered: :message', ['message' => $e->getMessage()])]);
+        }
+
+        if (!$r['found']) {
+            return back()->withErrors(['provider' => __('The provider no longer lists service ID :id. Check the "Service ID at the provider".', ['id' => $service->remote_service_id])]);
+        }
+
+        $asked = $r['labels'] ? implode(', ', $r['labels']) : __('nothing (no extra information)');
+
+        return back()->with('success', ($r['changed']
+            ? __('Required inputs updated from the API.')
+            : __('The required inputs already match the API.')) . ' ' . __('Customers are asked for: :fields.', ['fields' => $asked]));
+    }
+
     public function toggle(Request $request, int $id)
     {
         $service = $this->services->toggle($this->services->find($id), $request->user()->id);

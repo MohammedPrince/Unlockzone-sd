@@ -7,6 +7,11 @@
 
 @section('page-actions')
     @if ($providers->isNotEmpty())
+        <form method="post" action="{{ route('admin.providers.update-fields') }}" class="inline" data-once
+              data-confirm="{{ __('Reload every provider’s list and give all imported services (IMEI, server, rent…) the required input fields the API asks for? Fields that differ are replaced. This can take a minute.') }}">
+            @csrf
+            <button class="btn btn-primary" type="submit">{{ __('Update all inputs from the API') }}</button>
+        </form>
         {{-- API services that lost an input (e.g. a field removed from the category) get back what the provider needs. --}}
         <form method="post" action="{{ route('admin.providers.repair-fields') }}" class="inline" data-once
               data-confirm="{{ __('Tick again, on every API service, the inputs its provider asks for (IMEI and the provider’s own fields)? Inputs you ticked yourself are kept.') }}">

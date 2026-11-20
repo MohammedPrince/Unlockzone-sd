@@ -148,6 +148,24 @@ class ApiProviderController extends Controller
     }
 
     /** Asks the providers about every open order right now (the scheduler does the same every minute). */
+    /** "Update all inputs from the API": every provider's list is reloaded and every imported service follows it. */
+    public function updateAllFields(Request $request)
+    {
+        $r = $this->providers->updateAllFields($request->user()->id);
+
+        $message = trans_choice('{0} No provider with imported services to update.|{1} 1 provider checked.|[2,*] :count providers checked.', $r['providers'], ['count' => $r['providers']]);
+        $message .= ' ' . trans_choice('{0} Every API service already asks for what the API needs.|{1} 1 service got its required inputs updated from the API.|[2,*] :count services got their required inputs updated from the API.', $r['fields_updated'], ['count' => $r['fields_updated']]);
+
+        $back = back()->with('success', $message);
+        if ($r['failed']) {
+            $back->withErrors(['provider' => __('Not updated (the provider did not answer): :list', [
+                'list' => collect($r['failed'])->map(fn ($error, $name) => "{$name}: {$error}")->implode(' · '),
+            ])]);
+        }
+
+        return $back;
+    }
+
     /** "Fix missing inputs": API services get back the inputs their provider asks for. */
     public function repairFields(Request $request)
     {

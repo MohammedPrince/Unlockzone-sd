@@ -60,6 +60,13 @@ class DhruFusionClient implements ProviderClient
                 $type = strtoupper((string) ($service['SERVICETYPE'] ?? $groupType));
                 $fields = $this->customFields($service);
 
+                // An IMEI service can rename its IMEI box (CUSTOM.customname), e.g. "Lock Code" or "Email": the
+                // customer types that, and it is still sent as the IMEI. Kept as the first field, flagged "imei".
+                if ($type === 'IMEI' && ($boxName = $this->imeiBoxName($service)) !== null) {
+                    $fields = array_values(array_filter($fields, fn ($f) => mb_strtolower($f['name']) !== mb_strtolower($boxName)));
+                    array_unshift($fields, ['name' => $boxName, 'type' => 'text', 'required' => true, 'imei' => true]);
+                }
+
                 $out[] = [
                     'remote_id' => $id,
                     'group_name' => mb_substr($groupName, 0, 191),
@@ -211,6 +218,27 @@ class DhruFusionClient implements ProviderClient
     }
 
     /** Custom fields a service asks for, whatever shape this server version uses. */
+    /**
+     * The name the provider gives its IMEI box, from CUSTOM {allow: 1, customname: "Lock Code", …}; null when
+     * the box is a plain IMEI (not renamed, or renamed to IMEI / SN, which is the same thing).
+     */
+    private function imeiBoxName(array $service): ?string
+    {
+        $custom = $service['CUSTOM'] ?? $service['custom'] ?? null;
+        if (!is_array($custom) || array_is_list($custom)) {
+            return null;
+        }
+
+        $allow = strtolower((string) ($custom['allow'] ?? $custom['ALLOW'] ?? ''));
+        $name = trim(strip_tags((string) ($custom['customname'] ?? $custom['CUSTOMNAME'] ?? '')));
+        if (!in_array($allow, ['1', 'on', 'yes', 'true'], true) || $name === ''
+            || preg_match('/^(imei|imei\s*\/\s*sn|sn|serial(\s*number)?)$/i', $name)) {
+            return null;
+        }
+
+        return mb_substr($name, 0, 100);
+    }
+
     private function customFields(array $service): array
     {
         $raw = $service['Requires.Custom'] ?? $service['CUSTOM'] ?? $service['custom'] ?? [];

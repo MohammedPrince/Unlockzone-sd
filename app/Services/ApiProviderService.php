@@ -135,6 +135,54 @@ class ApiProviderService
     }
 
     /**
+     * "Update required inputs from the API" for all services: every active provider that has imported services
+     * is synced (fresh list), and each of its services gets the inputs the API asks for when they differ.
+     * A provider that does not answer is reported and skipped; the others still run.
+     *
+     * Returns ['providers' => int synced, 'fields_updated' => int, 'failed' => [provider name => error]].
+     */
+    public function updateAllFields(int $adminId): array
+    {
+        @set_time_limit(600);
+        $result = ['providers' => 0, 'fields_updated' => 0, 'failed' => []];
+
+        $providers = ApiProvider::where('status', 'active')
+            ->whereHas('services', fn ($q) => $q->whereNotNull('remote_service_id'))->orderBy('name')->get();
+
+        foreach ($providers as $provider) {
+            try {
+                $synced = $this->syncServices($provider, $adminId);
+                $result['providers']++;
+                $result['fields_updated'] += $synced['fields_updated'];
+            } catch (\Throwable $e) {
+                report($e);
+                $result['failed'][$provider->name] = mb_substr($e->getMessage(), 0, 200);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * "Update required inputs from the API" on one service: reloads its provider's list (which also brings
+     * every other service of that provider up to date) and returns this service's result:
+     * ['changed' => bool, 'found' => bool (the provider still lists it), 'labels' => [field labels now asked]].
+     */
+    public function updateServiceFields(Service $service, int $adminId): array
+    {
+        $provider = $this->find((int) $service->api_provider_id);
+        $before = $service->fieldIds();
+        $this->syncServices($provider, $adminId);
+
+        $service->refresh()->load('category.fields');
+        $found = $provider->remoteServices()->where('remote_id', (string) $service->remote_service_id)->exists();
+        $labels = $service->category?->fields->whereIn('id', $service->fieldIds())
+            ->sortBy(fn ($f) => array_search($f->id, $service->fieldIds(), true))->pluck('label')->values()->all() ?? [];
+
+        return ['changed' => $before !== $service->fieldIds(), 'found' => $found, 'labels' => $labels];
+    }
+
+    /**
      * Every service imported from the provider gets the provider's required inputs (IMEI and its own fields)
      * when they no longer match. Returns how many services changed.
      */
@@ -391,14 +439,40 @@ class ApiProviderService
         return $a === $b;
     }
 
+    /**
+     * The provider's own name for the IMEI box (a field flagged "imei" that is not simply called IMEI / SN),
+     * e.g. "Lock Code"; null for a plain IMEI box. Also used when an order is sent, to know which value is the IMEI.
+     */
+    public static function imeiBoxName(array $remoteFields): ?string
+    {
+        foreach ($remoteFields as $f) {
+            $name = trim((string) ($f['name'] ?? ''));
+            if (!empty($f['imei']) && $name !== '' && !preg_match('/^(imei|imei\s*\/\s*sn|sn|serial(\s*number)?)$/i', $name)) {
+                return $name;
+            }
+        }
+
+        return null;
+    }
+
     private function fieldIdsFor(ServiceCategory $category, ProviderService $row): array
     {
         $ids = [];
         $category->load('fields');
 
         if ($row->needs_imei) {
-            $field = $category->fields->firstWhere('input_type', 'imei')
-                ?? $category->fields()->create(['label' => 'IMEI', 'input_type' => 'imei', 'placeholder' => '15-digit IMEI', 'is_required' => true, 'sort_order' => 0]);
+            // The provider may have renamed its IMEI box ("Lock Code", "Email"…): then the customer is asked for
+            // that (a field of that name, sent as the IMEI), not for a 15-digit IMEI.
+            $boxName = self::imeiBoxName($row->fields ?? []);
+            $field = $boxName !== null
+                ? ($category->fields->first(fn (CategoryField $f) => mb_strtolower($f->label) === mb_strtolower($boxName))
+                    ?? $category->fields()->create([
+                        'label' => $boxName,
+                        'input_type' => str_contains(mb_strtolower($boxName), 'mail') ? 'email' : 'text',
+                        'placeholder' => null, 'is_required' => true, 'sort_order' => 0,
+                    ]))
+                : ($category->fields->firstWhere('input_type', 'imei')
+                    ?? $category->fields()->create(['label' => 'IMEI', 'input_type' => 'imei', 'placeholder' => '15-digit IMEI', 'is_required' => true, 'sort_order' => 0]));
             $ids[] = $field->id;
         }
 
