@@ -55,33 +55,33 @@
             <div class="card-body form-grid">
                 <div>
                     <label for="first_name">{{ __('First name') }}</label>
-                    <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}" required maxlength="100">
+                    <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}" placeholder="{{ __('e.g. Sara') }}" required maxlength="100">
                 </div>
                 <div>
                     <label for="last_name">{{ __('Last name') }} <span class="muted">({{ __('optional') }})</span></label>
-                    <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}" maxlength="100">
+                    <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}" placeholder="{{ __('e.g. Ahmed') }}" maxlength="100">
                 </div>
                 <div>
                     <label for="username">{{ __('Username') }}</label>
-                    <input type="text" id="username" name="username" value="{{ old('username') }}" required minlength="3" maxlength="60" autocomplete="off">
+                    <input type="text" id="username" name="username" value="{{ old('username') }}" placeholder="{{ __('e.g. sara.admin') }}" required minlength="3" maxlength="60" autocomplete="off">
                 </div>
                 <div>
                     <label for="email">{{ __('Email') }}</label>
-                    <input type="email" id="email" name="email" value="{{ old('email') }}" required maxlength="191" autocomplete="off">
+                    <input type="email" id="email" name="email" value="{{ old('email') }}" placeholder="name@example.com" required maxlength="191" autocomplete="off">
                 </div>
                 <div>
                     <label for="phone">{{ __('Mobile') }} <span class="muted">({{ __('optional') }})</span></label>
-                    <input type="tel" id="phone" name="phone" value="{{ old('phone') }}" maxlength="30">
+                    <input type="tel" id="phone" name="phone" value="{{ old('phone') }}" placeholder="+249 9XX XXX XXX" maxlength="30">
                 </div>
                 <div></div>
                 <div>
                     <label for="password">{{ __('Password') }}</label>
-                    <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password">
+                    <input type="password" id="password" name="password" required placeholder="{{ __('At least 8 characters') }}" minlength="8" autocomplete="new-password">
                     <p class="help">{{ __('At least 8 characters. Share it with the new administrator securely.') }}</p>
                 </div>
                 <div>
                     <label for="password_confirmation">{{ __('Confirm password') }}</label>
-                    <input type="password" id="password_confirmation" name="password_confirmation" required minlength="8" autocomplete="new-password">
+                    <input type="password" id="password_confirmation" name="password_confirmation" required placeholder="{{ __('Type the password again') }}" minlength="8" autocomplete="new-password">
                 </div>
             </div>
             <div class="card-body">

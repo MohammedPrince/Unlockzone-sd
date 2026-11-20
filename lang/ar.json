@@ -1391,5 +1391,9 @@
     "You cannot :action your own account.": "لا يمكنك :action حسابك.",
     "suspend": "إيقاف",
     "remove": "حذف",
-    "At least one active administrator must stay.": "يجب أن يبقى مشرف نشط واحد على الأقل."
+    "At least one active administrator must stay.": "يجب أن يبقى مشرف نشط واحد على الأقل.",
+    "e.g. Sara": "مثال: سارة",
+    "e.g. Ahmed": "مثال: أحمد",
+    "e.g. sara.admin": "مثال: sara.admin",
+    "Type the password again": "اكتب كلمة المرور مرة أخرى"
 }
