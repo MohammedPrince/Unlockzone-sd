@@ -342,4 +342,37 @@ $42.5 Instant</pre>
             <button type="submit" class="btn btn-primary">{{ __('Read the file') }}</button>
         </div>
     </form>
+
+    <form method="post" action="{{ route('admin.settings.catalog.import') }}" class="stack" id="catalog-transfer" data-once enctype="multipart/form-data" style="margin-top: 24px"
+          data-confirm="{{ __('Import this catalog into this site? Missing categories and services are added; nothing is deleted.') }}">
+        @csrf
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <h2>{{ __('Export / Import all categories and services') }}</h2>
+                    <p>{{ __('Copy the whole catalog to another site, e.g. from DEV to PROD: export it here, then import the file on the other site.') }}</p>
+                </div>
+            </div>
+            <div class="card-body form-grid">
+                <div>
+                    <span class="label">{{ __('Export') }}</span>
+                    <p><a href="{{ route('admin.settings.catalog.export') }}" class="btn">{{ __('Download export file') }} (.json)</a></p>
+                    <p class="help">{{ __('Every category with its input fields, and every service with its prices, VIP price, delivery time and API connection. Archived items are left out.') }}</p>
+                </div>
+                <div>
+                    <label for="catalog_file">{{ __('Import an export file') }} (.json)</label>
+                    <input type="file" id="catalog_file" name="catalog_file" accept=".json,application/json" required>
+                    @error('catalog_file') <p class="error-text">{{ $message }}</p> @enderror
+                    <label class="check" style="margin-top: 10px">
+                        <input type="checkbox" name="update_existing" value="1" checked>
+                        <span>{{ __('Update categories and services that already exist') }}<br><span class="muted">{{ __('Matched by name. When off, they are left as they are and only missing ones are added.') }}</span></span>
+                    </label>
+                    <p class="help">{{ __('API connections are matched to this site\'s providers by URL or name; add the providers here first.') }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ __('Import catalog') }}</button>
+        </div>
+    </form>
 @endsection

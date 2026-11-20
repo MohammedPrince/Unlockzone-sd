@@ -88,8 +88,8 @@
 
             <div class="table-wrap">
                 <table class="cards">
-                    <thead><tr><th style="width: 40px"><input type="checkbox" data-check-all aria-label="{{ __('Select all services on this page') }}"></th><th>{{ __('Service') }}</th><th>{{ __('Category') }}</th><th class="right">{{ __('Price') }}</th><th>{{ __('Delivery') }}</th><th class="right">{{ __('Requests') }}</th><th>{{ __('Status') }}</th><th></th></tr></thead>
-                    <tbody>
+                    <thead><tr><th style="width: 40px"><input type="checkbox" data-check-all aria-label="{{ __('Select all loaded services') }}"></th><th>{{ __('Service') }}</th><th>{{ __('Category') }}</th><th class="right">{{ __('Price') }}</th><th>{{ __('Delivery') }}</th><th class="right">{{ __('Requests') }}</th><th>{{ __('Status') }}</th><th></th></tr></thead>
+                    <tbody data-infinite-items>
                         @foreach ($services as $service)
                             <tr>
                                 <td class="check-cell"><input type="checkbox" name="ids[]" value="{{ $service->id }}" form="bulk-move" data-check-item aria-label="{{ __('Select :name', ['name' => $service->name]) }}"></td>
@@ -127,7 +127,7 @@
                     </tbody>
                 </table>
             </div>
-            {{ $services->links() }}
+            @include('partials.load-more', ['paginator' => $services])
         @endif
         </div>
     </div>

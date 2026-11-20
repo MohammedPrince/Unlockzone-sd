@@ -343,6 +343,67 @@
     });
     bulkRefresh();
 
+    // ----- Infinite scroll: the next 20 load when the "Show more" bar scrolls into view -----
+    // [data-infinite-items] holds the rows/cards; .load-more[data-infinite-next="url"] after it points at the next
+    // page. The next page is fetched, its items appended and its bar replaces this one. Children carrying
+    // data-infinite-key that match the last child already shown (a category that continues) are merged into
+    // its [data-infinite-merge] block instead of repeating the heading. The button still works as a plain link.
+    var infiniteObserver = null;
+    var infiniteLoad = function (bar) {
+        if (!bar || !window.fetch || !window.DOMParser) { return false; }
+        if (bar.getAttribute('data-loading')) { return true; } // already on its way
+        var items = $('[data-infinite-items]');
+        if (!items) { return false; }
+        bar.setAttribute('data-loading', '1');
+        bar.classList.add('is-loading');
+        fetch(bar.getAttribute('data-infinite-next'), { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+            .then(function (html) {
+                if (!bar.isConnected) { return; } // a live search replaced the list meanwhile
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var fresh = doc.querySelector('[data-infinite-items]');
+                if (fresh) {
+                    Array.prototype.slice.call(fresh.children).forEach(function (child) {
+                        var key = child.getAttribute('data-infinite-key');
+                        var last = items.lastElementChild;
+                        var into = key && last && last.getAttribute('data-infinite-key') === key ? $('[data-infinite-merge]', last) : null;
+                        var from = into ? $('[data-infinite-merge]', child) : null;
+                        if (into && from) {
+                            while (from.firstChild) { into.appendChild(from.firstChild); }
+                        } else {
+                            items.appendChild(document.adoptNode(child));
+                        }
+                    });
+                }
+                var next = doc.querySelector('.load-more');
+                if (next) { bar.replaceWith(document.adoptNode(next)); } else { bar.remove(); }
+                bulkRefresh();
+                liveOrdersScan();
+                infiniteScan();
+            })
+            .catch(function () {
+                // Leave the button: a click (or scrolling to it again) retries.
+                bar.removeAttribute('data-loading');
+                bar.classList.remove('is-loading');
+            });
+        return true;
+    };
+    var infiniteScan = function () {
+        var bar = $('.load-more[data-infinite-next]');
+        if (infiniteObserver) { infiniteObserver.disconnect(); }
+        if (!bar || !('IntersectionObserver' in window)) { return; }
+        // Starts loading a little before the bar is on screen, so scrolling rarely has to wait.
+        infiniteObserver = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) { if (e.isIntersecting) { infiniteLoad(e.target); } });
+        }, { rootMargin: '0px 0px 400px 0px' });
+        infiniteObserver.observe(bar);
+    };
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest && e.target.closest('[data-infinite-button]');
+        if (btn && infiniteLoad(btn.closest('.load-more'))) { e.preventDefault(); }
+    });
+    infiniteScan();
+
     // ----- Live search: results follow what is typed, no Enter needed -----
     // <form data-live-search="#results"> … <div id="results" data-live-results>. The page is fetched
     // with the form's values and only the results block is swapped. Enter / the button still work.
@@ -371,6 +432,7 @@
                         if (window.history && history.replaceState) { history.replaceState(null, '', url); }
                         bulkRefresh();
                         liveOrdersScan();
+                        infiniteScan();
                         form.dispatchEvent(new CustomEvent('live-search:done'));
                     }
                 })

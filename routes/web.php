@@ -180,6 +180,8 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::get('settings/import', [Admin\ServiceImportController::class, 'show'])->name('settings.import.show');
     Route::post('settings/import/confirm', [Admin\ServiceImportController::class, 'store'])->name('settings.import.store');
     Route::delete('settings/import', [Admin\ServiceImportController::class, 'cancel'])->name('settings.import.cancel');
+    Route::get('settings/catalog/export', [Admin\CatalogTransferController::class, 'export'])->name('settings.catalog.export');
+    Route::post('settings/catalog/import', [Admin\CatalogTransferController::class, 'import'])->middleware('throttle:10,1')->name('settings.catalog.import');
     Route::get('profile', [Admin\SettingController::class, 'profile'])->name('profile');
     Route::put('profile', [Admin\SettingController::class, 'updateProfile'])->name('profile.update');
 });

@@ -48,7 +48,7 @@ class StorefrontAndProviderTest extends TestCase
         return Service::where('slug', 'haafedk-test-1')->firstOrFail(); // 5.00, needs an IMEI
     }
 
-    public function test_customer_catalog_shows_20_services_per_page(): void
+    public function test_customer_catalog_loads_20_services_at_a_time(): void
     {
         $customer = $this->customer();
         $category = \App\Models\ServiceCategory::create(['name' => 'Zz Bulk', 'slug' => 'zz-bulk', 'status' => 'active', 'sort_order' => 99]);
@@ -63,20 +63,44 @@ class StorefrontAndProviderTest extends TestCase
 
         $first = $this->actingAs($customer)->get(route('customer.services.index'))->assertOk()
             ->assertSee('Frequently used')
-            ->assertSee('Showing 1–20 of ' . $total)
-            ->assertSee('?page=2', false);
+            ->assertSee('Showing 20 of ' . $total)
+            ->assertSee('data-infinite-next="' . route('customer.services.index', ['page' => 2]) . '"', false)
+            ->assertDontSee('class="pagination"', false);
         $this->assertSame(20, substr_count($first->getContent(), 'class="service-card') - 1); // minus the favourite's copy
 
-        // Last page: the rest, the category heading still shows the category's full count, no favourites block.
+        // The last batch (what scrolling fetches): the rest, the category heading still shows the category's full
+        // count and the same key so the page joins it to the section above, no favourites block, no further batch.
         $last = (int) ceil($total / 20);
         $this->actingAs($customer)->get(route('customer.services.index', ['page' => $last]))->assertOk()
             ->assertSee('Bulk service 45')
             ->assertSee('45 services')
+            ->assertSee('data-infinite-key="category-' . $category->id . '"', false)
+            ->assertSee('All ' . $total . ' shown')
+            ->assertDontSee('data-infinite-next', false)
             ->assertDontSee('Frequently used');
 
-        // Searching narrows the list and the pages follow.
+        // Searching narrows the list; with 20 or fewer matches there is nothing more to load.
         $this->actingAs($customer)->get(route('customer.services.index', ['q' => 'Bulk service 1']))->assertOk()
-            ->assertSee('Bulk service 10')->assertDontSee('Bulk service 20')->assertDontSee('?page=2', false);
+            ->assertSee('Bulk service 10')->assertDontSee('Bulk service 20')->assertDontSee('data-infinite-next', false);
+    }
+
+    public function test_admin_service_list_loads_20_at_a_time(): void
+    {
+        $category = \App\Models\ServiceCategory::create(['name' => 'Zz Bulk', 'slug' => 'zz-bulk', 'status' => 'active', 'sort_order' => 99]);
+        for ($i = 1; $i <= 45; $i++) {
+            Service::create([
+                'service_category_id' => $category->id, 'name' => sprintf('Bulk service %02d', $i), 'slug' => "bulk-{$i}",
+                'price' => '1.00', 'status' => 'active', 'configuration' => ['field_ids' => [], 'execution' => 'manual'],
+            ]);
+        }
+
+        $first = $this->actingAs($this->admin())->get(route('admin.services.index', ['category' => $category->id]))->assertOk()
+            ->assertSee('Showing 20 of 45')
+            ->assertSee('data-infinite-next="' . e(route('admin.services.index', ['category' => $category->id, 'page' => 2])) . '"', false);
+        $this->assertSame(20, substr_count($first->getContent(), 'data-check-item'));
+
+        $this->actingAs($this->admin())->get(route('admin.services.index', ['category' => $category->id, 'page' => 3]))->assertOk()
+            ->assertSee('Bulk service 45')->assertDontSee('Bulk service 40')->assertDontSee('data-infinite-next', false);
     }
 
     private function order(User $customer, Service $service, array $extra = [])

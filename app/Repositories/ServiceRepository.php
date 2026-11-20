@@ -10,7 +10,8 @@ use Illuminate\Support\Str;
 
 class ServiceRepository
 {
-    public function paginate(array $filters, int $perPage = 15): LengthAwarePaginator
+    /** The admin list, loaded 20 at a time as the admin scrolls. */
+    public function paginate(array $filters, int $perPage = 20): LengthAwarePaginator
     {
         return Service::with(['category', 'provider'])
             ->withCount('requests')

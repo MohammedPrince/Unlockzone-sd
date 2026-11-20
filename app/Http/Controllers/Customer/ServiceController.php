@@ -33,8 +33,8 @@ class ServiceController extends Controller
             $catalog = $catalog->where('id', $categoryId)->values();
         }
 
-        // 20 services per page, in catalog order (category by category); each page shows its services under their
-        // category headings. A category that runs over two pages shows its heading on both.
+        // 20 services at a time, in catalog order (category by category), under their category headings. The page
+        // loads the next 20 as the customer scrolls; a category that continues is joined to the one already shown.
         $all = $catalog->flatMap->services->values();
         $page = \Illuminate\Pagination\Paginator::resolveCurrentPage();
         $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
@@ -44,6 +44,7 @@ class ServiceController extends Controller
         $onPage = $paginator->getCollection()->pluck('id')->flip();
         $sections = $catalog
             ->map(fn ($category) => [
+                'key' => 'category-' . $category->id,
                 'title' => $category->name,
                 'note' => $category->description,
                 'total' => $category->services->count(),

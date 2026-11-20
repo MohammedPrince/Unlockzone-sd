@@ -31,18 +31,22 @@
         // Favourites first (page 1 only), then this page's services under their category headings.
         $sections = $sections->map(fn ($s) => $s + ['star' => false]);
         if ($favorites->isNotEmpty()) {
-            $sections = $sections->prepend(['title' => __('Frequently used'), 'note' => null, 'services' => $favorites, 'total' => $favorites->count(), 'star' => true]);
+            $sections = $sections->prepend(['key' => 'favorites', 'title' => __('Frequently used'), 'note' => null, 'services' => $favorites, 'total' => $favorites->count(), 'star' => true]);
         }
     @endphp
 
+    {{-- Infinite scroll: the next 20 are appended here. A section with the same data-infinite-key as the last one
+         (its category continues) has its cards added to that section's [data-infinite-merge] grid instead. --}}
+    <div data-infinite-items>
     @foreach ($sections as $section)
+        <section data-infinite-key="{{ $section['key'] }}">
         <div class="section-title">
             <h2>@if ($section['star'])<span class="fav-star">@include('partials.icon', ['name' => 'star'])</span> @endif{{ $section['title'] }}</h2>
             <span class="muted">{{ trans_choice('{1} :count service|[2,*] :count services', $section['total'], ['count' => $section['total']]) }}</span>
         </div>
         @if ($section['note']) <p class="muted" style="margin: -6px 0 12px">{{ $section['note'] }}</p> @endif
 
-        <div class="catalog">
+        <div class="catalog" data-infinite-merge>
             @foreach ($section['services'] as $service)
                 @php
                     // A VIP customer sees the VIP price (with the normal price struck through when it differs).
@@ -75,10 +79,10 @@
                 </a>
             @endforeach
         </div>
+        </section>
     @endforeach
+    </div>
 
-    @if ($paginator->hasPages())
-        <div class="card catalog-pages">{{ $paginator->links() }}</div>
-    @endif
+    @include('partials.load-more', ['paginator' => $paginator])
     </div>
 @endsection

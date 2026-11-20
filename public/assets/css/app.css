@@ -346,6 +346,9 @@ td .sub { display: block; color: var(--muted); font-size: 12px; }
 .service-card { min-width: 0; }
 .service-card h3, .service-card p { overflow-wrap: anywhere; }
 .catalog-pages { margin-top: 18px; }
+/* Infinite scroll bar under a list: "Show more" (loads by itself when scrolled to) and how many are shown. */
+.load-more { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; padding: 16px 18px; font-size: 13px; }
+.load-more.is-loading { opacity: .55; pointer-events: none; }
 .catalog-pages .pagination { border-top: 0; }
 
 /* ---------- Auth pages ---------- */
