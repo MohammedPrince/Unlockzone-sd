@@ -8,6 +8,7 @@ use App\Repositories\ActivityLogRepository;
 use App\Repositories\CreditRepository;
 use App\Repositories\CustomerRepository;
 use App\Repositories\ServiceRequestRepository;
+use App\Support\PriceTier;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -108,14 +109,16 @@ class CustomerService
         }
 
         $tag = trim((string) $data['customer_tag']);
-        $wasVipTag = User::isVipTag($customer->customer_tag);
+        $oldTier = PriceTier::forTag($customer->customer_tag);
+        $newTier = PriceTier::forTag($tag);
         $customer->forceFill(['customer_tag' => $tag !== '' ? mb_substr($tag, 0, 30) : null]);
 
-        // The "VIP" tag and VIP prices go together: adding the tag gives VIP prices, removing it takes them away.
-        if (User::isVipTag($tag)) {
-            $customer->forceFill(['is_vip' => true]);
-        } elseif ($wasVipTag) {
-            $customer->forceFill(['is_vip' => false]);
+        // The "VIP" / "Web Owner" tags and their prices go together: the tag gives that level (and takes the
+        // other away, one level only); removing the tag takes the level away.
+        if ($newTier) {
+            $this->fillTier($customer, $newTier);
+        } elseif ($oldTier) {
+            $customer->forceFill([PriceTier::userColumn($oldTier) => false]);
         }
 
         $customer->save();
@@ -181,16 +184,38 @@ class CustomerService
     /** VIP customers pay the VIP prices (Services > VIP prices). Set only by an administrator. */
     public function setVip(User $customer, bool $vip, int $adminId): void
     {
-        $customer->forceFill(['is_vip' => $vip]);
+        $this->setTier($customer, $vip ? PriceTier::VIP : null, $adminId);
+    }
 
-        // A "VIP" tag would say VIP while they pay normal prices: removing VIP removes that tag too.
-        if (!$vip && User::isVipTag($customer->customer_tag)) {
+    /**
+     * Puts the customer on a price level (VIP or Web Owner), or back on normal prices with null.
+     * A customer has one level at most: joining one leaves the other.
+     */
+    public function setTier(User $customer, ?string $tier, int $adminId): void
+    {
+        $old = $customer->priceTier();
+        $this->fillTier($customer, $tier);
+
+        // A level's tag ("VIP", "Web Owner") would be wrong after leaving that level: it goes too.
+        $tagTier = PriceTier::forTag($customer->customer_tag);
+        if ($tagTier && $tagTier !== $tier) {
             $customer->forceFill(['customer_tag' => null]);
         }
 
         $customer->save();
 
-        $this->logs->log('customer_vip', ($vip ? 'Enabled' : 'Disabled') . " VIP prices for {$customer->username}", $customer, [], $adminId);
+        $label = fn (?string $t) => $t ? PriceTier::label($t) : 'normal';
+        $this->logs->log('customer_vip', "Price level of {$customer->username}: {$label($old)} → {$label($tier)}", $customer, [
+            'from' => $old, 'to' => $tier,
+        ], $adminId);
+    }
+
+    /** Sets the level's flag and clears every other level's (not saved). */
+    private function fillTier(User $customer, ?string $tier): void
+    {
+        foreach (PriceTier::all() as $t) {
+            $customer->forceFill([PriceTier::userColumn($t) => $t === $tier]);
+        }
     }
 
     /** Suspends the customer from one service, or lifts that suspension. */

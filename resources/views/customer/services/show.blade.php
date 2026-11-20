@@ -7,7 +7,8 @@
     $customer = auth()->user();
     // A VIP customer sees (and is charged) the VIP price; the site price is shown struck through when it differs.
     $unit = $service->priceFor($customer);
-    $vipDeal = $customer?->is_vip && to_cents($unit) !== to_cents($service->price);
+    $level = $customer?->priceTier();
+    $vipDeal = $level && to_cents($unit) !== to_cents($service->price);
     $total = $service->totalFor($qty, $customer);
     $enough = to_cents($balance) >= to_cents($total);
     $after = from_cents(to_cents($balance) - to_cents($total));
@@ -102,7 +103,7 @@
                         <small>$</small><b @if ($qtyField) data-qty-amount @endif>{{ amount($qtyField ? $total : $unit) }}</b>
                         @if ($qtyField) <span class="muted" style="font-size: .85rem" dir="ltr">{{ price($unit) }} × <span data-qty-count>{{ $qty }}</span></span> @endif
                         @if ($service->is_instant) <span class="tag-instant">{{ __('Instant') }}</span> @endif
-                        @if ($vipDeal) <span class="tag-vip-price" title="{{ __('Your VIP price') }}">{{ __('VIP') }}</span> <s class="muted vip-was num" title="{{ __('Normal price') }}">{{ price($service->price) }}</s> @endif
+                        @if ($vipDeal) <span class="{{ $level === 'owner' ? 'tag-owner-price' : 'tag-vip-price' }}" title="{{ $level === 'owner' ? __('Your Web Owner price') : __('Your VIP price') }}">{{ __(\App\Support\PriceTier::label($level)) }}</span> <s class="muted vip-was num" title="{{ __('Normal price') }}">{{ price($service->price) }}</s> @endif
                     </div>
 
                     @if ($service->delivery_time)

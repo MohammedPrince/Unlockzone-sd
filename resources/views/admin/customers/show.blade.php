@@ -123,25 +123,33 @@
                     </div>
                 </div>
 
+                {{-- Price level: normal, VIP or Web Owner. One at a time: choosing one leaves the other. --}}
+                @php $level = $customer->priceTier(); @endphp
                 <div class="card" id="vip-pricing">
                     <div class="card-head">
-                        <h2>{{ __('VIP prices') }}</h2>
-                        <span class="badge badge-{{ $customer->is_vip ? 'active' : 'inactive' }}">{{ $customer->is_vip ? __('VIP') : __('Normal prices') }}</span>
+                        <h2>{{ __('Price level') }}</h2>
+                        <span class="badge badge-{{ $level ? 'active' : 'inactive' }}">{{ $level ? __(\App\Support\PriceTier::label($level)) : __('Normal prices') }}</span>
                     </div>
                     <div class="card-body stack">
                         <p class="muted">
-                            {{ $customer->is_vip
-                                ? __('This customer sees and pays the VIP prices.')
-                                : __('This customer pays the normal site prices. Turn on VIP to give them the VIP prices.') }}
-                            <a href="{{ route('admin.vip-prices.edit') }}">{{ __('Set the VIP prices') }}</a>
+                            @if ($level === \App\Support\PriceTier::VIP) {{ __('This customer sees and pays the VIP prices.') }}
+                            @elseif ($level === \App\Support\PriceTier::OWNER) {{ __('This customer sees and pays the Web Owner prices.') }}
+                            @else {{ __('This customer pays the normal site prices. Give them VIP or Web Owner prices below.') }}
+                            @endif
+                            {{ __('A customer is VIP or Web Owner, never both.') }}
+                            <a href="{{ route('admin.vip-prices.edit', $level === \App\Support\PriceTier::OWNER ? ['tier' => 'owner'] : []) }}">{{ __('Set the prices') }}</a>
                         </p>
-                        <form method="post" action="{{ route('admin.customers.vip', $customer->id) }}">
-                            @csrf
-                            <input type="hidden" name="vip" value="{{ $customer->is_vip ? 0 : 1 }}">
-                            <button class="btn {{ $customer->is_vip ? '' : 'btn-primary' }}" type="submit">
-                                {{ $customer->is_vip ? __('Back to normal prices') : __('Give VIP prices') }}
-                            </button>
-                        </form>
+                        <div class="row-actions">
+                            @foreach ([\App\Support\PriceTier::VIP => __('Give VIP prices'), \App\Support\PriceTier::OWNER => __('Give Web Owner prices'), '' => __('Back to normal prices')] as $value => $label)
+                                @continue(($level ?? '') === $value)
+                                <form method="post" action="{{ route('admin.customers.vip', $customer->id) }}"
+                                      @if ($level && $value !== '') data-confirm="{{ __(':name is :level now. Move them to the new price level?', ['name' => $customer->username, 'level' => __(\App\Support\PriceTier::label($level))]) }}" @endif>
+                                    @csrf
+                                    <input type="hidden" name="tier" value="{{ $value }}">
+                                    <button class="btn {{ $value !== '' && !$level ? 'btn-primary' : '' }}" type="submit">{{ $label }}</button>
+                                </form>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
 

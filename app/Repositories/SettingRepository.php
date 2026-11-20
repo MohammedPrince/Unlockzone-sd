@@ -70,6 +70,8 @@ class SettingRepository
         'maintenance_ends_tz' => '',
         // VIP customers: percentage on the site price for services without a fixed VIP price (-10 = 10% discount).
         'vip_price_adjust' => '0',
+        // Web Owner customers: the same, for services without a fixed Web Owner price.
+        'owner_price_adjust' => '0',
     ];
 
     private ?array $loaded = null;

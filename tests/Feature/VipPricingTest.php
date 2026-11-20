@@ -223,4 +223,89 @@ class VipPricingTest extends TestCase
         $this->put(route('admin.vip-prices.update'), ['price_adjust' => '-101'])->assertSessionHasErrors('price_adjust');
         $this->put(route('admin.vip-prices.update'), ['price_adjust' => '-100'])->assertSessionHasNoErrors();
     }
+
+    public function test_web_owner_prices_are_separate_from_vip_and_a_customer_has_one_level(): void
+    {
+        $test1 = Service::where('slug', 'haafedk-test-1')->firstOrFail(); // site price 5.00
+        $test2 = Service::where('slug', 'haafedk-test-2')->firstOrFail(); // site price 8.00
+        $owner = $this->customer('ownerguy');
+        $vip = $this->customer('vipguy');
+        $admin = $this->admin();
+
+        // VIP: 10% off. Web Owner (its own tab): 25% off, and a fixed 2.00 for test 1.
+        $this->actingAs($admin)->put(route('admin.vip-prices.update'), ['price_adjust' => '-10'])->assertSessionHasNoErrors();
+        $this->actingAs($admin)->get(route('admin.vip-prices.edit', ['tier' => 'owner']))->assertOk()
+            ->assertSee('Web Owner customers')->assertSee('Web Owner percentage')->assertSee('name="tier" value="owner"', false);
+        $this->put(route('admin.vip-prices.update'), [
+            'tier' => 'owner', 'price_adjust' => '-25', 'prices' => [$test1->id => '2'],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('admin.vip-prices.edit', ['tier' => 'owner']) . '#vip-price-list');
+        $this->assertSame('2.00', $test1->fresh()->owner_price);
+        $this->assertNull($test1->fresh()->vip_price);
+        $this->assertSame('-25', setting('owner_price_adjust'));
+        $this->assertSame('-10', setting('vip_price_adjust'));
+
+        // Bulk on the Web Owner tab changes only Web Owner prices.
+        $this->post(route('admin.vip-prices.bulk'), ['tier' => 'owner', 'scope' => 'selected', 'ids' => [$test2->id], 'action' => 'fixed', 'value' => '6'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('6.00', $test2->fresh()->owner_price);
+        $this->assertNull($test2->fresh()->vip_price);
+
+        // Customers join a level from the page; joining one leaves the other.
+        $this->post(route('admin.vip-prices.customers.add'), ['tier' => 'owner', 'user_id' => $owner->id])->assertSessionHasNoErrors();
+        $this->post(route('admin.vip-prices.customers.add'), ['user_id' => $vip->id])->assertSessionHasNoErrors();
+        $this->assertSame('owner', $owner->fresh()->priceTier());
+        $this->assertSame('vip', $vip->fresh()->priceTier());
+
+        // Each pays their own level's price, and orders are charged that price.
+        $this->assertSame('2.00', $test1->fresh()->priceFor($owner->fresh()));
+        $this->assertSame('6.00', $test2->fresh()->priceFor($owner->fresh()));
+        $this->assertSame('4.50', $test1->fresh()->priceFor($vip->fresh()));
+        $this->actingAs($owner->fresh())->get(route('customer.services.show', $test2->id))->assertOk()
+            ->assertSee(price('6.00'))->assertSee('tag-owner-price', false)->assertDontSee('tag-vip-price', false);
+        $this->order($owner->fresh(), $test1)->assertSessionHasNoErrors();
+        $this->assertSame('2.00', ServiceRequest::where('user_id', $owner->id)->value('amount'));
+
+        // Moving the VIP customer to Web Owner takes VIP away (never both), on the page and on the profile.
+        $this->actingAs($admin)->post(route('admin.vip-prices.customers.add'), ['tier' => 'owner', 'user_id' => $vip->id])
+            ->assertSessionHas('success', fn ($m) => str_contains($m, 'no longer VIP'));
+        $this->assertFalse($vip->fresh()->is_vip);
+        $this->assertTrue($vip->fresh()->is_web_owner);
+        $this->post(route('admin.customers.vip', $vip->id), ['tier' => 'vip']);
+        $this->assertTrue($vip->fresh()->is_vip);
+        $this->assertFalse($vip->fresh()->is_web_owner);
+        $this->get(route('admin.customers.show', $vip->id))->assertOk()->assertSee('Give Web Owner prices')->assertSee('Back to normal prices');
+
+        // Removing from the Web Owner tab does not touch a VIP customer.
+        $this->delete(route('admin.vip-prices.customers.remove', $vip->id), ['tier' => 'owner']);
+        $this->assertTrue($vip->fresh()->is_vip);
+        $this->delete(route('admin.vip-prices.customers.remove', $owner->id), ['tier' => 'owner']);
+        $this->assertNull($owner->fresh()->priceTier());
+    }
+
+    public function test_web_owner_tag_gives_web_owner_prices_and_replaces_vip(): void
+    {
+        $customer = $this->customer('tagged');
+        $admin = $this->admin();
+        $update = fn (string $tag) => $this->actingAs($admin)->put(route('admin.customers.update', $customer->id), [
+            'username' => 'tagged', 'email' => 'tagged@example.com', 'first_name' => 'Tagged', 'customer_tag' => $tag,
+        ])->assertSessionHasNoErrors();
+
+        $update('VIP');
+        $this->assertSame('vip', $customer->fresh()->priceTier());
+        $update('Web Owner');
+        $this->assertSame('owner', $customer->fresh()->priceTier());
+        $this->assertFalse($customer->fresh()->is_vip);
+
+        // The list shows one Web Owner badge, not the tag twice.
+        $html = $this->get(route('admin.customers.index'))->assertOk()->getContent();
+        $this->assertSame(1, substr_count($html, 'class="tag-owner-price"'));
+
+        // Choosing VIP for a Web Owner removes the now-wrong "Web Owner" tag.
+        $this->post(route('admin.customers.vip', $customer->id), ['tier' => 'vip']);
+        $this->assertSame('vip', $customer->fresh()->priceTier());
+        $this->assertNull($customer->fresh()->customer_tag);
+
+        $update('');
+        $this->assertSame('vip', $customer->fresh()->priceTier()); // no level tag before: VIP set on its own stays
+    }
 }

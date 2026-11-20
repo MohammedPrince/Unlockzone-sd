@@ -61,7 +61,8 @@
                 @php
                     // A VIP customer sees the VIP price (with the normal price struck through when it differs).
                     $unit = $service->priceFor(auth()->user());
-                    $vipDeal = auth()->user()?->is_vip && to_cents($unit) !== to_cents($service->price);
+                    $level = auth()->user()?->priceTier();
+                    $vipDeal = $level && to_cents($unit) !== to_cents($service->price);
                     $affordable = to_cents($balance) >= to_cents($unit);
                     $blocked = $servicesSuspended || in_array($service->id, $blockedIds, true);
                 @endphp
@@ -74,7 +75,7 @@
                     <p class="svc-cat" dir="auto">{{ $catalog->firstWhere('id', $service->service_category_id)?->name ?? $section['title'] }}</p>
                     <div class="svc-tags">
                         <span class="tag-price num">{{ price($unit) }}</span>
-                        @if ($vipDeal) <span class="tag-vip-price">{{ __('VIP') }}</span> <s class="muted vip-was num">{{ price($service->price) }}</s> @endif
+                        @if ($vipDeal) <span class="{{ $level === 'owner' ? 'tag-owner-price' : 'tag-vip-price' }}">{{ __(\App\Support\PriceTier::label($level)) }}</span> <s class="muted vip-was num">{{ price($service->price) }}</s> @endif
                         @if ($service->is_instant) <span class="tag-instant">{{ __('Instant') }}</span> @endif
                         @if ($service->delivery_time && !$service->is_instant) <span class="tag">{{ $service->delivery_time }}</span> @endif
                     </div>
