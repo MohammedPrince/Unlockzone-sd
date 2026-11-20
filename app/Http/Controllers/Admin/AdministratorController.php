@@ -20,21 +20,38 @@ class AdministratorController extends Controller
         return view('admin.admins.index', ['admins' => $this->admins->all()]);
     }
 
-    public function store(Request $request)
+    /** Same rules for adding and editing; when editing, the password is optional and the admin's own username/email are allowed. */
+    private function validated(Request $request, ?int $ignoreId = null): array
     {
-        $data = $request->validate([
+        return $request->validate([
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['nullable', 'string', 'max:100'],
-            'username' => ['required', 'string', 'min:3', 'max:60', 'alpha_dash', Rule::unique('users', 'username')],
-            'email' => ['required', 'email', 'max:191', Rule::unique('users', 'email')],
+            'username' => ['required', 'string', 'min:3', 'max:60', 'alpha_dash', Rule::unique('users', 'username')->ignore($ignoreId)],
+            'email' => ['required', 'email', 'max:191', Rule::unique('users', 'email')->ignore($ignoreId)],
             'phone' => ['nullable', 'string', 'max:30'],
-            'password' => ['required', 'confirmed', Password::min(8)],
+            'password' => [$ignoreId ? 'nullable' : 'required', 'confirmed', Password::min(8)],
         ], [], [
             'first_name' => __('first name'), 'last_name' => __('last name'), 'username' => __('username'),
             'email' => __('email'), 'phone' => __('mobile'), 'password' => __('password'),
         ]);
+    }
 
-        $admin = $this->admins->create($data, $request->user()->id);
+    public function edit(int $id)
+    {
+        return view('admin.admins.edit', ['admin' => $this->admins->find($id)]);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $admin = $this->admins->find($id);
+        $this->admins->update($admin, $this->validated($request, $admin->id), $request->user()->id);
+
+        return redirect()->route('admin.admins.index')->with('success', __('Administrator :name updated.', ['name' => $admin->username]));
+    }
+
+    public function store(Request $request)
+    {
+        $admin = $this->admins->create($this->validated($request), $request->user()->id);
 
         return redirect()->route('admin.admins.index')->with('success', __('Administrator :name added. They can sign in at the admin login now.', ['name' => $admin->username]));
     }

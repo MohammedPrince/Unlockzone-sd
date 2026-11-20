@@ -42,6 +42,41 @@ class AdministratorsTest extends TestCase
         $this->assertAuthenticatedAs($new);
     }
 
+    public function test_admin_edits_another_admin_and_their_own_details(): void
+    {
+        $me = $this->admin();
+        $this->addAdmin();
+        $other = User::where('username', 'sara')->firstOrFail();
+
+        $this->actingAs($me)->get(route('admin.admins.edit', $other->id))->assertOk()->assertSee('value="sara@example.com"', false)->assertSee('Delete administrator');
+        $this->actingAs($me)->get(route('admin.admins.index'))->assertSee(route('admin.admins.edit', $other->id));
+
+        // Blank password keeps the old one.
+        $this->actingAs($me)->put(route('admin.admins.update', $other->id), [
+            'first_name' => 'Sarah', 'last_name' => '', 'username' => 'sarah', 'email' => 'sarah@example.com', 'phone' => '', 'password' => '',
+        ])->assertSessionHasNoErrors()->assertRedirect(route('admin.admins.index'));
+        $other->refresh();
+        $this->assertSame(['sarah', 'sarah@example.com', 'Sarah'], [$other->username, $other->email, $other->name]);
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('strong-pass-1', $other->password));
+
+        // A new password replaces it; username/email taken by someone else are refused.
+        $this->actingAs($me)->put(route('admin.admins.update', $other->id), [
+            'first_name' => 'Sarah', 'username' => 'sarah', 'email' => 'sarah@example.com', 'password' => 'new-pass-123', 'password_confirmation' => 'new-pass-123',
+        ])->assertSessionHasNoErrors();
+        $this->assertTrue(\Illuminate\Support\Facades\Hash::check('new-pass-123', $other->fresh()->password));
+        $this->actingAs($me)->put(route('admin.admins.update', $other->id), [
+            'first_name' => 'Sarah', 'username' => $me->username, 'email' => $me->email,
+        ])->assertSessionHasErrors(['username', 'email']);
+
+        // Your own account: editable, but no delete button.
+        $this->actingAs($me)->get(route('admin.admins.edit', $me->id))->assertOk()->assertDontSee('Delete administrator');
+        $this->actingAs($me)->put(route('admin.admins.update', $me->id), [
+            'first_name' => 'Main', 'username' => $me->username, 'email' => $me->email,
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('Main', $me->fresh()->first_name);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'admin_updated']);
+    }
+
     public function test_bad_input_is_refused_and_customers_cannot_add_admins(): void
     {
         $this->addAdmin(['password_confirmation' => 'other'])->assertSessionHasErrors('password');

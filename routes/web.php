@@ -93,6 +93,8 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     // Administrators: add, suspend or remove other admins (never yourself, never the last active one).
     Route::get('admins', [Admin\AdministratorController::class, 'index'])->name('admins.index');
     Route::post('admins', [Admin\AdministratorController::class, 'store'])->middleware('throttle:10,1')->name('admins.store');
+    Route::get('admins/{id}/edit', [Admin\AdministratorController::class, 'edit'])->whereNumber('id')->name('admins.edit');
+    Route::put('admins/{id}', [Admin\AdministratorController::class, 'update'])->whereNumber('id')->name('admins.update');
     Route::post('admins/{id}/status', [Admin\AdministratorController::class, 'status'])->whereNumber('id')->name('admins.status');
     Route::delete('admins/{id}', [Admin\AdministratorController::class, 'destroy'])->whereNumber('id')->name('admins.destroy');
 

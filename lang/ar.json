@@ -1395,5 +1395,13 @@
     "e.g. Sara": "مثال: سارة",
     "e.g. Ahmed": "مثال: أحمد",
     "e.g. sara.admin": "مثال: sara.admin",
-    "Type the password again": "اكتب كلمة المرور مرة أخرى"
+    "Type the password again": "اكتب كلمة المرور مرة أخرى",
+    "Edit administrator": "تعديل المشرف",
+    "Delete administrator": "حذف المشرف",
+    "Delete administrator :name? This cannot be undone.": "حذف المشرف :name؟ لا يمكن التراجع عن ذلك.",
+    "Update the administrator's details. Leave the password blank to keep the current one.": "حدّث بيانات المشرف. اترك كلمة المرور فارغة للإبقاء على الحالية.",
+    "Leave blank to keep the current one": "اتركها فارغة للإبقاء على الحالية",
+    "Administrator :name updated.": "تم تحديث بيانات المشرف :name.",
+    "The account is deleted and can no longer sign in. Their past actions stay in the activity log.": "يُحذف الحساب ولن يتمكن من تسجيل الدخول. تبقى إجراءاته السابقة في سجل النشاط.",
+    "delete": "حذف"
 }

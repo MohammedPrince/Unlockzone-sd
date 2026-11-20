@@ -28,19 +28,20 @@
                                 <td data-label="{{ __('Last sign-in') }}" class="nowrap">{{ $a->last_login_at ? $a->last_login_at->translatedFormat('M j, Y H:i') : '—' }}</td>
                                 <td data-label="{{ __('Added') }}" class="nowrap">{{ $a->created_at?->translatedFormat('M j, Y') }}</td>
                                 <td>
+                                    <div class="row-actions">
+                                        <a class="btn btn-sm" href="{{ route('admin.admins.edit', $a->id) }}">{{ __('Edit') }}</a>
                                     @if ($a->id !== $me)
-                                        <div class="row-actions">
                                             <form method="post" action="{{ route('admin.admins.status', $a->id) }}" @if ($a->isActive()) data-confirm="{{ __('Suspend :name? They will not be able to sign in.', ['name' => $a->username]) }}" @endif>
                                                 @csrf
                                                 <input type="hidden" name="active" value="{{ $a->isActive() ? 0 : 1 }}">
                                                 <button class="btn btn-sm" type="submit">{{ $a->isActive() ? __('Suspend') : __('Activate') }}</button>
                                             </form>
-                                            <form method="post" action="{{ route('admin.admins.destroy', $a->id) }}" data-confirm="{{ __('Remove administrator :name? This cannot be undone.', ['name' => $a->username]) }}">
+                                            <form method="post" action="{{ route('admin.admins.destroy', $a->id) }}" data-confirm="{{ __('Delete administrator :name? This cannot be undone.', ['name' => $a->username]) }}">
                                                 @csrf @method('delete')
-                                                <button class="btn btn-sm btn-danger" type="submit">{{ __('Remove') }}</button>
+                                                <button class="btn btn-sm btn-danger" type="submit">{{ __('Delete') }}</button>
                                             </form>
-                                        </div>
                                     @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

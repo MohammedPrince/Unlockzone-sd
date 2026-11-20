@@ -43,12 +43,32 @@ class AdministratorService
         // Not fillable on purpose: set here only.
         $admin->role = User::ROLE_ADMIN;
         $admin->status = 'active';
-        $admin->email_verified_at = now();
-        $admin->save();
+        $admin->forceFill(['email_verified_at' => now()])->save();
 
         $this->logs->log('admin_created', "Added administrator {$admin->username}", $admin, [], $actorId);
 
         return $admin;
+    }
+
+    /** Name, username, email, phone; the password only when a new one is given. */
+    public function update(User $admin, array $data, int $actorId): void
+    {
+        $admin->fill([
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'] ?? null,
+            'name' => trim($data['first_name'] . ' ' . ($data['last_name'] ?? '')),
+            'username' => $data['username'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+        ]);
+        if (filled($data['password'] ?? null)) {
+            $admin->password = $data['password'];
+        }
+        $changed = array_keys($admin->getDirty());
+        $admin->save();
+
+        // Only the field names are logged, never the values (the password hash stays out of the log).
+        $this->logs->log('admin_updated', "Updated administrator {$admin->username}", $admin, ['changed' => $changed], $actorId);
     }
 
     /** Active or suspended. A suspended admin cannot sign in. */
@@ -64,11 +84,11 @@ class AdministratorService
 
     public function delete(User $admin, int $actorId): void
     {
-        $this->guard($admin, $actorId, 'remove');
+        $this->guard($admin, $actorId, 'delete');
 
         $username = $admin->username;
         $admin->delete();
-        $this->logs->log('admin_removed', "Removed administrator {$username}", null, ['username' => $username], $actorId);
+        $this->logs->log('admin_removed', "Deleted administrator {$username}", null, ['username' => $username], $actorId);
     }
 
     private function guard(User $admin, int $actorId, string $what): void
