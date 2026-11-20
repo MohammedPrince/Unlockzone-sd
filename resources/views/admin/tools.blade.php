@@ -192,11 +192,12 @@
         </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="backups">
         <div class="card-head">
             <div>
                 <h2>{{ __('Database backups') }}</h2>
-                <p>{{ __('Stored privately on the server (not reachable from the web). The newest 15 are kept.') }}</p>
+                <p>{{ __('Stored privately on the server (not reachable from the web). The newest 15 are kept.') }}
+                   {{ __('A backup is also made automatically once a week, :when.', ['when' => $backupSchedule]) }}</p>
             </div>
         </div>
         @if (empty($backups))

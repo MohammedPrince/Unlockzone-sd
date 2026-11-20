@@ -80,6 +80,12 @@ class ServerToolController extends Controller
             'details' => $this->tools->details(),
             'info' => $this->tools->info(),
             'backups' => $this->tools->backups(),
+            // e.g. "every Sunday at 00:00 (Africa/Khartoum)" — the weekly php artisan db:backup.
+            'backupSchedule' => __('every :day at :time (:zone)', [
+                'day' => __(\Illuminate\Support\Carbon::create(2026, 11, 22)->addDays((int) config('backup.day'))->format('l')),
+                'time' => config('backup.time'),
+                'zone' => config('backup.timezone'),
+            ]),
             'logInfo' => $this->tools->logInfo(),
             'logEntries' => $this->tools->logEntries(),
             'logLines' => (int) config('server_tools.log_lines', 300),
@@ -109,7 +115,7 @@ class ServerToolController extends Controller
     public function download(string $file)
     {
         $path = $this->tools->backupPath($file);
-        abort_unless($path, 404);
+        abort_if($path === null, 404);
 
         return response()->download($path, $file, ['Content-Type' => 'application/sql']);
     }
@@ -123,7 +129,7 @@ class ServerToolController extends Controller
 
     public function downloadLog()
     {
-        abort_unless($this->tools->logInfo(), 404);
+        abort_if($this->tools->logInfo() === null, 404);
 
         return response()->download($this->tools->logPath(), 'laravel-' . now()->format('Y-m-d-His') . '.log', ['Content-Type' => 'text/plain']);
     }
