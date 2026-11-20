@@ -238,7 +238,7 @@ class ApiProviderService
      * - A service already linked to that provider line is skipped.
      * - A service with the same name already on the site (typed in by hand, imported from a text file or
      *   from another provider) is not duplicated: it is switched to this API service. It keeps its id,
-     *   category, status, description and order history; its price, delivery time and inputs come from the API.
+     *   category, status, description, price, delivery time and order history; only its required inputs come from the API.
      *
      * Returns ['created' => int, 'linked' => int, 'skipped' => int, 'categories' => int].
      */
@@ -291,9 +291,8 @@ class ApiProviderService
                         $result['fields_updated']++;
                     }
                     $touched[$same->id] = true;
+                    // Only the link and the required inputs change: the price (and delivery time) set by the admin stay.
                     $same->update([
-                        'price' => $price,
-                        'delivery_time' => $delivery,
                         'configuration' => array_merge($same->configuration ?? [], [
                             'field_ids' => $newFields,
                             'execution' => 'api',

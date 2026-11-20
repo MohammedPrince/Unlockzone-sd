@@ -134,7 +134,7 @@
                                 {{ __('Import all :count', ['count' => number_format(min($remote->total(), 1000))]) }}
                             </button>
                         </div>
-                        <p class="help">{{ __('Your price = provider price + margin. With "Provider\'s group" each service goes into a category named like the provider\'s group, created when missing. A service whose name already exists on your site is not duplicated: the existing one is switched to this API (it keeps its category, status and order history). Missing input fields are added to the category automatically. A free provider service (price 0) is imported with price 0; edit it to set your own price.') }} {{ __('Every "Sync services" also updates the required input fields of services already imported from this provider when they no longer match the API.') }}</p>
+                        <p class="help">{{ __('Your price = provider price + margin. With "Provider\'s group" each service goes into a category named like the provider\'s group, created when missing. A service whose name already exists on your site is not duplicated: the existing one is switched to this API (it keeps its category, status and order history). Missing input fields are added to the category automatically. A free provider service (price 0) is imported with price 0; edit it to set your own price.') }} {{ __('A service that already exists keeps your price and delivery time: only its required input fields come from the API.') }} {{ __('Every "Sync services" also updates the required input fields of services already imported from this provider when they no longer match the API.') }}</p>
                     </div>
                 </form>
             @endif

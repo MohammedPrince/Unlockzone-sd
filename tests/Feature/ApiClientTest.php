@@ -272,6 +272,6 @@ class ApiClientTest extends TestCase
             ->assertOk()->assertDontSee($key)->assertSee($client->api_key_hint);
 
         $this->actingAs($this->admin())->get(route('admin.api-clients.edit', $client->id))->assertOk()->assertSee('Shared services');
-        $this->actingAs($this->admin())->get(route('admin.api-clients.create'))->assertOk()->assertDontSee('value="' . $customer->id . '"', false);
+        $this->actingAs($this->admin())->get(route('admin.api-clients.create'))->assertOk()->assertDontSee('<option value="' . $customer->id . '"', false)->assertDontSee('(' . $customer->username . ')');
     }
 }

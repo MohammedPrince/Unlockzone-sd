@@ -143,6 +143,49 @@ class ProviderImeiBoxNameTest extends TestCase
         }
     }
 
+    public function test_updating_inputs_from_the_api_never_touches_the_admins_prices_or_details(): void
+    {
+        $credit = '5';
+        $renamed = false;
+        Http::fake(function ($r) use (&$credit, &$renamed) {
+            return match ($r['action']) {
+                'accountinfo' => Http::response(['SUCCESS' => [['AccoutInfo' => ['credit' => '10', 'currency' => 'USD']]]]),
+                'imeiservicelist' => Http::response(['SUCCESS' => [['LIST' => [
+                    'Xiaomi' => ['GROUPNAME' => 'Xiaomi', 'GROUPTYPE' => 'IMEI', 'SERVICES' => [
+                        '1' => ['SERVICEID' => 1, 'SERVICENAME' => 'Mi Europe', 'CREDIT' => $credit, 'TIME' => 'Instant',
+                            'CUSTOM' => $renamed ? ['allow' => '1', 'customname' => 'Lock Code'] : ['allow' => '0']],
+                    ]],
+                ]]]]),
+            };
+        });
+
+        $admin = $this->admin();
+        $this->actingAs($admin)->post(route('admin.providers.store'), [
+            'name' => 'AmrService', 'url' => 'https://provider.test', 'username' => 'me', 'api_key' => 'K', 'status' => 'active',
+        ])->assertSessionHasNoErrors();
+        $provider = ApiProvider::sole();
+        $this->post(route('admin.providers.sync', $provider->id));
+        $this->post(route('admin.providers.import', $provider->id), ['scope' => 'all', 'service_category_id' => '', 'margin' => 0, 'status' => 'active']);
+
+        // The admin sets their own price, VIP and Web Owner prices, name, delivery time, status and description.
+        $mi = Service::where('remote_service_id', '1')->sole();
+        $mi->update(['price' => '23.21', 'name' => 'Mi Account Removal — Global', 'delivery_time' => 'Few hours', 'status' => 'inactive', 'description' => 'My text']);
+        $mi->forceFill(['vip_price' => '20.00', 'owner_price' => '18.00'])->save();
+        $before = $mi->fresh()->only(['price', 'vip_price', 'owner_price', 'name', 'delivery_time', 'status', 'description', 'service_category_id']);
+
+        // The provider changes its price and renames the IMEI box; every way of updating the inputs runs.
+        $credit = '9.99';
+        $renamed = true;
+        $this->post(route('admin.providers.update-fields'))->assertSessionHasNoErrors();
+        $this->post(route('admin.providers.sync', $provider->id))->assertSessionHasNoErrors();
+        $this->post(route('admin.services.provider-fields', $mi->id))->assertSessionHasNoErrors();
+        $this->post(route('admin.providers.repair-fields'))->assertSessionHasNoErrors();
+
+        $after = $mi->fresh();
+        $this->assertSame(['Lock Code'], $after->inputFields()->pluck('label')->all()); // only the inputs changed
+        $this->assertSame($before, $after->only(array_keys($before)));
+    }
+
     public function test_a_service_not_linked_to_a_provider_has_no_update_button(): void
     {
         $service = Service::where('slug', 'haafedk-test-1')->firstOrFail();

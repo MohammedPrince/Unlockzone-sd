@@ -229,9 +229,9 @@ class ProviderImportTest extends TestCase
         $this->assertSame(1, Service::where('name', 'like', 'infinity bb5%')->count());
         $this->assertSame((int) $provider->id, (int) $manual->api_provider_id);
         $this->assertSame('1526', $manual->remote_service_id);
-        $this->assertSame('42.09', $manual->price);
+        $this->assertSame('50.00', $manual->price); // the admin's price stays (the provider asks 42.09)
         $this->assertTrue($manual->usesProvider());
-        // Kept: its category, status and description; its inputs now come from the provider.
+        // Kept: its price, category, status and description; only its inputs now come from the provider.
         $this->assertSame($mine->id, $manual->service_category_id);
         $this->assertSame('inactive', $manual->status);
         $this->assertSame('My notes', $manual->description);

@@ -5,7 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** Another service provider's server that orders can be forwarded to through its API. */
+/**
+ * Another service provider's server that orders can be forwarded to through its API.
+ *
+ * @property string|null $api_key Plain text in PHP; stored encrypted (the "encrypted" cast does that on save).
+ */
 class ApiProvider extends Model
 {
     public const TYPES = [

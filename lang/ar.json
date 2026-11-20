@@ -1450,5 +1450,6 @@
     "Reload every provider’s list and give all imported services (IMEI, server, rent…) the required input fields the API asks for? Fields that differ are replaced. This can take a minute.": "إعادة تحميل قوائم كل المزوّدين وإعطاء كل الخدمات المستوردة (IMEI، سيرفر، تأجير…) الحقول المطلوبة التي يطلبها الـ API؟ الحقول المختلفة سيتم استبدالها. قد يستغرق ذلك دقيقة.",
     "{0} No provider with imported services to update.|{1} 1 provider checked.|[2,*] :count providers checked.": "{0} لا يوجد مزوّد لديه خدمات مستوردة لتحديثها.|{1} تم فحص مزوّد واحد.|[2,*] تم فحص :count مزوّد.",
     "{0} Every API service already asks for what the API needs.|{1} 1 service got its required inputs updated from the API.|[2,*] :count services got their required inputs updated from the API.": "{0} كل خدمات الـ API تطلب بالفعل ما يحتاجه الـ API.|{1} تم تحديث الحقول المطلوبة لخدمة واحدة من الـ API.|[2,*] تم تحديث الحقول المطلوبة لـ :count خدمة من الـ API.",
-    "Not updated (the provider did not answer): :list": "لم يتم التحديث (المزوّد لم يرد): :list"
+    "Not updated (the provider did not answer): :list": "لم يتم التحديث (المزوّد لم يرد): :list",
+    "A service that already exists keeps your price and delivery time: only its required input fields come from the API.": "الخدمة الموجودة مسبقًا تحتفظ بسعرك ووقت التسليم: فقط الحقول المطلوبة تأتي من الـ API."
 }
