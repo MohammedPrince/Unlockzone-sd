@@ -84,6 +84,25 @@ class StorefrontAndProviderTest extends TestCase
             ->assertSee('Bulk service 10')->assertDontSee('Bulk service 20')->assertDontSee('data-infinite-next', false);
     }
 
+    public function test_no_address_fields_on_registration_profile_or_admin_customer_pages(): void
+    {
+        $customer = $this->customer();
+        $hidden = ['name="address1"', 'name="country"', 'name="city"', 'name="zip_code"', 'Billing information'];
+
+        $pages = [
+            $this->get(route('register'))->assertOk()->assertSee('name="phone"', false)->assertDontSee('Step 1 of', false)->assertDontSee('name="first_name"', false),
+            $this->actingAs($customer)->get(route('customer.profile'))->assertOk(),
+            $this->actingAs($this->admin())->get(route('admin.customers.edit', $customer->id))->assertOk(),
+            $this->actingAs($this->admin())->get(route('admin.customers.create'))->assertOk(),
+            $this->actingAs($this->admin())->get(route('admin.customers.show', $customer->id))->assertOk()->assertDontSee('Zip code'),
+        ];
+        foreach ($pages as $page) {
+            foreach ($hidden as $text) {
+                $page->assertDontSee($text, false);
+            }
+        }
+    }
+
     public function test_admin_service_list_loads_20_at_a_time(): void
     {
         $category = \App\Models\ServiceCategory::create(['name' => 'Zz Bulk', 'slug' => 'zz-bulk', 'status' => 'active', 'sort_order' => 99]);

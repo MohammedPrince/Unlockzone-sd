@@ -50,13 +50,24 @@ class SettingsRequest extends FormRequest
             'home_offer_title' => ['nullable', 'string', 'max:120', 'required_if:home_offer_enabled,1'],
             'home_offer_text' => ['nullable', 'string', 'max:200'],
             'home_offer_ends_at' => ['nullable', 'date'],
+            'home_offer_ends_tz' => ['nullable', 'string', 'max:64'],
             'maintenance_enabled' => ['nullable', 'boolean'],
             'maintenance_badge' => ['nullable', 'string', 'max:80'],
             'maintenance_badge_ar' => ['nullable', 'string', 'max:80'],
+            'maintenance_headline' => ['nullable', 'string', 'max:120'],
+            'maintenance_headline_ar' => ['nullable', 'string', 'max:120'],
             'maintenance_text' => ['nullable', 'string', 'max:2000'],
             'maintenance_text_ar' => ['nullable', 'string', 'max:2000'],
             'maintenance_email' => ['nullable', 'email', 'max:150'],
             'maintenance_show_visits' => ['nullable', 'boolean'],
+            // The local date/time the admin typed, read in their browser's time zone (filled in by the page).
+            'maintenance_ends_at' => ['nullable', 'date', function ($attribute, $value, $fail) {
+                $at = \App\Support\MaintenanceSchedule::parse($value, $this->input('maintenance_ends_tz'));
+                if ($at && $at->isPast() && $this->boolean('maintenance_enabled')) {
+                    $fail(__('The launch time must be in the future.'));
+                }
+            }],
+            'maintenance_ends_tz' => ['nullable', 'string', 'max:64'],
         ];
     }
 }

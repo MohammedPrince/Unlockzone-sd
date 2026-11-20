@@ -50,12 +50,18 @@ class SettingService
             'home_offer_title' => $data['home_offer_title'] ?? '',
             'home_offer_text' => $data['home_offer_text'] ?? '',
             'home_offer_ends_at' => $data['home_offer_ends_at'] ?? '',
+            // The admin's browser time zone: the offer's end time is their local time.
+            'home_offer_ends_tz' => \App\Support\MaintenanceSchedule::zone($data['home_offer_ends_tz'] ?? null),
             'maintenance_badge' => trim((string) ($data['maintenance_badge'] ?? '')),
             'maintenance_badge_ar' => trim((string) ($data['maintenance_badge_ar'] ?? '')),
+            'maintenance_headline' => trim((string) ($data['maintenance_headline'] ?? '')),
+            'maintenance_headline_ar' => trim((string) ($data['maintenance_headline_ar'] ?? '')),
             'maintenance_text' => $data['maintenance_text'] ?? '',
             'maintenance_text_ar' => $data['maintenance_text_ar'] ?? '',
             'maintenance_email' => trim((string) ($data['maintenance_email'] ?? '')),
             'maintenance_show_visits' => !empty($data['maintenance_show_visits']) ? '1' : '0',
+            'maintenance_ends_at' => trim((string) ($data['maintenance_ends_at'] ?? '')),
+            'maintenance_ends_tz' => \App\Support\MaintenanceSchedule::zone($data['maintenance_ends_tz'] ?? null),
         ]);
 
         $this->setMaintenance(!empty($data['maintenance_enabled']), $adminId);
@@ -79,8 +85,32 @@ class SettingService
             return;
         }
 
-        $this->settings->setMany(['maintenance_enabled' => $on ? '1' : '0']);
+        $values = ['maintenance_enabled' => $on ? '1' : '0'];
+        // A launch time that has already passed would reopen the site at once: turning maintenance on drops it.
+        if ($on && \App\Support\MaintenanceSchedule::endsAt()?->isPast()) {
+            $values['maintenance_ends_at'] = '';
+        }
+
+        $this->settings->setMany($values);
         $this->logs->log($on ? 'maintenance_on' : 'maintenance_off', $on ? 'Turned maintenance mode on' : 'Turned maintenance mode off', null, [], $adminId);
+    }
+
+    /**
+     * The launch time has passed: maintenance turns itself off and the site is open again.
+     * Returns true when it did (called on every request while maintenance is on).
+     */
+    public function endMaintenanceIfDue(): bool
+    {
+        $endsAt = \App\Support\MaintenanceSchedule::endsAt();
+
+        if (!$this->maintenanceOn() || !$endsAt || $endsAt->isFuture()) {
+            return false;
+        }
+
+        $this->settings->setMany(['maintenance_enabled' => '0', 'maintenance_ends_at' => '']);
+        $this->logs->log('maintenance_off', 'Maintenance mode ended by itself at the launch time ' . $endsAt->format('Y-m-d H:i T'));
+
+        return true;
     }
 
     /** Stores a new logo image under public/uploads/branding (or removes it) and deletes the old file. */

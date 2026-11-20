@@ -840,20 +840,62 @@ body.modal-open { overflow: hidden; }
 
 .home-main { padding-block: 16px 40px; display: flex; flex-direction: column; gap: 16px; }
 
+/* Flash offer: an orange-glowing card that pulses gently, with a light sweep, a live tag and countdown boxes. */
 .home-offer {
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(249, 115, 22, .55);
-    background: linear-gradient(135deg, rgba(249, 115, 22, .14), transparent 70%), var(--panel);
-    box-shadow: 0 0 24px rgba(249, 115, 22, .12);
+    position: relative; overflow: hidden; isolation: isolate;
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 24px;
+    padding: 22px 24px; border-radius: 20px; border: 1.5px solid rgba(249, 115, 22, .8);
+    background:
+        radial-gradient(120% 140% at 0% 0%, rgba(249, 115, 22, .32), transparent 55%),
+        radial-gradient(90% 120% at 100% 100%, rgba(251, 191, 36, .14), transparent 60%),
+        var(--panel);
+    animation: offer-glow 2.6s ease-in-out infinite;
 }
+/* The light sweep across the card */
+.home-offer::after {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .09) 50%, transparent 65%);
+    transform: translateX(-100%); animation: offer-sweep 4.5s ease-in-out infinite;
+}
+@keyframes offer-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, .0), 0 10px 40px -12px rgba(249, 115, 22, .45); }
+    50% { box-shadow: 0 0 0 4px rgba(249, 115, 22, .14), 0 14px 56px -10px rgba(249, 115, 22, .7); }
+}
+@keyframes offer-sweep { 0%, 55% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 .home-offer[hidden] { display: none; }
-.home-offer h2 { font-size: 17px; margin: 2px 0; }
-.home-offer p.muted { font-size: 13px; }
-.home-kicker { color: var(--accent-ink); font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-.home-countdown { display: inline-flex; align-items: baseline; gap: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--sunken); }
-.home-countdown small { color: var(--red); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.home-countdown b { font: 700 18px/1 Consolas, "SFMono-Regular", Menlo, monospace; color: var(--accent-ink); direction: ltr; }
-[lang=ar] .home-kicker, [lang=ar] .home-countdown small { letter-spacing: 0; }
+.home-offer-body { flex: 1 1 320px; min-width: 0; }
+.home-offer-tag {
+    display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 5px 12px; border-radius: 999px;
+    background: linear-gradient(135deg, #ef4444, var(--accent)); color: #fff;
+    font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    box-shadow: 0 6px 18px -6px rgba(239, 68, 68, .7);
+}
+.home-offer-tag i { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: offer-dot 1.2s ease-in-out infinite; }
+@keyframes offer-dot { 50% { opacity: .25; transform: scale(.7); } }
+.home-offer h2 {
+    margin: 12px 0 4px; font-size: clamp(22px, 3.2vw, 30px); line-height: 1.2; font-weight: 800; overflow-wrap: anywhere;
+    background: linear-gradient(90deg, var(--text), #fdba74 60%, #fbbf24); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.home-offer-text { margin: 0; color: var(--text-2); font-size: 15px; }
+.home-offer-cta { margin-top: 14px; min-height: 44px; padding-inline: 20px; font-weight: 800; box-shadow: 0 8px 22px -8px rgba(249, 115, 22, .8); }
+.home-offer-cta span { display: inline-block; transition: transform .2s; }
+.home-offer-cta:hover span { transform: translateX(4px); }
+[dir=rtl] .home-offer-cta span { transform: scaleX(-1); }
+[dir=rtl] .home-offer-cta:hover span { transform: scaleX(-1) translateX(4px); }
+.home-countdown { flex: 0 0 auto; text-align: center; }
+.home-countdown small { display: block; margin-bottom: 8px; color: #f87171; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.home-countdown-units { display: grid; grid-template-columns: repeat(4, minmax(58px, 1fr)); gap: 8px; direction: ltr; }
+.home-countdown-units div { padding: 10px 4px 7px; border-radius: 14px; background: var(--sunken); border: 1px solid rgba(249, 115, 22, .45); }
+.home-countdown-units b { display: block; font: 800 28px/1 Consolas, "SFMono-Regular", Menlo, monospace; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+.home-countdown-units span { display: block; margin-top: 4px; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+[lang=ar] .home-kicker, [lang=ar] .home-offer-tag, [lang=ar] .home-countdown small, [lang=ar] .home-countdown-units span { letter-spacing: 0; }
+@media (max-width: 560px) {
+    .home-offer { padding: 18px 16px; }
+    .home-countdown { flex: 1 1 100%; }
+    .home-countdown-units b { font-size: 24px; }
+    .home-offer-cta { width: 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { .home-offer, .home-offer::after, .home-offer-tag i { animation: none; } }
 
 .home-hero { border-radius: 20px; border: 1px solid var(--line); background: radial-gradient(120% 80% at 50% 0%, rgba(249, 115, 22, .12), transparent 60%), var(--panel); padding: 14px; }
 .home-hero-top { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }

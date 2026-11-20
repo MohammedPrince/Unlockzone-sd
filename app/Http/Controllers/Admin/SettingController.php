@@ -43,7 +43,7 @@ class SettingController extends Controller
     /** The signed-in administrator's own name, email and password. */
     public function profile(Request $request)
     {
-        return view('shared.profile', ['user' => $request->user(), 'countries' => config('countries'), 'action' => route('admin.profile.update')]);
+        return view('shared.profile', ['user' => $request->user(), 'action' => route('admin.profile.update')]);
     }
 
     public function updateProfile(ProfileRequest $request)

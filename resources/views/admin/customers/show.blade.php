@@ -209,10 +209,6 @@
                         <dl class="kv">
                             <dt>{{ __('Email') }}</dt><dd>{{ $customer->email }}</dd>
                             <dt>{{ __('Mobile') }}</dt><dd>{{ $customer->phone ?: '—' }}</dd>
-                            <dt>{{ __('Address') }}</dt><dd>{{ collect([$customer->address1, $customer->address2])->filter()->implode(', ') ?: '—' }}</dd>
-                            <dt>{{ __('City / State') }}</dt><dd>{{ collect([$customer->city, $customer->state])->filter()->implode(', ') ?: '—' }}</dd>
-                            <dt>{{ __('Country') }}</dt><dd>{{ $customer->country ?: '—' }}</dd>
-                            <dt>{{ __('Zip code') }}</dt><dd>{{ $customer->zip_code ?: '—' }}</dd>
                             <dt>{{ __('Last sign-in') }}</dt><dd>{{ $customer->last_login_at?->translatedFormat('M j, Y H:i') ?? __('Never') }}</dd>
                         </dl>
                     </div>

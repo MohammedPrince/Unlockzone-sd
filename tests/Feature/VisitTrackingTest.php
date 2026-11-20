@@ -68,8 +68,8 @@ class VisitTrackingTest extends TestCase
         $this->withHeader('User-Agent', self::PHONE)->get('/?ref=facebook');
         $this->post('/register', [
             'username' => 'fbuser', 'email' => 'fb@example.com', 'password' => 'secret-pass-1', 'password_confirmation' => 'secret-pass-1',
-            'first_name' => 'Fb', 'last_name' => 'User', 'address1' => '1 Main St', 'country' => 'Sudan', 'state' => 'Khartoum',
-            'city' => 'Khartoum', 'zip_code' => '11111', 'phone' => '+249912345678', 'terms' => '1',
+            'first_name' => 'Fb', 'last_name' => 'User',
+            'phone' => '+249912345678', 'terms' => '1',
         ])->assertRedirect(route('login'));
 
         $this->assertSame('facebook', User::where('username', 'fbuser')->value('signup_source'));

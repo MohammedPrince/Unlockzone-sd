@@ -199,16 +199,20 @@
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !popup.hidden) { closePopup(); } });
     }
 
-    // ----- Offer countdown (hh:mm:ss, or "2d 05:10:33" when more than a day is left) -----
+    // ----- Offer countdown: Days / Hours / Min / Sec boxes ([data-unit]); the offer hides itself at zero -----
+    // Counted from the server's "seconds left" (data-left) so a visitor's wrong clock does not matter.
     $$('[data-countdown]').forEach(function (box) {
-        var end = new Date(box.getAttribute('data-countdown')).getTime();
-        var out = $('[data-countdown-text]', box);
-        if (!out || isNaN(end)) { return; }
+        var left0 = parseInt(box.getAttribute('data-left'), 10);
+        var end = isNaN(left0) ? new Date(box.getAttribute('data-countdown')).getTime() : Date.now() + left0 * 1000;
+        var units = { d: $('[data-unit="d"]', box), h: $('[data-unit="h"]', box), m: $('[data-unit="m"]', box), s: $('[data-unit="s"]', box) };
+        if (!units.s || isNaN(end)) { return; }
         var pad = function (n) { return (n < 10 ? '0' : '') + n; };
         var tick = function () {
             var left = Math.max(0, Math.floor((end - Date.now()) / 1000));
-            var d = Math.floor(left / 86400), h = Math.floor(left % 86400 / 3600), m = Math.floor(left % 3600 / 60), s = left % 60;
-            out.textContent = (d > 0 ? d + 'd ' : '') + pad(h) + ':' + pad(m) + ':' + pad(s);
+            units.d.textContent = pad(Math.floor(left / 86400));
+            units.h.textContent = pad(Math.floor(left % 86400 / 3600));
+            units.m.textContent = pad(Math.floor(left % 3600 / 60));
+            units.s.textContent = pad(left % 60);
             if (left === 0) { clearInterval(timer); box.closest('.home-offer').hidden = true; }
         };
         var timer = setInterval(tick, 1000);

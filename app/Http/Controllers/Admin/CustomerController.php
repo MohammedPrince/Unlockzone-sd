@@ -35,7 +35,7 @@ class CustomerController extends Controller
 
     public function create()
     {
-        return view('admin.customers.form', ['customer' => null, 'countries' => config('countries')]);
+        return view('admin.customers.form', ['customer' => null]);
     }
 
     public function store(CustomerRequest $request)
@@ -52,7 +52,7 @@ class CustomerController extends Controller
 
     public function edit(int $id)
     {
-        return view('admin.customers.form', ['customer' => $this->customers->find($id), 'countries' => config('countries')]);
+        return view('admin.customers.form', ['customer' => $this->customers->find($id)]);
     }
 
     public function update(CustomerRequest $request, int $id)
