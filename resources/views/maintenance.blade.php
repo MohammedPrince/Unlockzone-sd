@@ -121,7 +121,7 @@
         @keyframes lift { 50% { transform: translateY(-6px); } }
         .perks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 22px; padding: 0; list-style: none; }
         .perks li { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--langs-line); background: var(--icon-bg); color: var(--heading); font-size: 14px; font-weight: 700; }
-        .launching .launch { margin-top: 28px; padding: 22px 16px 20px; border-radius: 22px; border: 1px solid rgba(249, 115, 22, .35); background: linear-gradient(180deg, rgba(249, 115, 22, .08), transparent); }
+        .launching .launch { margin-top: 22px; padding: 22px 16px 20px; border-radius: 22px; border: 1px solid rgba(249, 115, 22, .35); background: linear-gradient(180deg, rgba(249, 115, 22, .08), transparent); }
         .launching .launch-label { color: #f87171; font-weight: 800; }
         @media (prefers-reduced-motion: reduce) { .launching .card, .launching .icon { animation: none; } }
         .help { margin-top: 30px; font-size: 15px; }
@@ -171,6 +171,24 @@
             @endif
         </div>
 
+        {{-- The countdown sits right under the rocket, so visitors see it first (also on phones). --}}
+        @if ($endsAt)
+            @php $left = max(0, (int) now()->diffInSeconds($endsAt, false)); @endphp
+            {{-- Server-side numbers are right on first paint; the script below keeps them ticking and shows the
+                 date in the visitor's own time zone. At zero the page reloads and the site is open again. --}}
+            <section class="launch" data-launch="{{ $endsAt->toIso8601String() }}" data-left="{{ $left }}">
+                <div class="launch-label">{{ $ar ? 'سيكون الموقع متاحًا في' : 'Will be live on' }}</div>
+                <div class="launch-date" dir="ltr" data-launch-date>{{ $endsAt->format('m/d/Y h:i A') }} (GMT{{ $endsAt->format('P') }})</div>
+                <div class="count" role="timer" aria-live="off">
+                    <div><b data-unit="d">{{ sprintf('%02d', intdiv($left, 86400)) }}</b><span>{{ $ar ? 'يوم' : 'Days' }}</span></div>
+                    <div><b data-unit="h">{{ sprintf('%02d', intdiv($left % 86400, 3600)) }}</b><span>{{ $ar ? 'ساعة' : 'Hours' }}</span></div>
+                    <div><b data-unit="m">{{ sprintf('%02d', intdiv($left % 3600, 60)) }}</b><span>{{ $ar ? 'دقيقة' : 'Minutes' }}</span></div>
+                    <div><b data-unit="s">{{ sprintf('%02d', $left % 60) }}</b><span>{{ $ar ? 'ثانية' : 'Seconds' }}</span></div>
+                </div>
+                <div class="launch-live" data-launch-live hidden>{{ $ar ? 'الموقع متاح الآن! جارٍ التحميل…' : 'We are live! Loading…' }}</div>
+            </section>
+        @endif
+
         @if ($badge !== '')
             <div class="badge">{{ $badge }}</div>
         @endif
@@ -188,22 +206,6 @@
             </ul>
         @endif
 
-        @if ($endsAt)
-            @php $left = max(0, (int) now()->diffInSeconds($endsAt, false)); @endphp
-            {{-- Server-side numbers are right on first paint; the script below keeps them ticking and shows the
-                 date in the visitor's own time zone. At zero the page reloads and the site is open again. --}}
-            <section class="launch" data-launch="{{ $endsAt->toIso8601String() }}" data-left="{{ $left }}">
-                <div class="launch-label">{{ $ar ? 'سيكون الموقع متاحًا في' : 'Will be live on' }}</div>
-                <div class="launch-date" dir="ltr" data-launch-date>{{ $endsAt->format('m/d/Y h:i A') }} (GMT{{ $endsAt->format('P') }})</div>
-                <div class="count" role="timer" aria-live="off">
-                    <div><b data-unit="d">{{ sprintf('%02d', intdiv($left, 86400)) }}</b><span>{{ $ar ? 'يوم' : 'Days' }}</span></div>
-                    <div><b data-unit="h">{{ sprintf('%02d', intdiv($left % 86400, 3600)) }}</b><span>{{ $ar ? 'ساعة' : 'Hours' }}</span></div>
-                    <div><b data-unit="m">{{ sprintf('%02d', intdiv($left % 3600, 60)) }}</b><span>{{ $ar ? 'دقيقة' : 'Minutes' }}</span></div>
-                    <div><b data-unit="s">{{ sprintf('%02d', $left % 60) }}</b><span>{{ $ar ? 'ثانية' : 'Seconds' }}</span></div>
-                </div>
-                <div class="launch-live" data-launch-live hidden>{{ $ar ? 'الموقع متاح الآن! جارٍ التحميل…' : 'We are live! Loading…' }}</div>
-            </section>
-        @endif
 
         @if ($email !== '')
             <p class="help">{{ $ar ? 'تحتاج مساعدة؟ راسلنا على' : 'Need help? Email us at' }} <a href="mailto:{{ $email }}" dir="ltr">{{ $email }}</a></p>

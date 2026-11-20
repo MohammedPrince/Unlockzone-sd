@@ -45,6 +45,25 @@ class Service extends Model
         return $this->api_provider_id !== null && filled($this->remote_service_id);
     }
 
+    /**
+     * The customer catalog's group for a service name: the part before the first "|"
+     * ("AldazRActivator Premium HELLO A12/A13 | iPhone XR" → "AldazRActivator Premium HELLO A12/A13"),
+     * or the category name when there is no "|" (or nothing before it).
+     */
+    public static function groupOf(string $name, string $categoryName): string
+    {
+        $pos = mb_strpos($name, '|');
+        $head = $pos === false ? '' : trim(preg_replace('/\s+/u', ' ', mb_substr($name, 0, $pos)));
+
+        return $head !== '' ? $head : $categoryName;
+    }
+
+    /** Short, stable id for a group in the address (?group=…); case and spacing do not matter. */
+    public static function groupKey(string $group): string
+    {
+        return substr(md5(mb_strtolower(preg_replace('/\s+/u', ' ', trim($group)))), 0, 10);
+    }
+
     /** Shows the "New" tag for the number of days chosen in Settings (0 turns the tag off). */
     public function isNew(): bool
     {

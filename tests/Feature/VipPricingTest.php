@@ -205,7 +205,7 @@ class VipPricingTest extends TestCase
         // Nothing ticked, a missing value, or a percentage out of range are refused.
         $this->post(route('admin.vip-prices.bulk'), ['scope' => 'selected', 'action' => 'clear'])->assertSessionHasErrors('ids');
         $this->post(route('admin.vip-prices.bulk'), ['scope' => 'selected', 'ids' => [$test1->id], 'action' => 'fixed'])->assertSessionHasErrors('value');
-        $this->post(route('admin.vip-prices.bulk'), ['scope' => 'selected', 'ids' => [$test1->id], 'action' => 'percent', 'value' => '-95'])->assertSessionHasErrors('value');
+        $this->post(route('admin.vip-prices.bulk'), ['scope' => 'selected', 'ids' => [$test1->id], 'action' => 'percent', 'value' => '-101'])->assertSessionHasErrors('value');
         $this->assertSame('2.50', $test1->fresh()->vip_price);
     }
 
@@ -220,6 +220,7 @@ class VipPricingTest extends TestCase
         $this->assertSame('4.00', $test1->fresh()->vip_price);
         $this->assertSame('5', setting('vip_price_adjust'));
 
-        $this->put(route('admin.vip-prices.update'), ['price_adjust' => '-95'])->assertSessionHasErrors('price_adjust');
+        $this->put(route('admin.vip-prices.update'), ['price_adjust' => '-101'])->assertSessionHasErrors('price_adjust');
+        $this->put(route('admin.vip-prices.update'), ['price_adjust' => '-100'])->assertSessionHasNoErrors();
     }
 }

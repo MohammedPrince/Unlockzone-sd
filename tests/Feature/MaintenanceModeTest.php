@@ -135,7 +135,9 @@ class MaintenanceModeTest extends TestCase
             ->assertSee('Instant delivery')
             ->assertSee('11/21/2026 12:00 AM (GMT+04:00)')
             ->assertSee('data-left="7200"', false)
-            ->assertSee('<b data-unit="h">02</b>', false);
+            ->assertSee('<b data-unit="h">02</b>', false)
+            // The countdown is right under the rocket, before the headline and the message.
+            ->assertSeeInOrder(['🚀', 'class="count"', 'class="headline"', 'is opening its doors'], false);
 
         // One minute after the launch time the site is open again, maintenance is off, and the time is cleared.
         $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-20 20:01:00', 'UTC'));

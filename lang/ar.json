@@ -1403,5 +1403,8 @@
     "Leave blank to keep the current one": "اتركها فارغة للإبقاء على الحالية",
     "Administrator :name updated.": "تم تحديث بيانات المشرف :name.",
     "The account is deleted and can no longer sign in. Their past actions stay in the activity log.": "يُحذف الحساب ولن يتمكن من تسجيل الدخول. تبقى إجراءاته السابقة في سجل النشاط.",
-    "delete": "حذف"
+    "delete": "حذف",
+    "Group": "المجموعة",
+    "All Group": "كل المجموعات",
+    "Search Service...": "ابحث عن خدمة..."
 }

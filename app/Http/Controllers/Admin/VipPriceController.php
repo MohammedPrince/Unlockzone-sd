@@ -121,7 +121,7 @@ class VipPriceController extends Controller
     public function update(Request $request)
     {
         $data = $request->validate([
-            'price_adjust' => ['required', 'numeric', 'min:-90', 'max:1000', 'decimal:0,2'],
+            'price_adjust' => ['required', 'numeric', 'min:-100', 'max:1000', 'decimal:0,2'],
             'prices' => ['array'],
             'prices.*' => ['nullable', 'numeric', 'min:0', 'max:999999.99', 'decimal:0,2'],
         ], [], ['price_adjust' => __('VIP percentage'), 'prices.*' => __('VIP price')]);
@@ -164,7 +164,7 @@ class VipPriceController extends Controller
         $data = $request->validate([
             'action' => ['required', Rule::in(['fixed', 'percent', 'clear'])],
             'value' => ['exclude_if:action,clear', 'required', 'numeric', 'decimal:0,2',
-                $request->input('action') === 'percent' ? 'min:-90' : 'min:0',
+                $request->input('action') === 'percent' ? 'min:-100' : 'min:0',
                 $request->input('action') === 'percent' ? 'max:1000' : 'max:999999.99'],
             'scope' => ['required', Rule::in(['selected', 'all'])],
             'ids' => ['exclude_unless:scope,selected', 'required', 'array', 'max:5000'],

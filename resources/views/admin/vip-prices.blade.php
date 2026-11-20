@@ -74,7 +74,7 @@
         <div class="card-body">
             <div style="max-width: 520px">
                 <label for="price_adjust">{{ __('VIP price for every service') }} (%)</label>
-                <input type="number" id="price_adjust" name="price_adjust" form="vip-prices-form" value="{{ $adjustValue }}" min="-90" max="1000" step="0.01" dir="ltr" required data-price-adjust>
+                <input type="number" id="price_adjust" name="price_adjust" form="vip-prices-form" value="{{ $adjustValue }}" min="-100" max="1000" step="0.01" dir="ltr" required data-price-adjust>
                 <p class="help">{{ __('Applied to the site price. 0 = same as the site, -10 = 10% discount, 5 = 5% more. A VIP price typed next to a service below replaces it for that service.') }}</p>
                 @error('price_adjust') <p class="error-text">{{ $message }}</p> @enderror
             </div>
@@ -430,7 +430,7 @@
         var syncAction = function () {
             value.hidden = action.value === 'clear';
             value.required = action.value !== 'clear';
-            value.min = action.value === 'percent' ? '-90' : '0';
+            value.min = action.value === 'percent' ? '-100' : '0';
             value.max = action.value === 'percent' ? '1000' : '999999.99';
             value.placeholder = value.getAttribute(action.value === 'percent' ? 'data-ph-percent' : 'data-ph-fixed');
         };

@@ -9,19 +9,29 @@
     <div class="card">
         <form class="filters" method="get" action="{{ route('customer.services.index') }}" style="border-bottom: 0" data-live-search="#catalog-results">
             @if (request()->filled('category')) <input type="hidden" name="category" value="{{ request()->integer('category') }}"> @endif
+            {{-- Groups: the part of a service name before "|" (or its category). Choosing one shows only its services. --}}
+            <div class="field grow catalog-group">
+                <label for="group">{{ __('Group') }}</label>
+                <select id="group" name="group" dir="auto">
+                    <option value="">{{ __('All Group') }}</option>
+                    @foreach ($groupList as $g)
+                        <option value="{{ $g['key'] }}" @selected($group === $g['key'])>{{ $g['name'] }} ({{ $g['count'] }})</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="field grow">
                 <label for="q">{{ __('Search services') }}</label>
-                <input type="search" id="q" name="q" value="{{ $q }}" placeholder="{{ __('Service name') }}" autocomplete="off">
+                <input type="search" id="q" name="q" value="{{ $q }}" placeholder="{{ __('Search Service...') }}" autocomplete="off">
             </div>
             <div class="btns">
                 <button class="btn btn-primary" type="submit">{{ __('Search') }}</button>
-                @if ($q) <a class="btn" href="{{ route('customer.services.index') }}">{{ __('Clear') }}</a> @endif
+                @if ($q || $group) <a class="btn" href="{{ route('customer.services.index', array_filter(['category' => request()->integer('category') ?: null])) }}">{{ __('Clear') }}</a> @endif
             </div>
         </form>
     </div>
 
     <div id="catalog-results" data-live-results>
-    @if ($catalog->isEmpty())
+    @if ($empty)
         <div class="card" style="margin-top: 18px">
             <div class="empty"><strong>{{ $q ? __('No services match your search') : __('No services available yet') }}</strong>{{ $q ? __('Try a different name.') : __('Please check back soon.') }}</div>
         </div>

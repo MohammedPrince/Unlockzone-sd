@@ -74,7 +74,7 @@ class StorefrontAndProviderTest extends TestCase
         $this->actingAs($customer)->get(route('customer.services.index', ['page' => $last]))->assertOk()
             ->assertSee('Bulk service 45')
             ->assertSee('45 services')
-            ->assertSee('data-infinite-key="category-' . $category->id . '"', false)
+            ->assertSee('data-infinite-key="group-' . Service::groupKey('Zz Bulk') . '"', false)
             ->assertSee('All ' . $total . ' shown')
             ->assertDontSee('data-infinite-next', false)
             ->assertDontSee('Frequently used');
@@ -82,6 +82,44 @@ class StorefrontAndProviderTest extends TestCase
         // Searching narrows the list; with 20 or fewer matches there is nothing more to load.
         $this->actingAs($customer)->get(route('customer.services.index', ['q' => 'Bulk service 1']))->assertOk()
             ->assertSee('Bulk service 10')->assertDontSee('Bulk service 20')->assertDontSee('data-infinite-next', false);
+    }
+
+    public function test_customer_catalog_groups_services_by_the_name_before_the_bar(): void
+    {
+        $this->assertSame('AldazRActivator Premium HELLO A12/A13', Service::groupOf('AldazRActivator Premium HELLO A12/A13 | iPhone XR', 'IMEI Service'));
+        $this->assertSame('IMEI Service', Service::groupOf('Plain name', 'IMEI Service'));
+        $this->assertSame('IMEI Service', Service::groupOf(' | starts with a bar', 'IMEI Service'));
+
+        $customer = $this->customer();
+        $category = \App\Models\ServiceCategory::create(['name' => 'IMEI Service', 'slug' => 'imei-service-g', 'status' => 'active', 'sort_order' => 0]);
+        foreach (['iPhone SE 2nd', 'iPhone XR', 'iPhone XS'] as $i => $model) {
+            Service::create([
+                'service_category_id' => $category->id, 'name' => "AldazRActivator Premium HELLO A12/A13 | {$model}", 'slug' => "aldaz-{$i}",
+                'price' => '1.58', 'status' => 'active', 'configuration' => ['field_ids' => [], 'execution' => 'manual'],
+            ]);
+        }
+        Service::create([
+            'service_category_id' => $category->id, 'name' => 'Single IMEI check', 'slug' => 'single-imei',
+            'price' => '1.00', 'status' => 'active', 'configuration' => ['field_ids' => [], 'execution' => 'manual'],
+        ]);
+        $aldaz = Service::groupKey('AldazRActivator Premium HELLO A12/A13');
+
+        // The list above the search: "All Group" and each group with its count; all groups shown by default.
+        $this->actingAs($customer)->get(route('customer.services.index'))->assertOk()
+            ->assertSeeInOrder(['All Group', 'AldazRActivator Premium HELLO A12/A13 (3)'])
+            ->assertSee('IMEI Service (1)')
+            ->assertSee('Single IMEI check')
+            ->assertSee('data-infinite-key="group-' . $aldaz . '"', false);
+
+        // Choosing a group shows only its services, and search works inside it.
+        $this->actingAs($customer)->get(route('customer.services.index', ['group' => $aldaz]))->assertOk()
+            ->assertSee('iPhone SE 2nd')->assertSee('iPhone XS')->assertSee('3 services')
+            ->assertDontSee('class="service-card" href="' . route('customer.services.show', Service::where('slug', 'single-imei')->value('id')) . '"', false)->assertDontSee('data-infinite-key="group-' . Service::groupKey('EMI Services') . '"', false);
+        $this->actingAs($customer)->get(route('customer.services.index', ['group' => $aldaz, 'q' => 'xr']))->assertOk()
+            ->assertSee('iPhone XR')->assertSee('1 service')->assertDontSee('3 services');
+
+        // An unknown group falls back to all groups.
+        $this->actingAs($customer)->get(route('customer.services.index', ['group' => 'nope']))->assertOk()->assertSee('Single IMEI check');
     }
 
     public function test_no_address_fields_on_registration_profile_or_admin_customer_pages(): void
