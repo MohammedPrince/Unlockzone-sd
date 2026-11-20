@@ -140,6 +140,19 @@ class ApiProviderController extends Controller
     }
 
     /** Asks the providers about every open order right now (the scheduler does the same every minute). */
+    /** "Fix missing inputs": API services get back the inputs their provider asks for. */
+    public function repairFields(Request $request)
+    {
+        $r = $this->providers->repairFields($request->user()->id);
+
+        $message = trans_choice('{0} Every API service already asks for what its provider needs.|{1} 1 API service got its missing inputs back.|[2,*] :count API services got their missing inputs back.', $r['fixed'], ['count' => $r['fixed']]);
+        if ($r['unknown'] > 0) {
+            $message .= ' ' . trans_choice('{1} 1 service could not be checked: use "Sync services" on its provider first.|[2,*] :count services could not be checked: use "Sync services" on their provider first.', $r['unknown'], ['count' => $r['unknown']]);
+        }
+
+        return back()->with('success', $message);
+    }
+
     public function syncOrders()
     {
         $checked = $this->orders->syncOpen(100);

@@ -61,7 +61,7 @@
                                        name="fields[{{ $field->id }}]"
                                        value="{{ old('fields.' . $field->id) }}"
                                        class="{{ $errors->has('fields.' . $field->id) ? 'is-invalid' : '' }}"
-                                       placeholder="{{ $field->placeholder }}"
+                                       placeholder="{{ $field->placeholderText() }}"
                                        dir="ltr"
                                        @if ($field->input_type === 'imei') inputmode="numeric" pattern="[0-9]{15}" maxlength="15" title="{{ __('15 digits') }}" @else maxlength="255" @endif
                                        @if ($field->input_type === 'number') step="any" @endif

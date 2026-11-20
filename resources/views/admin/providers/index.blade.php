@@ -7,6 +7,12 @@
 
 @section('page-actions')
     @if ($providers->isNotEmpty())
+        {{-- API services that lost an input (e.g. a field removed from the category) get back what the provider needs. --}}
+        <form method="post" action="{{ route('admin.providers.repair-fields') }}" class="inline" data-once
+              data-confirm="{{ __('Tick again, on every API service, the inputs its provider asks for (IMEI and the provider’s own fields)? Inputs you ticked yourself are kept.') }}">
+            @csrf
+            <button class="btn" type="submit" title="{{ __('For API services that show no inputs or miss one the provider needs') }}">{{ __('Fix missing inputs') }}</button>
+        </form>
         <form method="post" action="{{ route('admin.providers.sync-orders') }}" class="inline" data-once>
             @csrf
             <button class="btn" type="submit">{{ __('Check open orders now') }}</button>

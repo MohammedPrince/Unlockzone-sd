@@ -271,6 +271,55 @@ class ApiProviderService
     }
 
     /** Finds (or adds to the category) the input fields a provider service needs. */
+    /**
+     * Gives every API service back the inputs its provider asks for (IMEI and the provider's own fields),
+     * e.g. after a field was removed from the category and so from the services. Only adds what is missing:
+     * fields the admin ticked themselves are kept. Uses the price list saved by the last "Sync services".
+     *
+     * Returns ['checked' => int, 'fixed' => int, 'unknown' => int] (unknown = no saved provider line to go by).
+     */
+    public function repairFields(int $adminId): array
+    {
+        $result = ['checked' => 0, 'fixed' => 0, 'unknown' => 0];
+        $fixed = [];
+
+        $services = Service::whereNotNull('api_provider_id')->whereNotNull('remote_service_id')
+            ->with('category.fields')->get(['id', 'name', 'service_category_id', 'api_provider_id', 'remote_service_id', 'configuration']);
+        $rows = ProviderService::whereIn('api_provider_id', $services->pluck('api_provider_id')->unique())->get()
+            ->keyBy(fn ($r) => $r->api_provider_id . ':' . $r->remote_id);
+
+        DB::transaction(function () use ($services, $rows, &$result, &$fixed) {
+            foreach ($services as $service) {
+                $result['checked']++;
+                $row = $rows->get($service->api_provider_id . ':' . $service->remote_service_id);
+                if (!$row || !$service->category) {
+                    $result['unknown']++;
+                    continue;
+                }
+
+                $have = $service->fieldIds();
+                $need = $this->fieldIdsFor($service->category, $row);
+                $missing = array_values(array_diff($need, $have));
+                if (!$missing) {
+                    continue;
+                }
+
+                // The provider's inputs first (IMEI on top, as on import), then the admin's other ticks.
+                $config = $service->configuration ?? [];
+                $config['field_ids'] = array_values(array_unique([...$need, ...$have]));
+                $service->update(['configuration' => $config]);
+                $result['fixed']++;
+                $fixed[] = $service->name;
+            }
+        });
+
+        $this->logs->log('provider_fields', "Fixed missing inputs on {$result['fixed']} API service(s)", null, $result + [
+            'services' => array_slice($fixed, 0, 50),
+        ], $adminId);
+
+        return $result;
+    }
+
     private function fieldIdsFor(ServiceCategory $category, ProviderService $row): array
     {
         $ids = [];

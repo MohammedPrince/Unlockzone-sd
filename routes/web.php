@@ -140,6 +140,7 @@ Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function
     Route::get('providers', [Admin\ApiProviderController::class, 'index'])->name('providers.index');
     Route::get('providers/create', [Admin\ApiProviderController::class, 'create'])->name('providers.create');
     Route::post('providers', [Admin\ApiProviderController::class, 'store'])->name('providers.store');
+    Route::post('providers/repair-fields', [Admin\ApiProviderController::class, 'repairFields'])->name('providers.repair-fields');
     Route::post('providers/sync-orders', [Admin\ApiProviderController::class, 'syncOrders'])->name('providers.sync-orders');
     Route::get('providers/{id}/edit', [Admin\ApiProviderController::class, 'edit'])->whereNumber('id')->name('providers.edit');
     Route::put('providers/{id}', [Admin\ApiProviderController::class, 'update'])->whereNumber('id')->name('providers.update');

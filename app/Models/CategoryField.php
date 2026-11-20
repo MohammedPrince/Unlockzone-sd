@@ -39,6 +39,42 @@ class CategoryField extends Model
         return self::TYPES[$this->input_type]['hint'] ?? '';
     }
 
+    /**
+     * What the empty box shows on the order form: the admin's own placeholder when set, otherwise an example
+     * that fits the input type and, for free text, what the label asks for (a link, a model, a phone number…).
+     */
+    public function placeholderText(): string
+    {
+        if (filled($this->placeholder)) {
+            return (string) $this->placeholder;
+        }
+
+        $label = mb_strtolower((string) $this->label);
+        $has = fn (string ...$words) => collect($words)->contains(fn ($w) => str_contains($label, $w));
+
+        return match ($this->input_type) {
+            'imei' => __('15 digits, e.g. :example', ['example' => '356938035643809']),
+            'sn' => __('e.g. :example', ['example' => 'F2LXK0ABCD12']),
+            'email' => $has('password') ? __('Enter :label', ['label' => $this->label]) : 'name@example.com',
+            'lock_code' => __('e.g. :example', ['example' => '12345678']),
+            'number' => __('e.g. :example', ['example' => '1']),
+            default => match (true) {
+                $has('link', 'url', 'http', 'picture', 'photo', 'pic', 'screenshot', 'image', 'video', 'qr', 'sticker')
+                    => __('Paste the link, e.g. :example', ['example' => 'https://files.fm/…']),
+                $has('email', 'mail') && !$has('password') => 'name@example.com',
+                $has('imei') => __('15 digits, e.g. :example', ['example' => '356938035643809']),
+                $has('serial') || preg_match('/\bsn\b/u', $label) => __('e.g. :example', ['example' => 'F2LXK0ABCD12']),
+                $has('phone', 'mobile', 'whatsapp', 'number apple') => __('e.g. :example', ['example' => '+249 912 345 678']),
+                $has('cpu') => __('e.g. :example', ['example' => 'A7']),
+                $has('model') => __('e.g. :example', ['example' => 'iPhone 11 Pro Max']),
+                $has('country') => __('e.g. :example', ['example' => 'Sudan']),
+                $has('password', 'pass') => __('Enter :label', ['label' => $this->label]),
+                $has('code') => __('e.g. :example', ['example' => '12345678']),
+                default => __('Enter :label', ['label' => $this->label]),
+            },
+        };
+    }
+
     public function rules(): array
     {
         return array_merge(
