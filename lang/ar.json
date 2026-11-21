@@ -945,6 +945,8 @@
     "Contact email": "بريد التواصل",
     "Tagline": "الشعار النصي",
     "One line under your server name, also used by search engines.": "سطر واحد تحت اسم السيرفر، وتستخدمه محركات البحث أيضاً.",
+    "Google Search Console verification": "رمز التحقق من Google Search Console",
+    "Paste the HTML tag from Search Console (or just its code). Keep it here after verifying, or Google will un-verify the site.": "الصق وسم HTML من Search Console (أو الرمز فقط). اتركه هنا بعد التحقق، وإلا سيلغي Google التحقق من الموقع.",
     "Welcome text": "نص الترحيب",
     "The big yellow announcement on the home page uses the \"Fixed notice\" above.": "الإعلان الأصفر الكبير في الصفحة الرئيسية يستخدم «الإشعار الثابت» أعلاه.",
     "Show the notice-board popup": "إظهار النافذة المنبثقة للإعلانات",

@@ -40,6 +40,8 @@ class SettingRepository
         'contact_phone' => '',
         'contact_email' => '',
         'home_tagline' => 'Your premium direct source for mobile unlocking services',
+        // Google Search Console "HTML tag" verification code (the content="..." value only).
+        'google_site_verification' => '',
         'home_welcome' => 'Welcome! Sign in to order services, or create your account now to get started.',
         'home_popup_enabled' => '1',
         'home_popup_badge' => 'VIP NOTICE BOARD',

@@ -8,7 +8,11 @@
     $shareTitle = $shareTagline !== '' ? $shareSite . ' · ' . $shareTagline : $shareSite;
     $shareLogo = (string) setting('site_logo');
     $shareImage = $shareLogo !== '' && is_file(public_path($shareLogo)) ? asset($shareLogo) : null;
+    $googleVerify = (string) setting('google_site_verification');
 @endphp
+@if ($googleVerify !== '')
+    <meta name="google-site-verification" content="{{ $googleVerify }}">
+@endif
 @if ($shareTagline !== '')
     <meta name="description" content="{{ $shareTagline }}">
 @endif
