@@ -41,6 +41,7 @@ class SettingService
             'contact_phone' => trim((string) ($data['contact_phone'] ?? '')),
             'contact_email' => trim((string) ($data['contact_email'] ?? '')),
             'home_tagline' => $data['home_tagline'] ?? '',
+            'google_site_verification' => self::verificationCode($data['google_site_verification'] ?? ''),
             'home_welcome' => $data['home_welcome'] ?? '',
             'home_popup_enabled' => !empty($data['home_popup_enabled']) ? '1' : '0',
             'home_popup_badge' => $data['home_popup_badge'] ?? '',
@@ -135,5 +136,19 @@ class SettingService
         if ($old !== '' && str_starts_with($old, 'uploads/branding/') && is_file(public_path($old))) {
             @unlink(public_path($old));
         }
+    }
+
+    /**
+     * Google Search Console verification: accepts the whole <meta ...> tag or just its code,
+     * and keeps only the code (letters, digits, - and _), so nothing else reaches the page head.
+     */
+    public static function verificationCode(?string $input): string
+    {
+        $input = trim((string) $input);
+        if (preg_match('/content\s*=\s*["\']([^"\']*)["\']/i', $input, $m)) {
+            $input = $m[1];
+        }
+
+        return preg_replace('/[^A-Za-z0-9_\-]+/', '', $input);
     }
 }

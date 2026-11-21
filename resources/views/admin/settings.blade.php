@@ -246,6 +246,12 @@
                     <p class="help">{{ __('One line under your server name, also used by search engines.') }}</p>
                 </div>
                 <div class="full">
+                    <label for="google_site_verification">{{ __('Google Search Console verification') }} <span class="muted">({{ __('optional') }})</span></label>
+                    <input type="text" id="google_site_verification" name="google_site_verification" value="{{ old('google_site_verification', $settings['google_site_verification']) }}" maxlength="300" placeholder='&lt;meta name="google-site-verification" content="..."&gt;' dir="ltr">
+                    <p class="help">{{ __('Paste the HTML tag from Search Console (or just its code). Keep it here after verifying, or Google will un-verify the site.') }}</p>
+                    @error('google_site_verification') <p class="error-text">{{ $message }}</p> @enderror
+                </div>
+                <div class="full">
                     <label for="home_welcome">{{ __('Welcome text') }}</label>
                     <textarea id="home_welcome" name="home_welcome" maxlength="500" rows="2">{{ old('home_welcome', $settings['home_welcome']) }}</textarea>
                     <p class="help">{{ __('The big yellow announcement on the home page uses the "Fixed notice" above.') }}</p>

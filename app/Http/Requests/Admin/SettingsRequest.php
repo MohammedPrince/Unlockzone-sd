@@ -41,6 +41,7 @@ class SettingsRequest extends FormRequest
             'contact_phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+ ()\-]+$/'],
             'contact_email' => ['nullable', 'email', 'max:150'],
             'home_tagline' => ['nullable', 'string', 'max:150'],
+            'google_site_verification' => ['nullable', 'string', 'max:300'],
             'home_welcome' => ['nullable', 'string', 'max:500'],
             'home_popup_enabled' => ['nullable', 'boolean'],
             'home_popup_badge' => ['nullable', 'string', 'max:40'],
