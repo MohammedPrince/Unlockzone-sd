@@ -28,15 +28,6 @@
     $catalogOpen = \App\Support\Seo::catalogOpen();
     $showPrices = \App\Support\Seo::showPrices();
 
-    // Questions and answers at the bottom of the page.
-    $faq = [
-        [__('How do I order a service?'), __('Create an account, add credit, then choose a service and enter what it asks for. The price is taken from your credit.')],
-        [__('How do I find my IMEI?'), __('Dial *#06# on the phone. The 15-digit IMEI appears on the screen.')],
-        [__('How long does a service take?'), __('Each service shows its own delivery time on its page before you order.')],
-        [__('What happens if my order fails?'), __('If an order fails or is cancelled, the full amount is refunded to your balance.')],
-        [__('Can I connect my own website?'), __('Yes. Our server works with the DHRU Fusion API, so resellers can connect their own site. Contact us for access.')],
-    ];
-
     // What search engines show for this page: Admin > Settings > Search engines, or the site name and tagline.
     $seo = [
         'title' => \App\Support\Seo::custom('seo_title') ?: ($tagline !== '' ? $site . ' · ' . $tagline : $site),
@@ -171,26 +162,6 @@
                 @endforeach
             </div>
         @endif
-    </section>
-
-    @if ($latest->isNotEmpty())
-        <section class="home-latest">
-            <h2>{{ __('Latest services') }}</h2>
-            <div class="card pub-group">@include('partials.public-services', ['list' => $latest])</div>
-            <p class="home-more"><a class="btn" href="{{ \App\Support\Seo::url('public.catalog') }}">{{ __('See all services') }}</a></p>
-        </section>
-    @endif
-
-    <section class="home-how">
-        <h2>{{ __('How to order') }}</h2>
-        <div class="card"><div class="card-body">@include('partials.public-steps')</div></div>
-    </section>
-
-    <section class="home-faq">
-        <h2>{{ __('Common questions') }}</h2>
-        @foreach ($faq as [$question, $answer])
-            <details class="card"><summary>{{ $question }}</summary><p>{{ $answer }}</p></details>
-        @endforeach
     </section>
 </main>
 

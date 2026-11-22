@@ -1108,7 +1108,7 @@ body.modal-open { overflow: hidden; }
 /* The header shows the full logo, so the name beside it is not needed. */
 .home-header .brand > span:last-child.brand-wide { display: inline-flex; }
 
-/* Public service pages and the home page's service list, steps and questions */
+/* Public service pages */
 .pub-main { width: 100%; max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding-bottom: 90px; }
 .public-page:has(.pub-main) .title-strip h1 { max-width: 1048px; font-size: 22px; font-weight: 600; overflow-wrap: anywhere; }
 [dir=rtl] .public-page .title-strip h1 { text-align: right; }
@@ -1145,15 +1145,8 @@ body.modal-open { overflow: hidden; }
 .pub-steps-list li::before { content: counter(step); position: absolute; inset-inline-start: 0; top: 1px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-weight: 800; font-size: 13px; }
 .pub-steps-list b { display: block; }
 .pub-steps-list span { color: var(--text-2); font-size: 14px; }
-.home-latest h2, .home-how h2, .home-faq h2 { font-size: 20px; margin: 12px 0; text-align: center; }
-.home-more { text-align: center; margin-top: 14px; }
-.home-more .btn { min-height: 44px; }
-.home-faq { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 820px; margin-inline: auto; }
-.home-faq summary { padding: 14px 18px; font-weight: 600; cursor: pointer; }
-.home-faq details p { padding: 0 18px 16px; color: var(--text-2); line-height: 1.7; }
 @media (min-width: 900px) {
     .pub-service { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
-    .home-how .pub-steps-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* Settings page helpers */

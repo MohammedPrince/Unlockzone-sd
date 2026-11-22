@@ -1,4 +1,4 @@
-{{-- How ordering works, for visitors. Used on the home page and the public service pages. --}}
+{{-- How ordering works, for visitors. Used on the public service pages. --}}
 <ol class="pub-steps-list">
     <li><b>{{ __('Create an account') }}</b> <span>{{ __('Register and confirm your email, then sign in.') }}</span></li>
     <li><b>{{ __('Add credit') }}</b> <span>{{ __('Contact us to add credit to your account.') }}</span></li>
