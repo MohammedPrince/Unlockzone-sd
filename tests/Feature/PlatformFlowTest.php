@@ -416,8 +416,9 @@ class PlatformFlowTest extends TestCase
         $this->withCookie('locale', 'ar')->get(route('legal.privacy'))->assertOk()->assertSee('سياسة الخصوصية');
 
         // Linked from the home page, sign-in pages and the customer area.
-        $this->get('/')->assertSee(route('legal.terms'), false)->assertSee(route('legal.privacy'), false);
-        $this->get(route('login'))->assertSee(route('legal.privacy'), false);
+        // (Still Arabic here: the cookie stays, so the links lead to the Arabic addresses.)
+        $this->get('/')->assertSee(route('ar.legal.terms'), false)->assertSee(route('ar.legal.privacy'), false);
+        $this->get(route('login'))->assertSee(route('ar.legal.privacy'), false);
         // Visitors get the normal guest menu with Registration / Login, no Dashboard button.
         auth()->logout();
         $this->get(route('legal.terms'))->assertOk()->assertSee('guest-drawer', false)->assertSee(route('login'), false)->assertDontSee('>Dashboard<', false);

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Announcement;
+use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Repositories\ServiceRepository;
+use App\Support\Seo;
 use Illuminate\Http\Request;
 
 class HomeController extends Controller
@@ -29,6 +31,11 @@ class HomeController extends Controller
 
         return view('home', [
             'categories' => $categories,
+            // Links to single services, so visitors and search engines find them from the first page.
+            'latest' => Seo::catalogOpen()
+                ? Service::where('status', 'active')->whereIn('service_category_id', $categories->modelKeys())
+                    ->orderByDesc('id')->limit(12)->get(['id', 'service_category_id', 'name', 'slug', 'price', 'delivery_time', 'is_instant', 'created_at'])
+                : collect(),
             'tickerItems' => $ticker ? Announcement::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get() : collect(),
             'tickerServices' => $ticker && setting('ticker_new_services') === '1' ? $services->recentlyAdded((int) setting('new_badge_days', 7)) : collect(),
         ]);

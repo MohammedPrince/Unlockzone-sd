@@ -42,6 +42,14 @@ class SettingRepository
         'home_tagline' => 'Your premium direct source for mobile unlocking services',
         // Google Search Console "HTML tag" verification code (the content="..." value only).
         'google_site_verification' => '',
+        // Visitors and search engines can browse the services (and see the site prices) without signing in.
+        'public_catalog' => '1',
+        'public_prices' => '1',
+        // Home page title and description in search results. Empty = site name + tagline.
+        'seo_title' => '',
+        'seo_title_ar' => '',
+        'seo_description' => '',
+        'seo_description_ar' => '',
         'home_welcome' => 'Welcome! Sign in to order services, or create your account now to get started.',
         'home_popup_enabled' => '1',
         'home_popup_badge' => 'VIP NOTICE BOARD',

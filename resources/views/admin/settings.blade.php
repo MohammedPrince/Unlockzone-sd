@@ -251,6 +251,28 @@
                     <p class="help">{{ __('Paste the HTML tag from Search Console (or just its code). Keep it here after verifying, or Google will un-verify the site.') }}</p>
                     @error('google_site_verification') <p class="error-text">{{ $message }}</p> @enderror
                 </div>
+                <div class="full settings-sub" id="search-engines">
+                    <h3>{{ __('Search engines') }}</h3>
+                    <input type="hidden" name="public_catalog" value="0">
+                    <label class="check"><input type="checkbox" name="public_catalog" value="1" @checked(old('public_catalog', $settings['public_catalog']) == '1')> <span><b>{{ __('Let visitors browse the services without signing in') }}</b><br><span class="muted">{{ __('Each service and category gets its own page that Google can find. Ordering still needs an account. Links to other sites are removed from descriptions on these pages.') }}</span></span></label>
+                    <input type="hidden" name="public_prices" value="0">
+                    <label class="check"><input type="checkbox" name="public_prices" value="1" @checked(old('public_prices', $settings['public_prices']) == '1')> <span><b>{{ __('Show prices to visitors') }}</b><br><span class="muted">{{ __('The normal site price, never VIP or Web Owner prices.') }}</span></span></label>
+                    <p class="help">{{ __('Sitemap to submit in Google Search Console:') }} <a href="{{ route('sitemap') }}" target="_blank" rel="noopener" dir="ltr">{{ route('sitemap') }}</a></p>
+                </div>
+                @foreach ([
+                    ['seo_title', 'Google title (English)', 70, 'ltr'],
+                    ['seo_title_ar', 'Google title (Arabic)', 70, 'rtl'],
+                    ['seo_description', 'Google description (English)', 170, 'ltr'],
+                    ['seo_description_ar', 'Google description (Arabic)', 170, 'rtl'],
+                ] as [$key, $label, $max, $dir])
+                    <div>
+                        <label for="{{ $key }}">{{ __($label) }} <span class="muted">({{ __('optional') }})</span></label>
+                        <input type="text" id="{{ $key }}" name="{{ $key }}" value="{{ old($key, $settings[$key]) }}" maxlength="{{ $max }}" dir="{{ $dir }}">
+                        @if ($key === 'seo_title') <p class="help">{{ __('For the home page. Empty uses the server name and tagline. About 60 characters show in Google.') }}</p> @endif
+                        @if ($key === 'seo_description') <p class="help">{{ __('One or two sentences, about 155 characters. Empty uses the tagline.') }}</p> @endif
+                        @error($key) <p class="error-text">{{ $message }}</p> @enderror
+                    </div>
+                @endforeach
                 <div class="full">
                     <label for="home_welcome">{{ __('Welcome text') }}</label>
                     <textarea id="home_welcome" name="home_welcome" maxlength="500" rows="2">{{ old('home_welcome', $settings['home_welcome']) }}</textarea>

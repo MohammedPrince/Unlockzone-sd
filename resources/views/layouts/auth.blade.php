@@ -11,6 +11,15 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @include('partials.favicon')
     <title>@yield('title', __('Sign in')) · {{ $site }}</title>
+    @if (request()->routeIs('login', 'register'))
+        @include('partials.seo', ['seo' => request()->routeIs('login') ? [
+            'title' => __('Login') . ' · ' . $site,
+            'description' => __('Sign in to :site to order unlocking services, follow your orders and see your credit.', ['site' => $site]),
+        ] : [
+            'title' => __('Registration') . ' · ' . $site,
+            'description' => __('Create your :site account to order unlocking services online.', ['site' => $site]),
+        ]])
+    @endif
     @include('partials.head-theme')
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}?v={{ filemtime(public_path('assets/css/app.css')) }}">
 </head>
@@ -25,7 +34,7 @@
             @include('partials.icon', ['name' => 'menu'])
         </button>
     @endunless
-    <a class="brand" href="{{ route($isAdminPage ? 'admin.login' : 'home') }}">
+    <a class="brand" href="{{ $isAdminPage ? route('admin.login') : \App\Support\Seo::url('home') }}">
         @include('partials.brand-logo', ['small' => $__env->yieldContent('portal', __('CUSTOMER PORTAL'))])
     </a>
     <div class="site-header-tools">@include('partials.top-tools')</div>
@@ -41,9 +50,9 @@
     </div>
     @unless ($isAdminPage)
         <nav class="legal-links auth-legal" aria-label="{{ __('Legal') }}">
-            <a href="{{ route('legal.terms') }}">{{ __('Terms of Service') }}</a>
+            <a href="{{ \App\Support\Seo::url('legal.terms') }}">{{ __('Terms of Service') }}</a>
             <span aria-hidden="true">·</span>
-            <a href="{{ route('legal.privacy') }}">{{ __('Privacy Policy') }}</a>
+            <a href="{{ \App\Support\Seo::url('legal.privacy') }}">{{ __('Privacy Policy') }}</a>
         </nav>
     @endunless
 </main>
