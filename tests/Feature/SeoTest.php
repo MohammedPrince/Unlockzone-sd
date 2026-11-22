@@ -62,7 +62,7 @@ class SeoTest extends TestCase
             ->assertSee('<link rel="canonical" href="' . route('home') . '">', false)
             ->assertSee('<link rel="alternate" hreflang="ar" href="' . route('ar.home') . '">', false)
             ->assertSee('<link rel="alternate" hreflang="x-default" href="' . route('home') . '">', false)
-            ->assertSee(Seo::serviceUrl($this->service()), false)
+            ->assertSee(Seo::categoryUrl($this->service()->category), false)
             ->assertHeaderMissing('X-Robots-Tag')
             ->getContent();
         $graphs = $this->jsonLd($html);
