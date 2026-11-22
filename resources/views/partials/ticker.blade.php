@@ -16,13 +16,13 @@
                 <div class="ticker-group" @if ($copy) aria-hidden="true" @endif>
                     @foreach ($items as $item)
                         @if ($item->link)
-                            <a class="ticker-item tk-{{ $item->color }}" href="{{ $item->link }}" @if ($copy) tabindex="-1" @endif>@if ($item->icon)<span class="ticker-icon">{{ $item->icon }}</span>@endif{{ $item->localizedText() }}</a>
+                            <a class="ticker-item tk-{{ $item->color }}" href="{{ $item->link }}" @if (!in_array(parse_url($item->link, PHP_URL_HOST), [null, request()->getHost()], true)) rel="nofollow noopener noreferrer" @endif @if ($copy) tabindex="-1" @endif>@if ($item->icon)<span class="ticker-icon">{{ $item->icon }}</span>@endif{{ $item->localizedText() }}</a>
                         @else
                             <span class="ticker-item tk-{{ $item->color }}">@if ($item->icon)<span class="ticker-icon">{{ $item->icon }}</span>@endif{{ $item->localizedText() }}</span>
                         @endif
                     @endforeach
                     @foreach ($newServices as $service)
-                        <a class="ticker-item tk-green" href="{{ route('customer.services.show', $service->id) }}" @if ($copy) tabindex="-1" @endif><span class="new-tag">{{ __('New') }}</span>{{ $service->name }}<span class="ticker-price num">{{ price($service->priceFor(auth()->user())) }}</span></a>
+                        <a class="ticker-item tk-green" href="{{ !auth()->check() && \App\Support\Seo::catalogOpen() ? \App\Support\Seo::serviceUrl($service) : route('customer.services.show', $service->id) }}" @if ($copy) tabindex="-1" @endif><span class="new-tag">{{ __('New') }}</span>{{ $service->name }}@if (auth()->check() || \App\Support\Seo::showPrices())<span class="ticker-price num">{{ price($service->priceFor(auth()->user())) }}</span>@endif</a>
                     @endforeach
                 </div>
             @endforeach

@@ -16,7 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 class MaintenanceMode
 {
     /** Paths that stay open while maintenance is on. */
-    private const OPEN = ['admin', 'admin/*', 'language/*', 'provider-callback/*', 'logout', 'terms', 'privacy', 'up'];
+    private const OPEN = ['admin', 'admin/*', 'language/*', 'provider-callback/*', 'logout', 'terms', 'privacy', 'ar/terms', 'ar/privacy', 'up'];
 
     public function handle(Request $request, Closure $next): Response
     {

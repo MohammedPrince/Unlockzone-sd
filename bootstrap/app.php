@@ -17,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias(['role' => EnsureRole::class]);
         // MaintenanceMode comes after TrackVisit, so visits to the maintenance page are still counted.
-        $middleware->web(append: [\App\Http\Middleware\SetLocale::class, \App\Http\Middleware\TrackVisit::class, \App\Http\Middleware\MaintenanceMode::class]);
+        $middleware->web(append: [\App\Http\Middleware\SeoHeaders::class, \App\Http\Middleware\SetLocale::class, \App\Http\Middleware\TrackVisit::class, \App\Http\Middleware\MaintenanceMode::class]);
 
         // Providers post order updates here from their own servers (no session, no CSRF token).
         $middleware->validateCsrfTokens(except: ['provider-callback/*']);

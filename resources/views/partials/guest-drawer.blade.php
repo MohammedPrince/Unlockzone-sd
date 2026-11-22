@@ -1,7 +1,8 @@
 {{-- The visitors' slide-out menu (sign-in pages, Terms, Privacy): orange head, Registration / Login, categories, legal links. --}}
 @php
     try {
-        $guestCategories = \App\Models\ServiceCategory::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get(['id', 'name']);
+        $guestCategories = \App\Models\ServiceCategory::where('status', 'active')->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'slug']);
+        $catalogOpen = \App\Support\Seo::catalogOpen();
     } catch (\Throwable) {
         $guestCategories = collect();
     }
@@ -18,20 +19,20 @@
         <a class="btn btn-dark" href="{{ route('login') }}">{{ __('Login') }}</a>
     </div>
     <nav class="drawer-nav">
-        <a href="{{ route('home') }}">{{ __('Home') }} <span aria-hidden="true">›</span></a>
+        <a href="{{ \App\Support\Seo::url('home') }}">{{ __('Home') }} <span aria-hidden="true">›</span></a>
     </nav>
     @if ($guestCategories->isNotEmpty())
         <p class="drawer-label">{{ __('Reseller pricing') }}</p>
         <nav class="drawer-nav">
             @foreach ($guestCategories as $category)
-                <a href="{{ route('login') }}">{{ $category->name }} <span aria-hidden="true">›</span></a>
+                <a href="{{ $catalogOpen ? \App\Support\Seo::categoryUrl($category) : route('login') }}">{{ $category->name }} <span aria-hidden="true">›</span></a>
             @endforeach
         </nav>
     @endif
     <p class="drawer-label">{{ __('Legal') }}</p>
     <nav class="drawer-nav">
-        <a href="{{ route('legal.terms') }}" @if (request()->routeIs('legal.terms')) aria-current="page" @endif>{{ __('Terms of Service') }} <span aria-hidden="true">›</span></a>
-        <a href="{{ route('legal.privacy') }}" @if (request()->routeIs('legal.privacy')) aria-current="page" @endif>{{ __('Privacy Policy') }} <span aria-hidden="true">›</span></a>
+        <a href="{{ \App\Support\Seo::url('legal.terms') }}" @if (request()->routeIs('legal.terms', 'ar.legal.terms')) aria-current="page" @endif>{{ __('Terms of Service') }} <span aria-hidden="true">›</span></a>
+        <a href="{{ \App\Support\Seo::url('legal.privacy') }}" @if (request()->routeIs('legal.privacy', 'ar.legal.privacy')) aria-current="page" @endif>{{ __('Privacy Policy') }} <span aria-hidden="true">›</span></a>
     </nav>
 </aside>
 <div class="overlay" data-nav-toggle></div>

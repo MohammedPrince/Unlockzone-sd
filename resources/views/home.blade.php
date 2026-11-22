@@ -23,16 +23,36 @@
     $popupOn = setting('home_popup_enabled') === '1';
     $popupText = trim((string) setting('home_popup_text'));
     $features = $categories->take(3);
+    $tagline = \App\Support\Seo::text('home_tagline');
+    $welcome = \App\Support\Seo::text('home_welcome');
+    $catalogOpen = \App\Support\Seo::catalogOpen();
+    $showPrices = \App\Support\Seo::showPrices();
+
+    // Questions and answers at the bottom of the page.
+    $faq = [
+        [__('How do I order a service?'), __('Create an account, add credit, then choose a service and enter what it asks for. The price is taken from your credit.')],
+        [__('How do I find my IMEI?'), __('Dial *#06# on the phone. The 15-digit IMEI appears on the screen.')],
+        [__('How long does a service take?'), __('Each service shows its own delivery time on its page before you order.')],
+        [__('What happens if my order fails?'), __('If an order fails or is cancelled, the full amount is refunded to your balance.')],
+        [__('Can I connect my own website?'), __('Yes. Our server works with the DHRU Fusion API, so resellers can connect their own site. Contact us for access.')],
+    ];
+
+    // What search engines show for this page: Admin > Settings > Search engines, or the site name and tagline.
+    $seo = [
+        'title' => \App\Support\Seo::custom('seo_title') ?: ($tagline !== '' ? $site . ' · ' . $tagline : $site),
+        'description' => \App\Support\Seo::custom('seo_description') ?: $tagline,
+        'jsonld' => [\App\Support\Seo::organization(), \App\Support\Seo::website()],
+    ];
 @endphp
 <!doctype html>
 <html lang="{{ $locale }}" dir="{{ $locale === 'ar' ? 'rtl' : 'ltr' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    @include('partials.share-meta')
+    @include('partials.seo')
     <meta name="theme-color" content="#0a1424">
     @include('partials.favicon')
-    <title>{{ $site }} · {{ setting('home_tagline') }}</title>
+    <title>{{ $seo['title'] }}</title>
     @include('partials.head-theme')
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}?v={{ filemtime(public_path('assets/css/app.css')) }}">
 </head>
@@ -57,11 +77,11 @@
 {{-- Header: logo, links, sign-in --}}
 <header class="home-header">
     <div class="home-wrap home-header-inner">
-        <a class="brand" href="{{ route('home') }}">
+        <a class="brand" href="{{ \App\Support\Seo::url('home') }}">
             @include('partials.brand-logo')
         </a>
         <nav class="home-nav" aria-label="{{ __('Main menu') }}">
-            @if ($categories->isNotEmpty()) <a class="hide-sm" href="#services">{{ __('Services') }}</a> @endif
+            @if ($categories->isNotEmpty()) <a class="hide-sm" href="{{ $catalogOpen ? \App\Support\Seo::url('public.catalog') : '#services' }}">{{ __('Services') }}</a> @endif
             @if ($canRegister) <a class="btn" href="{{ route('register') }}">{{ __('Registration') }}</a> @endif
             <a class="btn btn-primary" href="{{ route('login') }}">@include('partials.icon', ['name' => 'lock']) {{ __('Login') }}</a>
         </nav>
@@ -104,7 +124,7 @@
         <div class="home-hero-body">
             @include('partials.brand-mark')
             <h1>{{ __('Welcome to :site', ['site' => $site]) }}</h1>
-            <p dir="auto">{{ setting('home_welcome') }}</p>
+            <p dir="auto">{{ $welcome }}</p>
             <div class="home-cta">
                 @if ($canRegister)
                     <a class="btn btn-primary btn-lg" href="{{ route('register') }}">@include('partials.icon', ['name' => 'user']) {{ __('Create an account') }}</a>
@@ -130,20 +150,20 @@
 
     {{-- What we sell --}}
     <section class="home-services" id="services">
-        <h2>{{ mb_strtoupper($site) }}</h2>
-        <p class="muted" dir="auto">{{ setting('home_tagline') }}</p>
+        <h2>{{ __('Unlocking services') }}</h2>
+        <p class="muted" dir="auto">{{ $tagline }}</p>
 
         @if ($categories->isEmpty())
             <p class="muted" style="margin-top: 18px">{{ __('Services will be listed here soon.') }}</p>
         @else
             <div class="home-cats">
                 @foreach ($categories as $category)
-                    <a class="home-cat" href="{{ route('login') }}">
+                    <a class="home-cat" href="{{ $catalogOpen ? \App\Support\Seo::categoryUrl($category) : route('login') }}">
                         <h3 dir="auto">{{ $category->name }}</h3>
                         @if ($category->description) <p dir="auto">{{ \Illuminate\Support\Str::limit($category->description, 110) }}</p> @endif
                         <div class="home-cat-foot">
                             <span>{{ trans_choice('{1} :count service|[2,*] :count services', $category->services_count, ['count' => $category->services_count]) }}</span>
-                            @if ($category->services_min_price !== null)
+                            @if ($showPrices && $category->services_min_price !== null)
                                 <b class="num">{{ __('From :price', ['price' => price($category->services_min_price)]) }}</b>
                             @endif
                         </div>
@@ -151,6 +171,26 @@
                 @endforeach
             </div>
         @endif
+    </section>
+
+    @if ($latest->isNotEmpty())
+        <section class="home-latest">
+            <h2>{{ __('Latest services') }}</h2>
+            <div class="card pub-group">@include('partials.public-services', ['list' => $latest])</div>
+            <p class="home-more"><a class="btn" href="{{ \App\Support\Seo::url('public.catalog') }}">{{ __('See all services') }}</a></p>
+        </section>
+    @endif
+
+    <section class="home-how">
+        <h2>{{ __('How to order') }}</h2>
+        <div class="card"><div class="card-body">@include('partials.public-steps')</div></div>
+    </section>
+
+    <section class="home-faq">
+        <h2>{{ __('Common questions') }}</h2>
+        @foreach ($faq as [$question, $answer])
+            <details class="card"><summary>{{ $question }}</summary><p>{{ $answer }}</p></details>
+        @endforeach
     </section>
 </main>
 
@@ -169,7 +209,7 @@
                 @if ($popupText !== '')
                     <div class="home-notice-text" dir="auto">{!! nl2br(e($popupText)) !!}</div>
                 @else
-                    <div class="home-notice-text" dir="auto"><b>{{ __('Welcome to :site', ['site' => $site]) }}</b><br>{{ setting('home_welcome') }}</div>
+                    <div class="home-notice-text" dir="auto"><b>{{ __('Welcome to :site', ['site' => $site]) }}</b><br>{{ $welcome }}</div>
                 @endif
 
                 @if ($features->isNotEmpty())

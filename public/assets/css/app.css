@@ -1108,6 +1108,54 @@ body.modal-open { overflow: hidden; }
 /* The header shows the full logo, so the name beside it is not needed. */
 .home-header .brand > span:last-child.brand-wide { display: inline-flex; }
 
+/* Public service pages and the home page's service list, steps and questions */
+.pub-main { width: 100%; max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding-bottom: 90px; }
+.public-page:has(.pub-main) .title-strip h1 { max-width: 1048px; font-size: 22px; font-weight: 600; overflow-wrap: anywhere; }
+[dir=rtl] .public-page .title-strip h1 { text-align: right; }
+.pub-crumbs ol { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.pub-crumbs li { display: inline-flex; gap: 8px; min-width: 0; color: var(--muted); }
+.pub-crumbs li + li::before { content: "/"; }
+.pub-crumbs a { color: var(--text-2); overflow-wrap: anywhere; }
+.pub-intro { color: var(--text-2); font-size: 15px; line-height: 1.7; max-width: 75ch; }
+.home-cat h2 { font-size: 16px; }
+.pub-search { display: flex; gap: 8px; max-width: 520px; }
+.pub-search input { flex: 1; min-width: 0; min-height: 44px; }
+.pub-search .btn { min-height: 44px; }
+.pub-group { overflow: hidden; }
+.pub-group .card-head h2 { overflow-wrap: anywhere; }
+.pub-list { margin: 0; padding: 0; list-style: none; text-align: start; }
+.pub-list li + li { border-top: 1px solid var(--line-soft); }
+.pub-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 44px; padding: 12px 18px; color: var(--text); }
+.pub-item:hover { background: var(--panel-2); text-decoration: none; }
+.pub-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.pub-name small { display: block; font-size: 12px; }
+.pub-price { flex: none; color: var(--green); font-weight: 800; }
+.pub-service { display: grid; gap: 16px; }
+.pub-service > * { min-width: 0; }
+.pub-steps { align-self: start; }
+.pub-facts { margin: 0; }
+.pub-facts div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.pub-facts dt { color: var(--muted); flex: none; }
+.pub-facts dd { margin: 0; text-align: end; overflow-wrap: anywhere; min-width: 0; }
+.pub-facts .pub-price { font-size: 22px; }
+.pub-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.pub-cta .btn { flex: 1 1 180px; min-height: 46px; justify-content: center; }
+.pub-steps-list { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 16px; text-align: start; }
+.pub-steps-list li { position: relative; padding-inline-start: 42px; counter-increment: step; line-height: 1.6; }
+.pub-steps-list li::before { content: counter(step); position: absolute; inset-inline-start: 0; top: 1px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-weight: 800; font-size: 13px; }
+.pub-steps-list b { display: block; }
+.pub-steps-list span { color: var(--text-2); font-size: 14px; }
+.home-latest h2, .home-how h2, .home-faq h2 { font-size: 20px; margin: 12px 0; text-align: center; }
+.home-more { text-align: center; margin-top: 14px; }
+.home-more .btn { min-height: 44px; }
+.home-faq { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 820px; margin-inline: auto; }
+.home-faq summary { padding: 14px 18px; font-weight: 600; cursor: pointer; }
+.home-faq details p { padding: 0 18px 16px; color: var(--text-2); line-height: 1.7; }
+@media (min-width: 900px) {
+    .pub-service { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+    .home-how .pub-steps-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
 /* Settings page helpers */
 .logo-row { display: flex; align-items: center; gap: 12px; }
 .logo-row .brand-mark { width: 44px; height: 44px; border-radius: 12px; }

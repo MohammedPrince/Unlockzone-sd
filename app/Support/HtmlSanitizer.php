@@ -72,6 +72,66 @@ class HtmlSanitizer
         return ($hasText || $hasMedia) ? $out : null;
     }
 
+    /**
+     * A description for visitors and search engines: links and pictures from other sites are removed (their text
+     * stays), so this site does not point Google at downloads it has no control over.
+     */
+    public static function forVisitors(?string $html, string $host): string
+    {
+        $html = trim((string) rich_text($html));
+        if ($html === '') {
+            return '';
+        }
+
+        $document = new DOMDocument('1.0', 'UTF-8');
+        $previous = libxml_use_internal_errors(true);
+        $document->loadHTML(
+            '<?xml encoding="UTF-8"><html><body><div>' . $html . '</div></body></html>',
+            LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING
+        );
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        $own = fn (string $url) => ($h = parse_url($url, PHP_URL_HOST)) === null
+            ? preg_match('/^[a-z][a-z0-9+.\-]*:/i', $url) !== 1
+            : strcasecmp((string) $h, $host) === 0;
+
+        foreach (iterator_to_array($document->getElementsByTagName('a')) as $link) {
+            if (!$own($link->getAttribute('href'))) {
+                while ($link->firstChild) {
+                    $link->parentNode->insertBefore($link->firstChild, $link);
+                }
+                $link->parentNode->removeChild($link);
+            }
+        }
+        foreach (iterator_to_array($document->getElementsByTagName('img')) as $image) {
+            if ($own($image->getAttribute('src'))) {
+                $image->setAttribute('loading', 'lazy');
+            } else {
+                $image->parentNode->removeChild($image);
+            }
+        }
+        // The page has its own main heading.
+        foreach (iterator_to_array($document->getElementsByTagName('h1')) as $heading) {
+            $lower = $document->createElement('h2');
+            while ($heading->firstChild) {
+                $lower->appendChild($heading->firstChild);
+            }
+            $heading->parentNode->replaceChild($lower, $heading);
+        }
+        foreach ((new \DOMXPath($document))->query('//text()') as $text) {
+            $text->nodeValue = Seo::stripUrls($text->nodeValue);
+        }
+
+        $out = '';
+        $wrapper = $document->getElementsByTagName('body')->item(0)?->firstChild;
+        foreach ($wrapper?->childNodes ?? [] as $child) {
+            $out .= $document->saveHTML($child);
+        }
+
+        return trim(html_entity_decode(strip_tags($out, '<img>')), " \t\n\r\0\x0B\u{00A0}") === '' ? '' : trim($out);
+    }
+
     private static function walk(DOMNode $node): void
     {
         foreach (iterator_to_array($node->childNodes) as $child) {

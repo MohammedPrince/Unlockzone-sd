@@ -50,10 +50,10 @@
                 @if ($whatsapp !== '') <a class="btn btn-contact wa" href="https://wa.me/{{ $whatsapp }}" target="_blank" rel="noopener noreferrer">@include('partials.icon', ['name' => 'whatsapp']) WhatsApp</a> @endif
             </div>
             <p class="muted legal-other">
-                @if (request()->routeIs('legal.terms'))
-                    <a href="{{ route('legal.privacy') }}">{{ $ar ? 'اقرأ أيضاً: سياسة الخصوصية' : 'Also read: Privacy Policy' }}</a>
+                @if (request()->routeIs('legal.terms', 'ar.legal.terms'))
+                    <a href="{{ \App\Support\Seo::url('legal.privacy') }}">{{ $ar ? 'اقرأ أيضاً: سياسة الخصوصية' : 'Also read: Privacy Policy' }}</a>
                 @else
-                    <a href="{{ route('legal.terms') }}">{{ $ar ? 'اقرأ أيضاً: شروط الخدمة' : 'Also read: Terms of Service' }}</a>
+                    <a href="{{ \App\Support\Seo::url('legal.terms') }}">{{ $ar ? 'اقرأ أيضاً: شروط الخدمة' : 'Also read: Terms of Service' }}</a>
                 @endif
             </p>
         </div>

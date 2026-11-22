@@ -200,6 +200,8 @@
     if (popup) {
         var seen = false;
         try { seen = sessionStorage.getItem('home-popup') === 'seen'; } catch (e) { /* storage blocked: show it */ }
+        // Google ranks pages lower when a popup covers them for people arriving from its results.
+        if (/^https?:\/\/([^\/]+\.)?(google|bing|duckduckgo|yahoo|yandex|ecosia)\.[a-z.]+(\/|$)/i.test(document.referrer)) { seen = true; }
         var closePopup = function () {
             popup.hidden = true;
             document.body.classList.remove('modal-open');

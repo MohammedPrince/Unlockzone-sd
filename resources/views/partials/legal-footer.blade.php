@@ -2,9 +2,13 @@
 <footer class="home-footer">
     <div class="home-wrap">
         <nav class="legal-links" aria-label="{{ __('Legal') }}">
-            <a href="{{ route('legal.terms') }}">{{ __('Terms of Service') }}</a>
+            @if (\App\Support\Seo::catalogOpen())
+                <a href="{{ \App\Support\Seo::url('public.catalog') }}">{{ __('Services') }}</a>
+                <span aria-hidden="true">·</span>
+            @endif
+            <a href="{{ \App\Support\Seo::url('legal.terms') }}">{{ __('Terms of Service') }}</a>
             <span aria-hidden="true">·</span>
-            <a href="{{ route('legal.privacy') }}">{{ __('Privacy Policy') }}</a>
+            <a href="{{ \App\Support\Seo::url('legal.privacy') }}">{{ __('Privacy Policy') }}</a>
         </nav>
         @php
             try {

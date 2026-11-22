@@ -8,6 +8,28 @@ use Illuminate\Support\Facades\Route;
 // Visitors see the public home page; signed-in users are sent to their dashboard.
 Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
+/* ---------- Search engines (no session or cookies) ---------- */
+Route::withoutMiddleware('web')->group(function () {
+    Route::get('robots.txt', [\App\Http\Controllers\SitemapController::class, 'robots'])->name('robots');
+    Route::get('sitemap.xml', [\App\Http\Controllers\SitemapController::class, 'sitemap'])->name('sitemap');
+});
+
+/* ---------- Services for visitors, without signing in (can be closed in Admin > Settings) ---------- */
+$publicCatalog = function () {
+    Route::get('catalog', [\App\Http\Controllers\CatalogController::class, 'index'])->name('public.catalog');
+    Route::get('catalog/{category}', [\App\Http\Controllers\CatalogController::class, 'category'])->where('category', '[0-9]{1,9}(-[^/]*)?')->name('public.category');
+    Route::get('service/{service}', [\App\Http\Controllers\CatalogController::class, 'service'])->where('service', '[0-9]{1,9}(-[^/]*)?')->name('public.service');
+};
+$publicCatalog();
+
+/* ---------- The public pages in Arabic at their own addresses (/ar/...), so search engines can find them ---------- */
+Route::prefix('ar')->name('ar.')->group(function () use ($publicCatalog) {
+    Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
+    Route::view('terms', 'legal.terms')->name('legal.terms');
+    Route::view('privacy', 'legal.privacy')->name('legal.privacy');
+    $publicCatalog();
+});
+
 /* ---------- Public legal pages (Arabic or English, following the chosen language) ---------- */
 // DHRU Fusion Pro Reseller providers announce finished orders here; the result is then read from their API.
 Route::post('provider-callback/{provider}', \App\Http\Controllers\ProviderCallbackController::class)
@@ -20,7 +42,15 @@ Route::view('privacy', 'legal.privacy')->name('legal.privacy');
 Route::get('language/{locale}', function (string $locale) {
     abort_unless(in_array($locale, \App\Http\Middleware\SetLocale::SUPPORTED, true), 404);
 
-    return back()->withCookie(cookie('locale', $locale, 60 * 24 * 365));
+    // Leaving an Arabic address (/ar/...) for English: go to the same page without "/ar".
+    $from = url()->previous();
+    $root = rtrim(url('/'), '/');
+    $path = str_starts_with($from, $root . '/') ? substr($from, strlen($root)) : '';
+    if ($locale === 'en' && preg_match('#^/ar(?=[/?]|$)#', $path)) {
+        $from = $root . '/' . ltrim(substr($path, 3), '/');
+    }
+
+    return redirect()->to($from)->withCookie(cookie('locale', $locale, 60 * 24 * 365));
 })->name('locale');
 
 /* ---------- Guests: customer sign in, registration, password reset ---------- */
