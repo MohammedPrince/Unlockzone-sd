@@ -24,3 +24,5 @@ yarn-error.log
 /.claude
 # Pictures uploaded through the service description editor are site content, not code.
 /public/uploads/services
+# Standalone mobile-app API (plain PHP, not Laravel), served at /app/api. Deployed by hand, kept out of git.
+/public/app/api
